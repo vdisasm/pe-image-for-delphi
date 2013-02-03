@@ -43,7 +43,9 @@ uses
   PE.Parser.Resources,
 
   PE.COFF,
-  PE.COFF.Types;
+  PE.COFF.Types,
+
+  PE.MemoryStream;
 
 type
 
@@ -54,6 +56,10 @@ type
   TPEImage = class
   private
     FImageKind: TPEImageKind;
+
+    // Used only for loading from mapped image. Nil for disk images.
+    FPEMemoryStream: TPEMemoryStream;
+
     FFileName: string;
     FFileSize: UInt64;
     FDefaults: TPEDefaults;
@@ -123,6 +129,16 @@ type
     procedure SetPositionVA(const Value: TVA);
 
     procedure SetPositionRVA(const Value: TRVA);
+
+  protected
+
+    // If image is disk-based, result is created TFileStream.
+    // If it's memory mapped, result is opened memory stream.
+    function SourceStreamGet(Mode: word): TStream;
+
+    // If image is disk-based, stream is freed.
+    // If it's memory mapped, nothing happens.
+    procedure SourceStreamFree(Stream: TStream);
 
   public
 
@@ -287,7 +303,7 @@ type
     function SaveOverlayToFile(const AFileName: string; Append: boolean = false): boolean;
 
     // Remove overlay from current image file.
-    function RemoveOverlayFromImage: boolean;
+    function RemoveOverlay: boolean;
 
     { Writing to external stream }
 
@@ -460,6 +476,9 @@ end;
 
 procedure TPEImage.Clear;
 begin
+  if FImageKind = PEIMAGE_KIND_MEMORY then
+    raise Exception.Create('Can''t clear mapped in-memory image.');
+
   FLFANew := 0;
   SetLength(FDosBlock, 0);
   SetLength(FSecHdrGap, 0);
@@ -475,8 +494,7 @@ end;
 
 destructor TPEImage.Destroy;
 begin
-  Clear;
-
+  FPEMemoryStream.Free;
   FResourceTree.Free;
   FTLS.Free;
   FExports.Free;
@@ -485,7 +503,6 @@ begin
   FSections.Free;
   FDataDirectories.Free;
   FCOFF.Free;
-
   inherited Destroy;
 end;
 
@@ -797,6 +814,20 @@ begin
   inc(FPositionRVA, Count);
 end;
 
+procedure TPEImage.SourceStreamFree(Stream: TStream);
+begin
+  if FImageKind = PEIMAGE_KIND_DISK then
+    Stream.Free;
+end;
+
+function TPEImage.SourceStreamGet(Mode: word): TStream;
+begin
+  if FImageKind = PEIMAGE_KIND_DISK then
+    Result := TFileStream.Create(FFileName, Mode)
+  else
+    Result := FPEMemoryStream;
+end;
+
 function TPEImage.ReadUnicodeString: UnicodeString;
 var
   Len, i: UInt16;
@@ -998,11 +1029,11 @@ begin
   end;
 end;
 
-// todo: LoadFromMappedImage
 function TPEImage.LoadFromMappedImage(const AFileName: string;
   AParseStages: TParserFlags): boolean;
 begin
-  raise Exception.Create('ToDo: LoadFromMappedImage');
+  FPEMemoryStream := TPEMemoryStream.Create(AFileName);
+  Result := LoadFromStream(FPEMemoryStream, AParseStages, PEIMAGE_KIND_MEMORY);
 end;
 
 function TPEImage.LoadFromStream(AStream: TStream; AParseStages: TParserFlags;
@@ -1071,6 +1102,10 @@ begin
   // Load Section Headers first.
   AStream.Position := SecHdrOfs;
   LoadSectionHeaders(AStream);
+
+  // Mapped image can't have overlay, so correct total size.
+  if FImageKind = PEIMAGE_KIND_MEMORY then
+    FFileSize := FSections.Last.GetEndRawOffset;
 
   // Convert /%num% section names to long names if possible.
   ResolveSectionNames;
@@ -1192,10 +1227,11 @@ end;
 function TPEImage.SaveOverlayToFile(const AFileName: string;
   Append: boolean = false): boolean;
 var
-  src, dst: TFileStream;
+  src, dst: TStream;
   ovr: POverlay;
 begin
   Result := false;
+
   ovr := GetOverlay;
   if Assigned(ovr) then
   begin
@@ -1203,7 +1239,7 @@ begin
     if ovr^.Size = 0 then
       exit(true);
     try
-      src := TFileStream.Create(self.FFileName, fmOpenRead or fmShareDenyWrite);
+      src := SourceStreamGet(fmOpenRead or fmShareDenyWrite);
 
       if Append and FileExists(AFileName) then
       begin
@@ -1218,7 +1254,7 @@ begin
         dst.CopyFrom(src, ovr^.Size);
         Result := true;
       finally
-        src.Free;
+        SourceStreamFree(src);
         dst.Free;
       end;
     except
@@ -1226,12 +1262,19 @@ begin
   end;
 end;
 
-function TPEImage.RemoveOverlayFromImage: boolean;
+function TPEImage.RemoveOverlay: boolean;
 var
   ovr: POverlay;
   fs: TFileStream;
 begin
   Result := false;
+
+  if FImageKind = PEIMAGE_KIND_MEMORY then
+  begin
+    FMsg.Write('Can''t remove overlay from mapped image.');
+    exit;
+  end;
+
   ovr := GetOverlay;
   if (ovr <> nil) and (ovr^.Size <> 0) then
   begin

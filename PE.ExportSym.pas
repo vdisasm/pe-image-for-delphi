@@ -7,16 +7,19 @@ uses
   PE.Common;
 
 type
+
+  { TPEExportSym }
+
   TPEExportSym = class
-    // For reading.
     RVA: TRVA;
     Ordinal: dword;
     Name: AnsiString;
     ForwarderName: AnsiString;
     Forwarder: boolean;
-    // Temporary for building exports.
-    // nameRVA: TRVA;
-    function IsValid: boolean; inline; // export is not just a dumb record
+
+    // Is this symbol has RVA or is forwarder.
+    function IsValid: boolean; inline;
+
     procedure Clear;
     function Clone: TPEExportSym;
   end;
@@ -26,10 +29,12 @@ type
   TPEExportSymVec = TList<TPEExportSym>;
   TPEExportSymByRVA = TDictionary<TRVA, TPEExportSym>;
 
+  { TPEExportSyms }
+
   TPEExportSyms = class
   private
     FItems: TPEExportSymVec;
-    FItemsByRVA: TPEExportSymByRVA;
+    // FItemsByRVA: TPEExportSymByRVA;
     function GetCount: integer;
     procedure ExportSymNotify(Sender: TObject; const Item: TPEExportSym;
       Action: TCollectionNotification);
@@ -51,7 +56,8 @@ type
     procedure Clear;
 
     // Get item by RVA or nil if not found.
-    function GetItemByRVA(RVA: TRVA): TPEExportSym; inline;
+    // todo: there can be many exports with same RVA
+    // function GetItemByRVA(RVA: TRVA): TPEExportSym; inline;
 
     property Count: integer read GetCount;
     property Items: TPEExportSymVec read FItems;
@@ -69,7 +75,7 @@ begin
   result.Forwarder := self.Forwarder;
 end;
 
-function TPEExportSym.IsValid: boolean; // export is not just a dumb record
+function TPEExportSym.IsValid: boolean;
 begin
   // Either forwarder or has rva.
   result := Forwarder or (RVA <> 0);
@@ -91,7 +97,8 @@ begin
   if SetOrdinal then
     Item.Ordinal := FItems.Count + 1;
   FItems.Add(Item);
-  FItemsByRVA.Add(Item.RVA, Item);
+  // todo: there can be many exports with same RVA
+  // FItemsByRVA.Add(Item.RVA, Item);
 end;
 
 procedure TPEExportSyms.AddByName(RVA: TRVA; const Name: AnsiString);
@@ -128,7 +135,7 @@ end;
 procedure TPEExportSyms.Clear;
 begin
   FItems.Clear;
-  FItemsByRVA.Clear;
+  // FItemsByRVA.Clear;
 end;
 
 constructor TPEExportSyms.Create;
@@ -136,12 +143,12 @@ begin
   FItems := TPEExportSymVec.Create;
   FItems.OnNotify := ExportSymNotify;
 
-  FItemsByRVA := TPEExportSymByRVA.Create;
+  // FItemsByRVA := TPEExportSymByRVA.Create;
 end;
 
 destructor TPEExportSyms.Destroy;
 begin
-  FItemsByRVA.Free;
+  // FItemsByRVA.Free;
   FItems.Free;
   inherited;
 end;
@@ -158,10 +165,10 @@ begin
   result := FItems.Count;
 end;
 
-function TPEExportSyms.GetItemByRVA(RVA: TRVA): TPEExportSym;
-begin
-  if not FItemsByRVA.TryGetValue(RVA, result) then
-    result := nil;
-end;
+// function TPEExportSyms.GetItemByRVA(RVA: TRVA): TPEExportSym;
+// begin
+// if not FItemsByRVA.TryGetValue(RVA, result) then
+// result := nil;
+// end;
 
 end.
