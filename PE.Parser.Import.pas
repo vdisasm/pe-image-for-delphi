@@ -35,7 +35,8 @@ var
   dq: uint64;
   sizet: byte;
   IDir: TImportDirectoryTable;
-  IATRVA, PATCHRVA: uint64; // patchrva - place where loader will put new address
+  IATRVA: uint64;
+  PATCHRVA: uint64; // place where loader will put new address
   IDirs: TImpDirs;
   ILT: TImportLookupTable;
   ILTs: TILTs;
@@ -133,8 +134,7 @@ begin
       begin
         ILT.Create(dq, bIs32);
 
-        ImpFn := TPEImportFunction.Create;
-        // ImpFn.Clear;
+        ImpFn := TPEImportFunction.CreateEmpty;
         ImpFn.RVA := PATCHRVA;
 
         // By ordinal.

@@ -26,13 +26,14 @@ uses
   PE.Types.Directories,
   PE.Build.Common,
 
-  PE.Build.Export;
+  PE.Build.Export,
+  PE.Build.Import;
 
 const
   RebuilderTable: array [0 .. DDIR_LAST] of TDirectoryBuilderClass =
     (
     PE.Build.Export.TExportBuilder, // export
-    nil,                            // import
+    PE.Build.Import.TImportBuilder, // import
     nil,                            // resources
     nil,                            // exception
     nil,                            // certificate
@@ -99,7 +100,6 @@ begin
     begin
       sec := img.Sections.AddNew(builder.GetDefaultSectionName, stream.Size,
         builder.GetDefaultSectionFlags, nil);
-      Result := sec;
       destRVA := sec.RVA;
       destSize := stream.Size;
     end;
@@ -116,6 +116,9 @@ begin
 
     // Update directory pointer.
     img.DataDirectories.Put(DDIR_ID, destRVA, destSize);
+
+    Result := sec;
+
   finally
     builder.Free;
     stream.Free;

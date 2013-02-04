@@ -25,8 +25,6 @@ implementation
 
 uses
   System.Generics.Collections,
-
-  PE.Image,
   PE.ExportSym,
   PE.Types.Export;
 
