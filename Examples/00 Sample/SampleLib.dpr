@@ -1,5 +1,7 @@
 library SampleLib;
 
+{ Procedures for export }
+
 procedure p_ord_10;
 begin
 end;
@@ -28,6 +30,9 @@ procedure p7;
 begin
 end;
 
+var
+  ExpVar: integer;
+
 exports
   p_ord_10 index $10,
   p_ord_20 index $20,
@@ -35,7 +40,8 @@ exports
   p4 name 'p4',
   p_ord_50 index $50,
   p6,
-  p7;
+  p7,
+  ExpVar;
 
 begin
 
