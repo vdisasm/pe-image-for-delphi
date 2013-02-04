@@ -10,30 +10,16 @@ interface
 
 uses
   System.Classes,
-  PE.Common,
-  PE.Section;
+  PE.Build.Common,
+  PE.Common;
 
-{
-  * Build export table and store it to stream.
-  *
-  * PE:              Source PE Image.
-  * ExportTableRVA:  RVA of table start.
-  * Stream:          Stream to store export table.
-}
-
-procedure BuildExports(PE: TObject; ExportTableRVA: TRVA; Stream: TStream);
-
-{
-  * Rebuild export section.
-  *
-  * If TryToOverwriteExportSecttion is True, it will try to put new export
-  * section at old section space (if new section is smaller).
-  *
-  * If new section is bigger than old it will be forced to create new section.
-  *
-  * Result is new section if it was created or nil if old section was replaced.
-}
-function ReBuildExports(PE: TObject; TryToOverwriteExportSecttion: boolean): TPESection;
+type
+  TExportBuilder = class(TDirectoryBuilder)
+  public
+    procedure Build(DirRVA: UInt64; Stream: TStream); override;
+    class function GetDefaultSectionFlags: Cardinal; override;
+    class function GetDefaultSectionName: string; override;
+  end;
 
 implementation
 
@@ -42,10 +28,8 @@ uses
 
   PE.Image,
   PE.ExportSym,
-  PE.Types.Export,
-  PE.Types.Directories;
+  PE.Types.Export;
 
-procedure BuildExports(PE: TObject; ExportTableRVA: TRVA; Stream: TStream);
 type
   TSym = record
     sym: TPEExportSym;
@@ -53,8 +37,11 @@ type
   end;
 
   TSyms = TList<TSym>;
+
+  { TExportBuilder }
+
+procedure TExportBuilder.Build(DirRVA: UInt64; Stream: TStream);
 var
-  p: TPEImage;
   i: integer;
   ExpDir: TImageExportDirectory;
   ofs_SymRVAs: uint32;  // sym rvas offsets
@@ -70,8 +57,6 @@ var
   nSym: TSym;
   ordinal: word;
 begin
-  p := TPEImage(PE);
-
   nSyms := TSyms.Create;
 
   try
@@ -79,34 +64,34 @@ begin
     // Collect named items
     // Find min and max index.
     maxIndex := 0;
-    if p.ExportSyms.Count = 0 then
+    if FPE.ExportSyms.Count = 0 then
       minIndex := 1
     else
       minIndex := $FFFF;
 
-    for sym in p.ExportSyms.Items do
-      begin
-        nSym.sym := sym;
-        nSym.nameRVA := 0;
-        nSyms.Add(nSym);
+    for sym in FPE.ExportSyms.Items do
+    begin
+      nSym.sym := sym;
+      nSym.nameRVA := 0;
+      nSyms.Add(nSym);
 
-        if sym.ordinal > maxIndex then
-          maxIndex := sym.ordinal;
-        if sym.ordinal < minIndex then
-          minIndex := sym.ordinal;
-      end;
+      if sym.ordinal > maxIndex then
+        maxIndex := sym.ordinal;
+      if sym.ordinal < minIndex then
+        minIndex := sym.ordinal;
+    end;
 
     // Create rvas.
     if maxIndex <> 0 then
+    begin
+      SetLength(rvas, maxIndex); // zeroed by compiler
+      for i := 0 to FPE.ExportSyms.Count - 1 do
       begin
-        SetLength(rvas, maxIndex); // zeroed by compiler
-        for i := 0 to p.ExportSyms.Count - 1 do
-          begin
-            sym := p.ExportSyms.Items[i];
-            if sym.ordinal <> 0 then
-              rvas[sym.ordinal - minIndex] := sym.RVA;
-          end;
+        sym := FPE.ExportSyms.Items[i];
+        if sym.ordinal <> 0 then
+          rvas[sym.ordinal - minIndex] := sym.RVA;
       end;
+    end;
 
     // Calc offsets.
     ofs_SymRVAs := SizeOf(ExpDir);
@@ -119,44 +104,44 @@ begin
     Stream.Position := ofs_LibName;
 
     // Write exported name.
-    if p.ExportedName <> '' then
-      p.StreamWriteStrA(Stream, p.ExportedName);
+    if FPE.ExportedName <> '' then
+      FPE.StreamWriteStrA(Stream, FPE.ExportedName);
 
     // Write names.
     for i := 0 to nSyms.Count - 1 do
-      begin
-        nSym := nSyms[i];
-        nSym.nameRVA := ExportTableRVA + Stream.Position;
-        nSyms[i] := nSym;
-        p.StreamWriteStrA(Stream, nSym.sym.Name);
-      end;
+    begin
+      nSym := nSyms[i];
+      nSym.nameRVA := DirRVA + Stream.Position;
+      nSyms[i] := nSym;
+      FPE.StreamWriteStrA(Stream, nSym.sym.Name);
+    end;
 
     // Write forwarder names.
     for i := 0 to nSyms.Count - 1 do
+    begin
+      nSym := nSyms[i];
+      if nSym.sym.Forwarder then
       begin
-        nSym := nSyms[i];
-        if nSym.sym.Forwarder then
-          begin
-            rvas[nSym.sym.ordinal - minIndex] := ExportTableRVA + Stream.Position;
-            p.StreamWriteStrA(Stream, nSym.sym.ForwarderName);
-          end;
+        rvas[nSym.sym.ordinal - minIndex] := DirRVA + Stream.Position;
+        FPE.StreamWriteStrA(Stream, nSym.sym.ForwarderName);
       end;
+    end;
 
     // Fill export dir.
     ExpDir.ExportFlags := 0;
     ExpDir.TimeDateStamp := 0;
     ExpDir.MajorVersion := 0;
     ExpDir.MinorVersion := 0;
-    if p.ExportedName <> '' then
-      ExpDir.nameRVA := ExportTableRVA + ofs_LibName
+    if FPE.ExportedName <> '' then
+      ExpDir.nameRVA := DirRVA + ofs_LibName
     else
       ExpDir.nameRVA := 0;
     ExpDir.OrdinalBase := minIndex;
     ExpDir.AddressTableEntries := Length(rvas);
     ExpDir.NumberOfNamePointers := nSyms.Count;
-    ExpDir.ExportAddressTableRVA := ExportTableRVA + ofs_SymRVAs;
-    ExpDir.NamePointerRVA := ExportTableRVA + ofs_NameRVAs;
-    ExpDir.OrdinalTableRVA := ExportTableRVA + ofs_NameOrds;
+    ExpDir.ExportAddressTableRVA := DirRVA + ofs_SymRVAs;
+    ExpDir.NamePointerRVA := DirRVA + ofs_NameRVAs;
+    ExpDir.OrdinalTableRVA := DirRVA + ofs_NameOrds;
 
     // Seek start.
     Stream.Position := 0;
@@ -165,89 +150,37 @@ begin
     Stream.Write(ExpDir, SizeOf(ExpDir));
 
     // Write RVAs of all symbols.
-    p.StreamWrite(Stream, rvas[0], Length(rvas) * SizeOf(rvas[0]));
+    FPE.StreamWrite(Stream, rvas[0], Length(rvas) * SizeOf(rvas[0]));
 
     // Write name RVAs.
     for i := 0 to nSyms.Count - 1 do
-      begin
-        nSym := nSyms[i];
-        rva32 := nSym.nameRVA;
-        p.StreamWrite(Stream, rva32, SizeOf(rva32));
-      end;
+    begin
+      nSym := nSyms[i];
+      rva32 := nSym.nameRVA;
+      FPE.StreamWrite(Stream, rva32, SizeOf(rva32));
+    end;
 
     // Write name ordinals.
     for i := 0 to nSyms.Count - 1 do
-      begin
-        nSym := nSyms[i];
-        ordinal := nSym.sym.ordinal - minIndex;
-        p.StreamWrite(Stream, ordinal, SizeOf(ordinal));
-      end;
+    begin
+      nSym := nSyms[i];
+      ordinal := nSym.sym.ordinal - minIndex;
+      FPE.StreamWrite(Stream, ordinal, SizeOf(ordinal));
+    end;
 
   finally
     nSyms.Free;
   end;
-
 end;
 
-function ReBuildExports(PE: TObject; TryToOverwriteExportSecttion: boolean): TPESection;
-const
-  DEF_SECTION_NAME  = '.edata';
-  DEF_SECTION_FLAGS = $40000040; // readable, initialized data
-var
-  Stream: TMemoryStream;
-  img: TPEImage;
-  sec: TPESection;
-  dir: TImageDataDirectory;
-  destRVA: TRVA;
-  destSize: uint32;
+class function TExportBuilder.GetDefaultSectionFlags: Cardinal;
 begin
-  Result := nil;
+  result := $40000040; // readable, initialized data
+end;
 
-  img := PE as TPEImage;
-
-  // Create and fill export section.
-  Stream := TMemoryStream.Create;
-  try
-
-    // Build to get size.
-    BuildExports(img, 0, Stream);
-
-    sec := nil;
-    destRVA := 0;  // compiler friendly
-    destSize := 0; // compiler friendly
-
-    // Try to get old section space.
-    if TryToOverwriteExportSecttion then
-      if img.DataDirectories.Get(DDIR_EXPORT, @dir) then
-        if dir.Size >= Stream.Size then
-          if img.RVAToSec(dir.VirtualAddress, @sec) then
-            begin
-              destRVA := dir.VirtualAddress;
-              destSize := dir.Size;
-            end;
-
-    // If we still got no section, create new with default name and flags.
-    // User can change it later.
-    if sec = nil then
-      begin
-        sec := img.Sections.AddNew(DEF_SECTION_NAME, Stream.Size, DEF_SECTION_FLAGS, nil);
-        Result := sec;
-        destRVA := sec.RVA;
-        destSize := Stream.Size;
-      end;
-
-    // Rebuild data to have valid RVAs.
-    Stream.Clear;
-    BuildExports(img, destRVA, Stream);
-
-    // Move built data to section.
-    Move(Stream.Memory^, sec.Mem^, Stream.Size);
-
-    // Update export directory pointer.
-    img.DataDirectories.Put(DDIR_EXPORT, destRVA, destSize);
-  finally
-    Stream.Free;
-  end;
+class function TExportBuilder.GetDefaultSectionName: string;
+begin
+  result := '.edata';
 end;
 
 end.

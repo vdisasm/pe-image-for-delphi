@@ -1,0 +1,60 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{AF087879-1975-4DCF-9B3C-3EAEF3EDE92D}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="00 Sample\SampleLib.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="01 Exports\ExportsAdd.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="02 Imports\ImportsAdd.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="SampleLib">
+        <MSBuild Projects="00 Sample\SampleLib.dproj"/>
+    </Target>
+    <Target Name="SampleLib:Clean">
+        <MSBuild Projects="00 Sample\SampleLib.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="SampleLib:Make">
+        <MSBuild Projects="00 Sample\SampleLib.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="ExportsAdd">
+        <MSBuild Projects="01 Exports\ExportsAdd.dproj"/>
+    </Target>
+    <Target Name="ExportsAdd:Clean">
+        <MSBuild Projects="01 Exports\ExportsAdd.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ExportsAdd:Make">
+        <MSBuild Projects="01 Exports\ExportsAdd.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="ImportsAdd">
+        <MSBuild Projects="02 Imports\ImportsAdd.dproj"/>
+    </Target>
+    <Target Name="ImportsAdd:Clean">
+        <MSBuild Projects="02 Imports\ImportsAdd.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ImportsAdd:Make">
+        <MSBuild Projects="02 Imports\ImportsAdd.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="SampleLib;ExportsAdd;ImportsAdd"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="SampleLib:Clean;ExportsAdd:Clean;ImportsAdd:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="SampleLib:Make;ExportsAdd:Make;ImportsAdd:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

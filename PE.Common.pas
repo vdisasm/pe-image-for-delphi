@@ -61,6 +61,8 @@ const
   DDIR_DELAYIMPORT      = 13;
   DDIR_CLRRUNTIMEHEADER = 14;
 
+  DDIR_LAST = 14;
+
 type
   TParserResult = (PR_OK, PR_ERROR, PR_SUSPICIOUS);
 

@@ -1,7 +1,6 @@
 {
   * Example of adding exports to image.
-  * First build SampleLib.dll then ExportsAdd.exe
-  * ExportsAdd will add new exports to existing exports and rebuild the image.
+  * ExportsAdd will add new exports and rebuild image.
 }
 program ExportsAdd;
 
@@ -11,7 +10,7 @@ uses
   PE.Section,
   PE.ExportSym,
 
-  PE.Build.Export;
+  PE.Build;
 
 var
   img: TPEImage;
@@ -45,14 +44,14 @@ begin
 
     // Rebuild exports. Try to overwrite old exports or append it in new
     // section if it's too large.
-    sec := ReBuildExports(img, True);
+    sec := ReBuildDirData(img, DDIR_EXPORT, True);
 
     // Change name of export section.
     if sec <> nil then
       sec.Name := 'myexport';
 
     // Save resulted image to file.
-    img.SaveToFile('result.dll');
+    img.SaveToFile('tmp\new_exports.dll');
   finally
     img.Free;
   end;
