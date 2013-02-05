@@ -80,6 +80,7 @@ type
     procedure Traverse(TraverseProc: TResourceTreeNodeTraverseProc;
       UserData: pointer = nil); inline;
 
+    // Clear all nodes.
     procedure Clear;
 
     property Root: TResourceTreeBranchNode read FRoot;

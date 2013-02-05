@@ -316,6 +316,14 @@ type
     // Write 1-byte 0-terminated string.
     procedure StreamWriteStrA(AStream: TStream; const Str: RawByteString);
 
+    { Dump }
+
+    // Save memory region to stream/file (in section boundary).
+    // Result is number of bytes written.
+    // todo: maybe also add cross-section dumps.
+    function DumpRegionToStream(AStream: TStream; RVA: TRVA; Size: uint32): uint32;
+    function DumpRegionToFile(const AFileName: string; RVA: TRVA; Size: uint32): uint32;
+
     { Properties }
 
     property Msg: TMsgMgr read FMsg;
@@ -527,6 +535,56 @@ begin
   raise Exception.Create('Read Error.');
 end;
 
+function TPEImage.DumpRegionToFile(const AFileName: string; RVA: TRVA;
+  Size: uint32): uint32;
+var
+  fs: TFileStream;
+begin
+  fs := TFileStream.Create(AFileName, fmCreate);
+  try
+    Result := DumpRegionToStream(fs, RVA, Size);
+  finally
+    fs.Free;
+  end;
+end;
+
+function TPEImage.DumpRegionToStream(AStream: TStream; RVA: TRVA;
+  Size: uint32): uint32;
+const
+  BUFSIZE = 8192;
+var
+  Sec: TPESection;
+  Ofs, TmpSize: uint32;
+  pCur, pEnd: PByte;
+begin
+  Result := 0;
+
+  if not RVAToSec(RVA, @Sec) then
+    exit;
+
+  Ofs := RVA - Sec.RVA;
+  pCur := Sec.Mem + Ofs; // start from
+  TmpSize := Sec.GetAllocatedSize;
+  if (Ofs + Size) < TmpSize then
+    TmpSize := Ofs + Size;
+  pEnd := Sec.Mem + TmpSize;
+
+  if pCur >= pEnd then
+    exit;
+
+  while (Size <> 0) do
+  begin
+    if Size >= BUFSIZE then
+      TmpSize := BUFSIZE
+    else
+      TmpSize := Size;
+    AStream.Write(pCur^, TmpSize);
+    inc(pCur, TmpSize);
+    dec(Size, TmpSize);
+    inc(Result, TmpSize);
+  end;
+end;
+
 procedure TPEImage.InitParsers;
 begin
   FParsers[PF_EXPORT] := TPEExportParser;
@@ -708,7 +766,7 @@ begin
       if AStream.Seek(Ofs, soFromBeginning) = Ofs then
         if AStream.Read(pe00, SizeOf(pe00)) = SizeOf(pe00) then
           if pe00 = PE00_SIGNATURE then
-            exit(true);
+            exit(True);
     end;
   exit(false);
 end;
@@ -958,7 +1016,7 @@ begin
     begin
       if Assigned(OutOfs) then
         OutOfs^ := (RVA - rva0) + FSections[i].RawOffset;
-      exit(true);
+      exit(True);
     end;
   end;
   exit(false);
@@ -973,7 +1031,7 @@ begin
     begin
       if OutSec <> nil then
         OutSec^ := Sec;
-      exit(true);
+      exit(True);
     end;
   Result := false;
 end;
@@ -1142,7 +1200,7 @@ begin
       FOptionalHeader.NumberOfRvaAndSizes);
   end;
 
-  Result := true;
+  Result := True;
 
   // Load section data.
   LoadSectionData(AStream);
@@ -1237,7 +1295,7 @@ begin
   begin
     // If no overlay, we're done.
     if ovr^.Size = 0 then
-      exit(true);
+      exit(True);
     try
       src := SourceStreamGet(fmOpenRead or fmShareDenyWrite);
 
@@ -1252,7 +1310,7 @@ begin
       try
         src.Seek(ovr^.Offset, soFromBeginning);
         dst.CopyFrom(src, ovr^.Size);
-        Result := true;
+        Result := True;
       finally
         SourceStreamFree(src);
         dst.Free;
@@ -1283,7 +1341,7 @@ begin
       try
         fs.Size := fs.Size - ovr^.Size; // Trim file.
         self.FFileSize := fs.Size;      // Update filesize.
-        Result := true;
+        Result := True;
       finally
         fs.Free;
       end;

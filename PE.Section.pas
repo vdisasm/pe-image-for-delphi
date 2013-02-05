@@ -31,8 +31,11 @@ type
 
     destructor Destroy; override;
 
+    // Get size of allocated mem.
+    function GetAllocatedSize: UInt32;
+
     // Set section values from Section Header.
-    procedure SetHeader(ASecHdr: TImageSectionHeader; AMem: pointer);
+    procedure SetHeader(ASecHdr: TImageSectionHeader; ASrcData: pointer);
 
     // Load Section Header from stream.
     function LoadHeaderFromStream(AStream: TStream; AId: integer): boolean;
@@ -112,7 +115,7 @@ begin
   end;
 end;
 
-procedure TPESection.SetHeader(ASecHdr: TImageSectionHeader; AMem: pointer);
+procedure TPESection.SetHeader(ASecHdr: TImageSectionHeader; ASrcData: pointer);
 var
   SizeToAlloc: uint32;
 begin
@@ -125,24 +128,20 @@ begin
   FRawOffset := ASecHdr.PointerToRawData;
   FFlags := ASecHdr.Characteristics;
 
-  if FRawSize <> 0 then
-    SizeToAlloc := FRawSize
-  else
-    SizeToAlloc := FVSize;
+  SizeToAlloc := GetAllocatedSize;
 
   if SizeToAlloc = 0 then
     raise Exception.Create('Section data size = 0.');
 
   // If no source mem specified, alloc empty block.
-  // If got surce mem, copy it.
-  if AMem = nil then
+  // If have source mem, copy it.
+  if ASrcData = nil then
     FMem := AllocMem(SizeToAlloc)
   else
   begin
     GetMem(FMem, SizeToAlloc);
-    Move(AMem^, FMem^, SizeToAlloc);
+    Move(ASrcData^, FMem^, SizeToAlloc);
   end;
-
 end;
 
 procedure TPESection.ClearMem;
@@ -178,6 +177,14 @@ begin
   Result.SizeOfRawData := RawSize;
   Result.PointerToRawData := RawOffset;
   Result.Characteristics := Flags;
+end;
+
+function TPESection.GetAllocatedSize: UInt32;
+begin
+  if FRawSize <> 0 then
+    Result := FRawSize
+  else
+    Result := FVSize;
 end;
 
 function TPESection.GetEndRawOffset: uint32;
