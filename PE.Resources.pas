@@ -49,8 +49,10 @@ type
     constructor Create;
     destructor Destroy; override;
 
+    // Add child node.
     function AddChild(Node: TResourceTreeNode): TResourceTreeNode;
 
+    // Get either Name or Id as string.
     function GetSafeName: string;
 
   end;

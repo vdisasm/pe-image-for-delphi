@@ -230,7 +230,6 @@ begin
           ('Section %s has less raw data than header declares: 0x%x instead of 0x%x.',
           [FName, cnt, ARawSize]);
       ReallocMem(FMem, cnt);
-      ARawSize := cnt;
       if Assigned(FMsg) then
         FMsg.Write('Actual raw size was loaded.');
     end;
