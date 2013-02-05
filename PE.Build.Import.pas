@@ -14,6 +14,7 @@ type
     procedure Build(DirRVA: UInt64; Stream: TStream); override;
     class function GetDefaultSectionFlags: Cardinal; override;
     class function GetDefaultSectionName: string; override;
+    class function NeedRebuildingIfRVAChanged: Boolean; override;
   end;
 
 implementation
@@ -135,6 +136,11 @@ end;
 class function TImportBuilder.GetDefaultSectionName: string;
 begin
   result := '.idata';
+end;
+
+class function TImportBuilder.NeedRebuildingIfRVAChanged: Boolean;
+begin
+  Result := True;
 end;
 
 end.

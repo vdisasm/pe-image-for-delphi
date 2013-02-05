@@ -19,6 +19,7 @@ type
     procedure Build(DirRVA: UInt64; Stream: TStream); override;
     class function GetDefaultSectionFlags: Cardinal; override;
     class function GetDefaultSectionName: string; override;
+    class function NeedRebuildingIfRVAChanged: Boolean; override;
   end;
 
 implementation
@@ -179,6 +180,11 @@ end;
 class function TExportBuilder.GetDefaultSectionName: string;
 begin
   result := '.edata';
+end;
+
+class function TExportBuilder.NeedRebuildingIfRVAChanged: Boolean;
+begin
+  Result := True;
 end;
 
 end.

@@ -105,11 +105,12 @@ begin
     end;
 
     // Rebuild data to have valid RVAs (if prognose is wrong)
-    if prognoseRVA <> destRVA then
-    begin
-      stream.Clear;
-      builder.Build(destRVA, stream);
-    end;
+    if builder.NeedRebuildingIfRVAChanged then
+      if prognoseRVA <> destRVA then
+      begin
+        stream.Clear;
+        builder.Build(destRVA, stream);
+      end;
 
     // Move built data to section.
     Move(stream.Memory^, sec.Mem^, stream.Size);

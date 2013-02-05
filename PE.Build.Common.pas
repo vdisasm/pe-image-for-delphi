@@ -26,6 +26,9 @@ type
 
     // If new section created, it's called to get the name.
     class function GetDefaultSectionName: string; virtual; abstract;
+
+    // Return True if need to call Build each time when DirRVA changed.
+    class function NeedRebuildingIfRVAChanged: boolean; virtual; abstract;
   end;
 
   TDirectoryBuilderClass = class of TDirectoryBuilder;
