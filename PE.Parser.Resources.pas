@@ -14,6 +14,7 @@ type
     TEntryKind = (EK_ID, EK_NAME);
   protected
     FBaseRVA: TRVA; // RVA of RSRC section base
+    FTree: TResourceTree;
     function ReadEntry(var RVA: TRVA; EntyKind: TEntryKind; RDT: PResourceDirectoryTable): TResourceTreeNode;
     function ReadNode(RVA: TRVA; ParentNode: TResourceTreeBranchNode): TParserResult;
   public
@@ -38,25 +39,23 @@ function TPEResourcesParser.Parse: TParserResult;
 var
   dir: TImageDataDirectory;
 begin
-  with TPEImage(FPE) do
-  begin
-    // Check if empty.
-    if not DataDirectories.Get(DDIR_RESOURCE, @dir) then
-      exit(PR_OK);
-    if Dir.IsEmpty then
-      exit(PR_OK);
-
-    // Store base RVA.
-    FBaseRVA := Dir.VirtualAddress;
-
-    // Try to seek resource dir.
-    if not SeekRVA(FBaseRVA) then
-      exit(PR_ERROR);
-
-    // Read root and children.
-    ReadNode(FBaseRVA, ResourceTree.Root);
+  // Check if empty.
+  if not TPEImage(FPE).DataDirectories.Get(DDIR_RESOURCE, @dir) then
     exit(PR_OK);
-  end;
+  if dir.IsEmpty then
+    exit(PR_OK);
+
+  // Store base RVA.
+  FBaseRVA := dir.VirtualAddress;
+
+  // Try to seek resource dir.
+  if not TPEImage(FPE).SeekRVA(FBaseRVA) then
+    exit(PR_ERROR);
+
+  // Read root and children.
+  FTree := TPEImage(FPE).ResourceTree;
+  ReadNode(FBaseRVA, FTree.Root);
+  exit(PR_OK);
 end;
 
 function TPEResourcesParser.ReadEntry;
@@ -105,6 +104,7 @@ begin
             BranchNode.MinorVersion := RDT^.MinorVersion;
           end;
 
+          // Get Id or Name.
           if EntyKind = EK_ID then
             BranchNode.ID := Entry.IntegerID
           else
@@ -143,11 +143,11 @@ begin
 
         // Read named entries.
         for i := 1 to RDT.NumberOfNameEntries do
-          ParentNode.AddChild(ReadEntry(RVA, EK_NAME, @RDT));
+          FTree.AddChild(ReadEntry(RVA, EK_NAME, @RDT), ParentNode);
 
         // Read Id entries.
         for i := 1 to RDT.NumberOfIDEntries do
-          ParentNode.AddChild(ReadEntry(RVA, EK_ID, @RDT));
+          FTree.AddChild(ReadEntry(RVA, EK_ID, @RDT), ParentNode);
 
         exit(PR_OK);
       end;

@@ -121,23 +121,29 @@ type
     function GetDataEntryRVAorSubdirectoryRVA: uint32; inline;
     function GetIntegerID: uint32; inline;
     function GetNameRVA: uint32; inline;
+    procedure SetSubDirRVA(const Value: uint32); inline;
+    procedure SetDataEntryRVA(const Value: uint32); inline;
+    procedure SetNameRVA(const Value: uint32); inline;
+    procedure SetIntegerID(const Value: uint32); inline;
 
   public
+
+    procedure Clear;
 
     // To check which union select.
     function IsDataEntryRVA: boolean; inline;
     function IsSubdirectoryRVA: boolean; inline;
 
     // High bit 0. Address of a Resource Data entry (a leaf).
-    property DataEntryRVA: uint32 read GetDataEntryRVAorSubdirectoryRVA;
+    property DataEntryRVA: uint32 read GetDataEntryRVAorSubdirectoryRVA write SetDataEntryRVA;
 
     // High bit 1. The lower 31 bits are the address of another resource
     // directory table (the next level down).
-    property SubdirectoryRVA: uint32 read GetDataEntryRVAorSubdirectoryRVA;
+    property SubdirectoryRVA: uint32 read GetDataEntryRVAorSubdirectoryRVA write SetSubDirRVA;
 
-    property NameRVA: uint32 read GetNameRVA;
+    property NameRVA: uint32 read GetNameRVA write SetNameRVA;
 
-    property IntegerID: uint32 read GetIntegerID;
+    property IntegerID: uint32 read GetIntegerID write SetIntegerID;
 
   end;
 
@@ -163,6 +169,12 @@ type
 
 implementation
 
+procedure TResourceDirectoryEntry.Clear;
+begin
+  FEntry.NameRVA := 0;
+  DataEntryRVAorSubdirectoryRVA := 0;
+end;
+
 function TResourceDirectoryEntry.GetDataEntryRVAorSubdirectoryRVA: uint32;
 begin
   Result := DataEntryRVAorSubdirectoryRVA and $7FFFFFFF;
@@ -186,6 +198,26 @@ end;
 function TResourceDirectoryEntry.IsSubdirectoryRVA: boolean;
 begin
   Result := (DataEntryRVAorSubdirectoryRVA and $80000000) <> 0;
+end;
+
+procedure TResourceDirectoryEntry.SetDataEntryRVA(const Value: uint32);
+begin
+  DataEntryRVAorSubdirectoryRVA := Value and $7FFFFFFF;
+end;
+
+procedure TResourceDirectoryEntry.SetIntegerID(const Value: uint32);
+begin
+  FEntry.IntegerID := Value;
+end;
+
+procedure TResourceDirectoryEntry.SetNameRVA(const Value: uint32);
+begin
+ FEntry.NameRVA := Value and $7FFFFFFF;
+end;
+
+procedure TResourceDirectoryEntry.SetSubDirRVA(const Value: uint32);
+begin
+  DataEntryRVAorSubdirectoryRVA := Value or $80000000;
 end;
 
 end.

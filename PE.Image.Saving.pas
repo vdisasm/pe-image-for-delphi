@@ -77,7 +77,6 @@ end;
 
 procedure FillSecHdrRawOfs(PE: TPEImage; ofsSecHdr: uint32);
 var
-  i: integer;
   s: TPESection;
   ofs: uint32;
 begin

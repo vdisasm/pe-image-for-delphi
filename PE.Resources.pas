@@ -1,3 +1,10 @@
+{
+  Classes to represent resource data.
+
+  Adding or removing children must be done though helper functions, not directly
+  to maintatin right total count. Total count needed during resource table
+  building.
+}
 unit PE.Resources;
 
 interface
@@ -49,9 +56,6 @@ type
     constructor Create;
     destructor Destroy; override;
 
-    // Add child node.
-    function AddChild(Node: TResourceTreeNode): TResourceTreeNode;
-
     // Get either Name or Id as string.
     function GetSafeName: string;
 
@@ -64,6 +68,8 @@ type
   { Tree }
 
   TResourceTree = class
+  private
+    FTotalNodes: integer;
   protected
     FRoot: TResourceTreeBranchNode;
     procedure CreateDummyRoot;
@@ -86,22 +92,12 @@ type
     procedure Clear;
 
     property Root: TResourceTreeBranchNode read FRoot;
+    property TotalNodes: integer read FTotalNodes;
   end;
 
 implementation
 
 { TResourceTreeNode }
-
-function TResourceTreeBranchNode.AddChild(Node: TResourceTreeNode)
-  : TResourceTreeNode;
-begin
-  Result := Node;
-  if Assigned(Node) then
-  begin
-    Node.Parent := self;
-    Children.Add(Node);
-  end;
-end;
 
 constructor TResourceTreeBranchNode.Create;
 begin
@@ -144,7 +140,13 @@ end;
 function TResourceTree.AddChild(Node: TResourceTreeNode;
   Parent: TResourceTreeBranchNode): TResourceTreeNode;
 begin
-  Result := Parent.AddChild(Node);
+  Result := Node;
+  if Assigned(Node) then
+  begin
+    Node.Parent := Parent;
+    Parent.Children.Add(Node);
+    Inc(FTotalNodes);
+  end;
 end;
 
 procedure TResourceTree.Clear;

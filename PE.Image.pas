@@ -83,7 +83,7 @@ type
     FTLS: TTLS;
     FResourceTree: TResourceTree;
     FOverlay: TOverlay;
-    FEndianness: TEndianness;
+
     FParsers: array [TParserFlag] of TPEParserClass;
     FMsg: TMsgMgr;
     FPositionRVA: TRVA; // Current RVA.
@@ -966,7 +966,10 @@ begin
     64:
       Result := ReadEx(OutData, 8);
     else
+    begin
       DoReadError;
+      Result := false; // compiler friendly
+    end;
   end;
 end;
 
