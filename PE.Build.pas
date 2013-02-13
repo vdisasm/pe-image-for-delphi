@@ -27,14 +27,15 @@ uses
   PE.Build.Common,
 
   PE.Build.Export,
-  PE.Build.Import;
+  PE.Build.Import,
+  PE.Build.Resource;
 
 const
   RebuilderTable: array [0 .. DDIR_LAST] of TDirectoryBuilderClass =
     (
     PE.Build.Export.TExportBuilder, // export
     PE.Build.Import.TImportBuilder, // import
-    nil,                            // resources
+    PE.Build.Resource.TRsrcBuilder, // resources
     nil,                            // exception
     nil,                            // certificate
     nil,                            // relocations
@@ -75,7 +76,9 @@ begin
 
     // Prognose dest RVA.
     if img.DataDirectories.Get(DDIR_ID, @dir) then
-      prognoseRVA := dir.VirtualAddress;
+      prognoseRVA := dir.VirtualAddress
+    else
+      prognoseRVA := 0;
 
     // Build to get size.
     builder.Build(prognoseRVA, stream);
