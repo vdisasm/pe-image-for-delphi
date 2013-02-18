@@ -152,7 +152,10 @@ type
 
     // Check if stream at offset Ofs is MZ/PE image.
     // Result is False if either failed to make check or it's not valid image.
-    class function IsPE(AStream: TStream; Ofs: UInt64 = 0): boolean; static;
+    class function IsPE(AStream: TStream; Ofs: UInt64 = 0): boolean; overload; static;
+
+    // Check if file is PE.
+    class function IsPE(const FileName: string): boolean; overload; static;
 
     // Check if image is 32/64 bit.
     function Is32bit: boolean; inline;
@@ -749,6 +752,18 @@ begin
   Result := FOptionalHeader.Magic = PE_MAGIC_PE32PLUS;
 end;
 
+class function TPEImage.IsPE(const FileName: string): boolean;
+var
+  Stream: TFileStream;
+begin
+  Stream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyWrite);
+  try
+    Result := TPEImage.IsPE(Stream);
+  finally
+    Stream.Free;
+  end;
+end;
+
 class function TPEImage.IsPE(AStream: TStream; Ofs: UInt64): boolean;
 var
   dos: TImageDOSHeader;
@@ -966,10 +981,10 @@ begin
     64:
       Result := ReadEx(OutData, 8);
     else
-    begin
-      DoReadError;
-      Result := false; // compiler friendly
-    end;
+      begin
+        DoReadError;
+        Result := false; // compiler friendly
+      end;
   end;
 end;
 
