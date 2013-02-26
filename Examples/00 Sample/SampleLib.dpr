@@ -1,5 +1,8 @@
 library SampleLib;
 
+uses
+  WinApi.Windows;
+
 { Procedures for export }
 
 procedure p_ord_10;
@@ -44,5 +47,6 @@ exports
   ExpVar;
 
 begin
+  MessageBox(0, 'Text', 'Caption', 0);
 
 end.

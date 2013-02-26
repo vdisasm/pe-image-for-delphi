@@ -15,6 +15,9 @@
         <Projects Include="03 Resources\ResourceExtract.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="04 DLL Loader\DLLLoader.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -59,14 +62,23 @@
     <Target Name="ResourceExtract:Make">
         <MSBuild Projects="03 Resources\ResourceExtract.dproj" Targets="Make"/>
     </Target>
+    <Target Name="DLLLoader">
+        <MSBuild Projects="04 DLL Loader\DLLLoader.dproj"/>
+    </Target>
+    <Target Name="DLLLoader:Clean">
+        <MSBuild Projects="04 DLL Loader\DLLLoader.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="DLLLoader:Make">
+        <MSBuild Projects="04 DLL Loader\DLLLoader.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="SampleLib;ExportsAdd;ImportsAdd;ResourceExtract"/>
+        <CallTarget Targets="SampleLib;ExportsAdd;ImportsAdd;ResourceExtract;DLLLoader"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="SampleLib:Clean;ExportsAdd:Clean;ImportsAdd:Clean;ResourceExtract:Clean"/>
+        <CallTarget Targets="SampleLib:Clean;ExportsAdd:Clean;ImportsAdd:Clean;ResourceExtract:Clean;DLLLoader:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="SampleLib:Make;ExportsAdd:Make;ImportsAdd:Make;ResourceExtract:Make"/>
+        <CallTarget Targets="SampleLib:Make;ExportsAdd:Make;ImportsAdd:Make;ResourceExtract:Make;DLLLoader:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

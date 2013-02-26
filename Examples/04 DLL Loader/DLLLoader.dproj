@@ -1,14 +1,14 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <ProjectGuid>{BAF9A67B-E514-4260-8A83-0DB577116060}</ProjectGuid>
+        <ProjectGuid>{1E844CBC-CCF9-4791-9D14-3CF4F8C7E3EE}</ProjectGuid>
         <ProjectVersion>14.4</ProjectVersion>
         <FrameworkType>None</FrameworkType>
-        <MainSource>ImportsAdd.dpr</MainSource>
+        <MainSource>DLLLoader.dpr</MainSource>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Debug</Config>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
         <TargetedPlatforms>1</TargetedPlatforms>
-        <AppType>Console</AppType>
+        <AppType>Library</AppType>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
         <Base>true</Base>
@@ -44,14 +44,20 @@
         <CfgParent>Base</CfgParent>
         <Base>true</Base>
     </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Win32' and '$(Cfg_2)'=='true') or '$(Cfg_2_Win32)'!=''">
+        <Cfg_2_Win32>true</Cfg_2_Win32>
+        <CfgParent>Cfg_2</CfgParent>
+        <Cfg_2>true</Cfg_2>
+        <Base>true</Base>
+    </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
         <DCC_UnitSearchPath>..\..;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <Manifest_File>None</Manifest_File>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <VerInfo_Locale>1033</VerInfo_Locale>
-        <Manifest_File>None</Manifest_File>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
         <DCC_DcuOutput>.\$(Platform)\$(Config)</DCC_DcuOutput>
-        <DCC_ExeOutput>..\..\bin\Examples</DCC_ExeOutput>
+        <DCC_ExeOutput>..\..\bin\examples</DCC_ExeOutput>
         <DCC_E>false</DCC_E>
         <DCC_N>false</DCC_N>
         <DCC_S>false</DCC_S>
@@ -59,16 +65,17 @@
         <DCC_K>false</DCC_K>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_OSX32)'!=''">
-        <DCC_UsePackage>bindcompfmx;DBXSqliteDriver;fmx;rtl;dbrtl;DbxClientDriver;IndySystem;bindcomp;inetdb;DBXInterBaseDriver;DataSnapClient;DataSnapCommon;DataSnapServer;DataSnapProviderClient;xmlrtl;DbxCommonDriver;IndyProtocols;dbxcds;DBXMySQLDriver;bindengine;soaprtl;bindcompdbx;DBXOracleDriver;CustomIPTransport;dsnap;IndyIPServer;DBXInformixDriver;fmxase;IndyCore;IndyIPCommon;DBXFirebirdDriver;inet;fmxobj;inetdbxpress;DBXSybaseASADriver;fmxdae;dbexpress;DataSnapIndy10ServerTransport;IndyIPClient;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>bindcompfmx;DBXSqliteDriver;fmx;rtl;dbrtl;DbxClientDriver;IndySystem;bindcomp;inetdb;DBXInterBaseDriver;DataSnapClient;DataSnapCommon;DataSnapServer;DataSnapProviderClient;xmlrtl;DbxCommonDriver;IndyProtocols;DBXMySQLDriver;dbxcds;bindengine;bindcompdbx;soaprtl;DBXOracleDriver;CustomIPTransport;dsnap;DBXInformixDriver;IndyIPServer;fmxase;IndyCore;IndyIPCommon;DBXFirebirdDriver;inet;fmxobj;inetdbxpress;DBXSybaseASADriver;fmxdae;dbexpress;DataSnapIndy10ServerTransport;IndyIPClient;$(DCC_UsePackage)</DCC_UsePackage>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
-        <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
+        <DCC_UsePackage>CrossFPC_XE3;bindcompfmx;DBXSqliteDriver;vcldbx;fmx;rtl;dbrtl;DbxClientDriver;IndySystem;TeeDB;bindcomp;inetdb;inetdbbde;vclib;DBXInterBaseDriver;DataSnapClient;DataSnapCommon;DBXOdbcDriver;DataSnapServer;Tee;DataSnapProviderClient;xmlrtl;DBXSybaseASEDriver;ibxpress;DbxCommonDriver;svnui;vclimg;IndyProtocols;DBXMySQLDriver;dbxcds;MetropolisUILiveTile;bindengine;vclactnband;vcldb;bindcompdbx;FMXTee;vcldsnap;bindcompvcl;soaprtl;TeeUI;vclie;DBXDb2Driver;vcltouch;websnap;DBXOracleDriver;CustomIPTransport;vclribbon;VclSmp;dsnap;DBXInformixDriver;IndyIPServer;Intraweb;fmxase;vcl;DataSnapConnectors;IndyCore;DBXMSSQLDriver;CloudService;IndyIPCommon;DBXFirebirdDriver;FmxTeeUI;dsnapcon;inet;fmxobj;vclx;inetdbxpress;webdsnap;svn;DBXSybaseASADriver;fmxdae;bdertl;dbexpress;DataSnapIndy10ServerTransport;adortl;IndyIPClient;$(DCC_UsePackage)</DCC_UsePackage>
         <VerInfo_Locale>1033</VerInfo_Locale>
+        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
-        <DCC_UsePackage>fs17;frx17;bindcompfmx;DBXSqliteDriver;vcldbx;fmx;rtl;dbrtl;DbxClientDriver;IndySystem;TeeDB;bindcomp;inetdb;vclib;inetdbbde;DBXInterBaseDriver;DataSnapClient;DataSnapCommon;DBXOdbcDriver;DataSnapServer;Tee;DataSnapProviderClient;xmlrtl;svnui;ibxpress;DbxCommonDriver;DBXSybaseASEDriver;vclimg;IndyProtocols;dbxcds;DBXMySQLDriver;DatasnapConnectorsFreePascal;MetropolisUILiveTile;vclactnband;bindengine;vcldb;soaprtl;bindcompdbx;vcldsnap;bindcompvcl;FMXTee;TeeUI;vclie;vcltouch;DBXDb2Driver;websnap;DBXOracleDriver;CustomIPTransport;vclribbon;VclSmp;dsnap;IndyIPServer;DBXInformixDriver;Intraweb;fmxase;vcl;IndyCore;DataSnapConnectors;IndyIPCommon;CloudService;DBXMSSQLDriver;dsnapcon;DBXFirebirdDriver;FmxTeeUI;inet;fsDB17;fmxobj;frxDB17;CodeSiteExpressPkg;vclx;frxe17;inetdbxpress;webdsnap;svn;DBXSybaseASADriver;fmxdae;bdertl;dbexpress;adortl;DataSnapIndy10ServerTransport;IndyIPClient;$(DCC_UsePackage)</DCC_UsePackage>
+        <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
-        <DCC_UsePackage>bindcompfmx;DBXSqliteDriver;fmx;rtl;dbrtl;DbxClientDriver;IndySystem;bindcomp;inetdb;DBXInterBaseDriver;DataSnapClient;DataSnapCommon;DBXOdbcDriver;DataSnapServer;DataSnapProviderClient;xmlrtl;DbxCommonDriver;DBXSybaseASEDriver;vclimg;IndyProtocols;dbxcds;DBXMySQLDriver;vclactnband;bindengine;vcldb;soaprtl;bindcompdbx;vcldsnap;bindcompvcl;vclie;vcltouch;DBXDb2Driver;websnap;DBXOracleDriver;CustomIPTransport;VclSmp;dsnap;IndyIPServer;DBXInformixDriver;fmxase;vcl;IndyCore;IndyIPCommon;DBXMSSQLDriver;dsnapcon;DBXFirebirdDriver;inet;fmxobj;vclx;inetdbxpress;webdsnap;DBXSybaseASADriver;fmxdae;dbexpress;DataSnapIndy10ServerTransport;IndyIPClient;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>bindcompfmx;DBXSqliteDriver;fmx;rtl;dbrtl;DbxClientDriver;IndySystem;bindcomp;inetdb;DBXInterBaseDriver;DataSnapClient;DataSnapCommon;DBXOdbcDriver;DataSnapServer;DataSnapProviderClient;xmlrtl;DBXSybaseASEDriver;DbxCommonDriver;vclimg;IndyProtocols;DBXMySQLDriver;dbxcds;bindengine;vclactnband;vcldb;bindcompdbx;vcldsnap;bindcompvcl;soaprtl;vclie;DBXDb2Driver;vcltouch;websnap;DBXOracleDriver;CustomIPTransport;VclSmp;dsnap;DBXInformixDriver;IndyIPServer;fmxase;vcl;IndyCore;DBXMSSQLDriver;IndyIPCommon;DBXFirebirdDriver;dsnapcon;inet;fmxobj;vclx;inetdbxpress;webdsnap;DBXSybaseASADriver;fmxdae;dbexpress;DataSnapIndy10ServerTransport;IndyIPClient;$(DCC_UsePackage)</DCC_UsePackage>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1)'!=''">
         <DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
@@ -79,6 +86,9 @@
         <DCC_RemoteDebug>true</DCC_RemoteDebug>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1_Win32)'!=''">
+        <VerInfo_Locale>1033</VerInfo_Locale>
+        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
+        <Manifest_File>None</Manifest_File>
         <DCC_RemoteDebug>false</DCC_RemoteDebug>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
@@ -86,6 +96,9 @@
         <DCC_Define>RELEASE;$(DCC_Define)</DCC_Define>
         <DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
         <DCC_DebugInformation>false</DCC_DebugInformation>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
+        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
@@ -144,7 +157,7 @@
                     <VersionInfoKeys Name="CFBundleExecutable"/>
                 </VersionInfoKeys>
                 <Source>
-                    <Source Name="MainSource">ImportsAdd.dpr</Source>
+                    <Source Name="MainSource">DLLLoader.dpr</Source>
                 </Source>
                 <Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\dcloffice2k170.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
