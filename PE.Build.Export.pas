@@ -25,7 +25,9 @@ type
 implementation
 
 uses
+  System.Generics.Defaults,
   System.Generics.Collections,
+  System.SysUtils,
   PE.ExportSym,
   PE.Types.Export;
 
@@ -49,7 +51,7 @@ var
   ofs_LibName: uint32;  // offset of address of names
   sym: TPEExportSym;
   rva32: uint32;
-  rvas: packed array of uint32;
+  RVAs: packed array of uint32;
   minIndex, maxIndex: word;
 var
   nSyms: TSyms;
@@ -59,8 +61,7 @@ begin
   nSyms := TSyms.Create;
 
   try
-
-    // Collect named items
+    // Collect named items.
     // Find min and max index.
     maxIndex := 0;
     if FPE.ExportSyms.Count = 0 then
@@ -80,21 +81,21 @@ begin
         minIndex := sym.ordinal;
     end;
 
-    // Create rvas.
+    // Create RVAs.
     if maxIndex <> 0 then
     begin
-      SetLength(rvas, maxIndex); // zeroed by compiler
+      SetLength(RVAs, maxIndex);
       for i := 0 to FPE.ExportSyms.Count - 1 do
       begin
         sym := FPE.ExportSyms.Items[i];
         if sym.ordinal <> 0 then
-          rvas[sym.ordinal - minIndex] := sym.RVA;
+          RVAs[sym.ordinal - minIndex] := sym.RVA;
       end;
     end;
 
     // Calc offsets.
     ofs_SymRVAs := SizeOf(ExpDir);
-    ofs_NameRVAs := ofs_SymRVAs + Length(rvas) * SizeOf(rva32);
+    ofs_NameRVAs := ofs_SymRVAs + Length(RVAs) * SizeOf(rva32);
     ofs_NameOrds := ofs_NameRVAs + nSyms.Count * SizeOf(rva32);
     ofs_LibName := ofs_NameOrds + nSyms.Count * SizeOf(ordinal);
 
@@ -105,6 +106,14 @@ begin
     // Write exported name.
     if FPE.ExportedName <> '' then
       FPE.StreamWriteStrA(Stream, FPE.ExportedName);
+
+    // Sort nSyms by names (lexicographical order) to allow binary searches.
+    nSyms.Sort(TComparer<TSym>.Construct(
+      function(const a, b: TSym): integer
+      begin
+        Result := StrComp(PAnsiChar(a.sym.Name), PAnsiChar(b.sym.Name))
+      end
+      ));
 
     // Write names.
     for i := 0 to nSyms.Count - 1 do
@@ -121,7 +130,7 @@ begin
       nSym := nSyms[i];
       if nSym.sym.Forwarder then
       begin
-        rvas[nSym.sym.ordinal - minIndex] := DirRVA + Stream.Position;
+        RVAs[nSym.sym.ordinal - minIndex] := DirRVA + Stream.Position;
         FPE.StreamWriteStrA(Stream, nSym.sym.ForwarderName);
       end;
     end;
@@ -136,7 +145,7 @@ begin
     else
       ExpDir.nameRVA := 0;
     ExpDir.OrdinalBase := minIndex;
-    ExpDir.AddressTableEntries := Length(rvas);
+    ExpDir.AddressTableEntries := Length(RVAs);
     ExpDir.NumberOfNamePointers := nSyms.Count;
     ExpDir.ExportAddressTableRVA := DirRVA + ofs_SymRVAs;
     ExpDir.NamePointerRVA := DirRVA + ofs_NameRVAs;
@@ -149,7 +158,7 @@ begin
     Stream.Write(ExpDir, SizeOf(ExpDir));
 
     // Write RVAs of all symbols.
-    FPE.StreamWrite(Stream, rvas[0], Length(rvas) * SizeOf(rvas[0]));
+    FPE.StreamWrite(Stream, RVAs[0], Length(RVAs) * SizeOf(RVAs[0]));
 
     // Write name RVAs.
     for i := 0 to nSyms.Count - 1 do
@@ -174,12 +183,12 @@ end;
 
 class function TExportBuilder.GetDefaultSectionFlags: Cardinal;
 begin
-  result := $40000040; // readable, initialized data
+  Result := $40000040; // readable, initialized data
 end;
 
 class function TExportBuilder.GetDefaultSectionName: string;
 begin
-  result := '.edata';
+  Result := '.edata';
 end;
 
 class function TExportBuilder.NeedRebuildingIfRVAChanged: Boolean;

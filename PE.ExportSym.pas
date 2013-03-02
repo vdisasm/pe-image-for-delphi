@@ -43,13 +43,14 @@ type
     destructor Destroy; override;
 
     // Add item to list of symbols.
-    // If SetOrdinal is True, src Item ordinal will be fixed to last sym number.
-    procedure Add(Item: TPEExportSym; SetOrdinal: boolean = false);
+    // If SetOrdinal is True, src Item ordinal will be set to last sym number.
+    procedure Add(Sym: TPEExportSym; SetOrdinal: boolean = false);
 
+    // Add symbol by Name.
     procedure AddByName(RVA: TRVA; const Name: AnsiString);
 
-    // Usually you will not need it.
-    procedure AddByOrdinal(RVA: TRVA; Ordinal: dword);
+    // Usually you don't need to set Ordinal, because ordinals are auto-incremented.
+    procedure AddByOrdinal(RVA: TRVA; Ordinal: dword = 0);
 
     procedure AddForwarder(const Name, ForwarderName: AnsiString);
 
@@ -92,13 +93,11 @@ end;
 
 { TExportSyms }
 
-procedure TPEExportSyms.Add(Item: TPEExportSym; SetOrdinal: boolean = false);
+procedure TPEExportSyms.Add(Sym: TPEExportSym; SetOrdinal: boolean = false);
 begin
   if SetOrdinal then
-    Item.Ordinal := FItems.Count + 1;
-  FItems.Add(Item);
-  // todo: there can be many exports with same RVA
-  // FItemsByRVA.Add(Item.RVA, Item);
+    Sym.Ordinal := FItems.Count + 1;
+  FItems.Add(Sym);
 end;
 
 procedure TPEExportSyms.AddByName(RVA: TRVA; const Name: AnsiString);
@@ -118,7 +117,7 @@ begin
   Sym := TPEExportSym.Create;
   Sym.RVA := RVA;
   Sym.Ordinal := Ordinal;
-  Add(Sym, True);
+  Add(Sym, Ordinal = 0);
 end;
 
 procedure TPEExportSyms.AddForwarder(const Name, ForwarderName: AnsiString);

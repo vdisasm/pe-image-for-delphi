@@ -27,14 +27,14 @@ begin
 
     // Add exports
     // by name
-    img.ExportSyms.AddByName(sec.RVA + $00, 'exp1');
-    img.ExportSyms.AddByName(sec.RVA + $10, 'exp2');
-    img.ExportSyms.AddByName(sec.RVA + $20, 'exp3');
-    img.ExportSyms.AddByName(sec.RVA + $30, 'exp4');
+    img.ExportSyms.AddByName(sec.RVA + $40, 'exp40');
+    img.ExportSyms.AddByName(sec.RVA + $30, 'exp30');
+    img.ExportSyms.AddByName(sec.RVA + $20, 'exp20');
+    img.ExportSyms.AddByName(sec.RVA + $10, 'exp10');
 
     // by ordinal
-    img.ExportSyms.AddByOrdinal(sec.RVA + $40, $100);
-    img.ExportSyms.AddByOrdinal(sec.RVA + $50, $101);
+    img.ExportSyms.AddByOrdinal(sec.RVA + $40, 64);
+    img.ExportSyms.AddByOrdinal(sec.RVA + $80, 128);
 
     // forwarder
     img.ExportSyms.AddForwarder('fwd5', 'external5');
