@@ -69,8 +69,7 @@ type
     FDosHeader: TImageDOSHeader; // DOS header.
     FLFANew: uint32;             // Address of new header next after DOS.
     FDosBlock: TBytes;           // Bytes between DOS header and next header.
-
-    FSecHdrGap: TBytes; // Gap after section headers.
+    FSecHdrGap: TBytes;          // Gap after section headers.
 
     FFileHeader: TImageFileHeader;
     FOptionalHeader: TPEOptionalHeader;
@@ -1181,7 +1180,7 @@ begin
 
   // Mapped image can't have overlay, so correct total size.
   if FImageKind = PEIMAGE_KIND_MEMORY then
-    FFileSize := FSections.Last.GetEndRawOffset;
+    FFileSize := CalcRawSizeOfImage;
 
   // Convert /%num% section names to long names if possible.
   ResolveSectionNames;
