@@ -29,7 +29,7 @@ type
 
     function SizeOfAllHeaders: uint32; inline;
 
-    function FindByName(const AName: AnsiString; IgnoreCase: boolean): TPESection;
+    function FindByName(const AName: AnsiString; IgnoreCase: boolean = True): TPESection;
 
   end;
 

@@ -161,7 +161,7 @@ var
 begin
   SetLength(Data, 0);
 
-  sec := PE.GetSectionByName('.pdata');
+  sec := PE.Sections.FindByName('.pdata');
 
   if
     (sec <> nil) and
