@@ -8,7 +8,7 @@ uses
 
 type
   TMyImg = class(TPEImage)
-    function MyTraverse(Node: TResourceTreeNode; ud: pointer): boolean;
+    function MyTraverse(Node: TResourceTreeNode): boolean;
   end;
 
 var
@@ -16,7 +16,7 @@ var
 
   { TMyImg }
 
-function TMyImg.MyTraverse(Node: TResourceTreeNode; ud: pointer): boolean;
+function TMyImg.MyTraverse(Node: TResourceTreeNode): boolean;
 var
   Leaf: TResourceTreeLeafNode;
   FileName, ParentName: string;

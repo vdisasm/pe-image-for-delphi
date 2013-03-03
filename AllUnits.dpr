@@ -46,7 +46,8 @@ uses
   PE.Types.Resources in 'PE.Types.Resources.pas',
   PE.Types.Sections in 'PE.Types.Sections.pas',
   PE.Types.TLS in 'PE.Types.TLS.pas',
-  PE.Utils in 'PE.Utils.pas';
+  PE.Utils in 'PE.Utils.pas',
+  PE.Resources.Extract in 'PE.Resources.Extract.pas';
 
 begin
 end.

@@ -36,6 +36,8 @@ type
   TParserFlag = (PF_EXPORT, PF_IMPORT, PF_RELOCS, PF_TLS, PF_RESOURCES);
   TParserFlags = set of TParserFlag;
 
+  TPEImageObject = TObject; // Meant to cast TObject -> TPEImage
+
 const
   SUSPICIOUS_MIN_LIMIT_EXPORTS = $10000;
   DEFAULT_SECTOR_SIZE          = 512;

@@ -61,8 +61,7 @@ type
   end;
 
   // Return False to stop traversing.
-  TResourceTreeNodeTraverseMethod =
-    function(Node: TResourceTreeNode; ud: pointer): boolean of object;
+  TResourceTraverseMethod = function(Node: TResourceTreeNode): boolean of object;
 
   { Tree }
 
@@ -72,8 +71,6 @@ type
   protected
     FRoot: TResourceTreeBranchNode;
     procedure CreateDummyRoot;
-    procedure TraverseNode(Node: TResourceTreeNode;
-      TraverseProc: TResourceTreeNodeTraverseMethod; UserData: pointer);
   public
 
     constructor Create;
@@ -83,8 +80,12 @@ type
     function AddChild(Node: TResourceTreeNode; ParentNode: TResourceTreeBranchNode)
       : TResourceTreeNode; // inline;
 
+    // Traverse from node.
+    procedure TraverseNode(Node: TResourceTreeNode;
+      TraverseMethod: TResourceTraverseMethod);
+
     // Traverse from root.
-    procedure Traverse(TraverseProc: TResourceTreeNodeTraverseMethod;
+    procedure Traverse(TraverseMethod: TResourceTraverseMethod;
       UserData: pointer = nil); inline;
 
     // Clear all nodes.
@@ -172,28 +173,28 @@ begin
   inherited;
 end;
 
-procedure TResourceTree.Traverse(TraverseProc: TResourceTreeNodeTraverseMethod;
+procedure TResourceTree.Traverse(TraverseMethod: TResourceTraverseMethod;
   UserData: pointer);
 begin
-  TraverseNode(FRoot, TraverseProc, UserData);
+  TraverseNode(FRoot, TraverseMethod);
 end;
 
 procedure TResourceTree.TraverseNode(Node: TResourceTreeNode;
-  TraverseProc: TResourceTreeNodeTraverseMethod; UserData: pointer);
+  TraverseMethod: TResourceTraverseMethod);
 const
   WANT_MORE_NODES = True;
 var
   n: TResourceTreeNode;
 begin
-  if Assigned(TraverseProc) and (Assigned(Node)) then
+  if Assigned(TraverseMethod) and (Assigned(Node)) then
   begin
     // Visit node.
-    if TraverseProc(Node, UserData) = WANT_MORE_NODES then
+    if TraverseMethod(Node) = WANT_MORE_NODES then
     begin
       // If branch, visit children.
       if Node.IsBranch then
         for n in TResourceTreeBranchNode(Node).Children do
-          TraverseNode(n, TraverseProc, UserData)
+          TraverseNode(n, TraverseMethod)
     end;
   end;
 end;
