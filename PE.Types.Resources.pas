@@ -146,6 +146,8 @@ type
 
   end;
 
+  PResourceDirectoryEntry = ^TResourceDirectoryEntry;
+
   { TResourceDataEntry }
 
   TResourceDataEntry = packed record
@@ -206,12 +208,12 @@ end;
 
 procedure TResourceDirectoryEntry.SetIntegerID(const Value: uint32);
 begin
-  FEntry.IntegerID := Value;
+  FEntry.IntegerID := Value and $7FFFFFFF;
 end;
 
 procedure TResourceDirectoryEntry.SetNameRVA(const Value: uint32);
 begin
- FEntry.NameRVA := Value and $7FFFFFFF;
+ FEntry.NameRVA := Value or $80000000;
 end;
 
 procedure TResourceDirectoryEntry.SetSubDirRVA(const Value: uint32);
