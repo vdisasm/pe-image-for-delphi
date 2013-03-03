@@ -100,8 +100,7 @@ type
     case byte of
       0:
         // The address of a string that gives the Type, Name, or Language ID entry,
-        // depending on level of table.
-        // Non-documented: 0-30 bits used.
+        // depending on level of table (bits 30..0 used).
         (NameRVA: uint32);
       1:
         // A 32-bit integer that identifies the Type, Name, or Language ID entry.

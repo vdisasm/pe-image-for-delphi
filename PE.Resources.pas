@@ -58,12 +58,11 @@ type
 
     // Get either Name or Id as string.
     function GetSafeName: string;
-
   end;
 
   // Return False to stop traversing.
-  TResourceTreeNodeTraverseProc = function(Node: TResourceTreeNode; ud: pointer)
-    : boolean of object;
+  TResourceTreeNodeTraverseMethod =
+    function(Node: TResourceTreeNode; ud: pointer): boolean of object;
 
   { Tree }
 
@@ -74,18 +73,18 @@ type
     FRoot: TResourceTreeBranchNode;
     procedure CreateDummyRoot;
     procedure TraverseNode(Node: TResourceTreeNode;
-      TraverseProc: TResourceTreeNodeTraverseProc; UserData: pointer);
+      TraverseProc: TResourceTreeNodeTraverseMethod; UserData: pointer);
   public
 
     constructor Create;
     destructor Destroy; override;
 
     // Add child node.
-    function AddChild(Node: TResourceTreeNode; Parent: TResourceTreeBranchNode)
-      : TResourceTreeNode; inline;
+    function AddChild(Node: TResourceTreeNode; ParentNode: TResourceTreeBranchNode)
+      : TResourceTreeNode; // inline;
 
     // Traverse from root.
-    procedure Traverse(TraverseProc: TResourceTreeNodeTraverseProc;
+    procedure Traverse(TraverseProc: TResourceTreeNodeTraverseMethod;
       UserData: pointer = nil); inline;
 
     // Clear all nodes.
@@ -138,13 +137,13 @@ end;
 { TResourceTree }
 
 function TResourceTree.AddChild(Node: TResourceTreeNode;
-  Parent: TResourceTreeBranchNode): TResourceTreeNode;
+  ParentNode: TResourceTreeBranchNode): TResourceTreeNode;
 begin
   Result := Node;
   if Assigned(Node) then
   begin
-    Node.Parent := Parent;
-    Parent.Children.Add(Node);
+    Node.Parent := ParentNode;
+    ParentNode.Children.Add(Node);
     Inc(FTotalNodes);
   end;
 end;
@@ -152,6 +151,7 @@ end;
 procedure TResourceTree.Clear;
 begin
   FRoot.Free; // To destroy all children.
+  FTotalNodes := 0;
   CreateDummyRoot;
 end;
 
@@ -172,14 +172,14 @@ begin
   inherited;
 end;
 
-procedure TResourceTree.Traverse(TraverseProc: TResourceTreeNodeTraverseProc;
+procedure TResourceTree.Traverse(TraverseProc: TResourceTreeNodeTraverseMethod;
   UserData: pointer);
 begin
   TraverseNode(FRoot, TraverseProc, UserData);
 end;
 
 procedure TResourceTree.TraverseNode(Node: TResourceTreeNode;
-  TraverseProc: TResourceTreeNodeTraverseProc; UserData: pointer);
+  TraverseProc: TResourceTreeNodeTraverseMethod; UserData: pointer);
 const
   WANT_MORE_NODES = True;
 var
@@ -190,8 +190,8 @@ begin
     // Visit node.
     if TraverseProc(Node, UserData) = WANT_MORE_NODES then
     begin
-      if Node is TResourceTreeBranchNode then
-        // Visit children.
+      // If branch, visit children.
+      if Node.IsBranch then
         for n in TResourceTreeBranchNode(Node).Children do
           TraverseNode(n, TraverseProc, UserData)
     end;
