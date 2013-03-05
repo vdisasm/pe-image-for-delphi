@@ -56,7 +56,6 @@ procedure TCOFF.LoadStrings(AStream: TStream);
 var
   StrTableOfs, EndPos: uint64;
   cbStringData: uint32;
-  s: RawByteString;
 begin
 
   // 4.6. COFF String Table

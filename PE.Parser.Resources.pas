@@ -68,57 +68,64 @@ begin
 
   Img := FPE as TPEImage;
 
-  if Img.SeekRVA(RVA) then
-    if Img.ReadEx(@Entry, SizeOf(Entry)) then
+  if not(Img.SeekRVA(RVA) and Img.ReadEx(@Entry, SizeOf(Entry))) then
+  begin
+    TPEImage(FPE).Msg.Write('Bad resource entry.');
+    exit;
+  end;
+
+  if Entry.IsDataEntryRVA then
+  // Leaf node.
+  begin
+    DataRVA := Entry.DataEntryRVA + FBaseRVA;
+
+    if not(Img.SeekRVA(DataRVA) and Img.ReadEx(@DataEntry, SizeOf(DataEntry))) then
     begin
-      if Entry.IsDataEntryRVA then
-      // Leaf node.
-      begin
-        DataRVA := Entry.DataEntryRVA + FBaseRVA;
-        if Img.SeekRVA(DataRVA) then
-          if Img.ReadEx(@DataEntry, SizeOf(DataEntry)) then
-          begin
-            LeafNode := TResourceTreeLeafNode.CreateFromEntry(FPE, DataEntry);
-            exit(LeafNode);
-          end;
-        exit(nil);
-      end
-      else
-      // Branch Node.
-      begin
-        // Store RVA.
-        RVA := Img.PositionRVA;
-
-        // Alloc and fill node.
-        BranchNode := TResourceTreeBranchNode.Create;
-        if RDT <> nil then
-        begin
-          BranchNode.Characteristics := RDT^.Characteristics;
-          BranchNode.TimeDateStamp := RDT^.TimeDateStamp;
-          BranchNode.MajorVersion := RDT^.MajorVersion;
-          BranchNode.MinorVersion := RDT^.MinorVersion;
-        end;
-
-        // Get Id or Name.
-        if EntyKind = EK_ID then
-          BranchNode.ID := Entry.IntegerID
-        else
-        begin
-          NameRVA := Entry.NameRVA + FBaseRVA;
-          if not Img.SeekRVA(NameRVA) then
-            exit(nil);
-          BranchNode.Name := Img.ReadUnicodeString;
-        end;
-
-        // Get sub-level RVA.
-        SubRVA := Entry.SubdirectoryRVA + FBaseRVA;
-
-        // Read children.
-        ReadNode(SubRVA, BranchNode);
-      end;
-
-      exit(BranchNode);
+      TPEImage(FPE).Msg.Write('Bad resource leaf node.');
+      exit;
     end;
+
+    LeafNode := TResourceTreeLeafNode.CreateFromEntry(FPE, DataEntry);
+    exit(LeafNode);
+  end;
+
+  // Branch Node.
+  // Store RVA.
+  RVA := Img.PositionRVA;
+
+  // Alloc and fill node.
+  BranchNode := TResourceTreeBranchNode.Create;
+  if RDT <> nil then
+  begin
+    BranchNode.Characteristics := RDT^.Characteristics;
+    BranchNode.TimeDateStamp := RDT^.TimeDateStamp;
+    BranchNode.MajorVersion := RDT^.MajorVersion;
+    BranchNode.MinorVersion := RDT^.MinorVersion;
+  end;
+
+  // Get Id or Name.
+  case EntyKind of
+    EK_ID:
+      BranchNode.ID := Entry.IntegerID;
+    EK_NAME:
+      begin
+        NameRVA := Entry.NameRVA + FBaseRVA;
+        if not Img.SeekRVA(NameRVA) then
+        begin
+          TPEImage(FPE).Msg.Write('Failed to read resource name.');
+          exit(nil);
+        end;
+        BranchNode.Name := Img.ReadUnicodeString;
+      end;
+  end;
+
+  // Get sub-level RVA.
+  SubRVA := Entry.SubdirectoryRVA + FBaseRVA;
+
+  // Read children.
+  ReadNode(SubRVA, BranchNode);
+
+  exit(BranchNode);
 end;
 
 function TPEResourcesParser.ReadNode;
