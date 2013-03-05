@@ -5,7 +5,6 @@ uses
   PE.Build.Export in 'PE.Build.Export.pas',
   PE.Build.Import in 'PE.Build.Import.pas',
   PE.Build in 'PE.Build.pas',
-  PE.Build.Resource in 'PE.Build.Resource.pas',
   PE.COFF in 'PE.COFF.pas',
   PE.COFF.Types in 'PE.COFF.Types.pas',
   PE.Common in 'PE.Common.pas',
@@ -47,7 +46,8 @@ uses
   PE.Types.Sections in 'PE.Types.Sections.pas',
   PE.Types.TLS in 'PE.Types.TLS.pas',
   PE.Utils in 'PE.Utils.pas',
-  PE.Resources.Extract in 'PE.Resources.Extract.pas';
+  PE.Resources.Extract in 'PE.Resources.Extract.pas',
+  PE.Build.Resource in 'PE.Build.Resource.pas';
 
 begin
 end.
