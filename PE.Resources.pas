@@ -24,6 +24,10 @@ type
   public
     Parent: TResourceTreeNode;
 
+    // Either ID or Name.
+    Id: uint32;
+    Name: UnicodeString;
+
     function IsBranch: boolean; inline;
     function IsLeaf: boolean; inline;
 
@@ -58,10 +62,6 @@ type
     TimeDateStamp: uint32;
     MajorVersion: uint16;
     MinorVersion: uint16;
-
-    // Either ID or Name.
-    Id: uint32;
-    Name: String;
 
     Children: TResourceTreeNodes;
 
