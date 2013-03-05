@@ -78,10 +78,7 @@ begin
         if Img.SeekRVA(DataRVA) then
           if Img.ReadEx(@DataEntry, SizeOf(DataEntry)) then
           begin
-            LeafNode := TResourceTreeLeafNode.Create;
-            LeafNode.DataRVA := DataEntry.DataRVA;
-            LeafNode.DataSize := DataEntry.Size;
-            LeafNode.Codepage := DataEntry.Codepage;
+            LeafNode := TResourceTreeLeafNode.CreateFromEntry(FPE, DataEntry);
             exit(LeafNode);
           end;
         exit(nil);

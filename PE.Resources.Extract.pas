@@ -36,25 +36,18 @@ type
 function TExtractor.Callback(Node: TResourceTreeNode): boolean;
 var
   Leaf: TResourceTreeLeafNode;
-  FileName, ParentName: string;
-  Written: uint32;
+  FileName: string;
+  Path: string;
 begin
   if Node.IsLeaf then
   begin
     Leaf := Node as TResourceTreeLeafNode;
-
-    if (Leaf.Parent <> nil) then
-      ParentName := (Leaf.Parent as TResourceTreeBranchNode).GetSafeName
-    else
-      ParentName := '';
-
-    // Make file name.
-    FileName := Format('%s\rsrc_%s_%x_%x_%x',
-      [FDir, ParentName, Leaf.DataRVA, Leaf.DataSize, Leaf.Codepage]);
-
-    // Dump raw resource.
-    Written := FImg.DumpRegionToFile(FileName, Leaf.DataRVA, Leaf.DataSize);
-
+    // Make filename and path.
+    FileName := Format('%s\%s', [FDir, Leaf.GetPath]);
+    Path := ExtractFilePath(FileName);
+    // Create path and save file.
+    TDirectory.CreateDirectory(Path);
+    Leaf.Data.SaveToFile(FileName);
     inc(FCount);
   end;
   Result := True; // continue
@@ -89,3 +82,4 @@ begin
 end;
 
 end.
+
