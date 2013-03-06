@@ -1,3 +1,6 @@
+{
+  See also PE.Resources.Extract for resource extraction.
+}
 program ResourceExtract;
 
 uses
@@ -49,7 +52,7 @@ begin
     if img.LoadFromFile('SampleLib.dll') then
     begin
       // Traverse and dump all resources.
-      img.ResourceTree.Traverse(img.MyTraverse);
+      img.ResourceTree.Root.Traverse(img.MyTraverse);
     end;
   finally
     img.Free;

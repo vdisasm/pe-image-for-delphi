@@ -1,8 +1,5 @@
 {
   Classes to represent resource data.
-
-  Adding or removing children must be done from TResourceTree to maintain
-  right total count.
 }
 unit PE.Resources;
 
@@ -13,29 +10,47 @@ uses
   System.Generics.Collections,
   System.SysUtils,
 
+  VDLib.RBTree,
+
   PE.Common,
   PE.Types.Resources;
 
 type
   { Nodes }
 
+  TResourceTreeNode = class;
+  TResourceTreeBranchNode = class;
+
+  // Return False to stop traversing or True to continue.
+  TResourceTraverseMethod = function(Node: TResourceTreeNode): boolean of object;
+
   // Base node.
   TResourceTreeNode = class
-  public
-    Parent: TResourceTreeNode;
-
+  private
     // Either ID or Name.
-    Id: uint32;
-    Name: UnicodeString;
+    FId: uint32;
+    FName: UnicodeString;
+    procedure SetId(const Value: uint32);
+    procedure SetName(const Value: UnicodeString);
+  public
+    Parent: TResourceTreeBranchNode;
+
+    procedure Traverse(TraverseMethod: TResourceTraverseMethod); inline;
+
+    // Check if node is named. Otherwise it's ID.
+    function IsNamed: boolean; inline;
 
     function IsBranch: boolean; inline;
     function IsLeaf: boolean; inline;
 
     function GetPath: string;
+
+    property Id: uint32 read FId write SetId;
+    property Name: UnicodeString read FName write SetName;
   end;
 
   // Node list.
-  TResourceTreeNodes = TList<TResourceTreeNode>;
+  TResourceTreeNodes = TRBTree<TResourceTreeNode>;
 
   // Leaf node (data).
   TResourceTreeLeafNode = class(TResourceTreeNode)
@@ -44,98 +59,196 @@ type
     FCodepage: uint32;
     FData: TMemoryStream;
     function GetDataSize: uint32;
-    function GetCodePage: uint32;
   public
-    constructor Create(PE: TPEImageObject; DataRVA: TRVA; DataSize: uint32; CodePage: uint32);
+    constructor Create;
+    constructor CreateFromRVA(PE: TPEImageObject; DataRVA: TRVA; DataSize: uint32; CodePage: uint32);
     constructor CreateFromEntry(PE: TPEImageObject; const Entry: TResourceDataEntry);
+    constructor CreateFromStream(Stream: TStream; Pos: UInt64 = 0; Size: UInt64 = 0);
+
     destructor Destroy; override;
+
     property Data: TMemoryStream read FData;
     property DataRVA: TRVA read FDataRVA;
     property DataSize: uint32 read GetDataSize;
-    property CodePage: uint32 read GetCodePage;
+    property CodePage: uint32 read FCodepage write FCodepage;
   end;
 
   // Branch node.
   TResourceTreeBranchNode = class(TResourceTreeNode)
+  private
+    // 5.9.2. Resource Directory Entries
+    // ...
+    // All the Name entries precede all the ID entries for the table.
+    // All entries for the table are sorted in ascending order:
+    // Name entries by case-insensitive string and the ID entries by numeric value.
+    FChildren: TResourceTreeNodes;
+
+    // Make sure node will be placed in right order.
+    procedure ValidatePosition(Node: TResourceTreeNode);
   public
     Characteristics: uint32;
     TimeDateStamp: uint32;
     MajorVersion: uint16;
     MinorVersion: uint16;
 
-    Children: TResourceTreeNodes;
-
-    constructor Create;
+    constructor Create();
     destructor Destroy; override;
 
     // Get either Name or Id as string.
     function GetSafeName: string;
-  end;
 
-  // Return False to stop traversing or True to continue.
-  TResourceTraverseMethod = function(Node: TResourceTreeNode): boolean of object;
+    // Add node to children. Result is added node.
+    function Add(Node: TResourceTreeNode): TResourceTreeNode;
+    function AddNewBranch: TResourceTreeBranchNode;
+    function AddNewLeaf: TResourceTreeLeafNode;
+
+    // Find resource by Name or Id.
+    function Find(const Name: string): TResourceTreeNode; overload;
+    function Find(Id: uint32): TResourceTreeNode; overload;
+
+    property Children: TResourceTreeNodes read FChildren;
+  end;
 
   { Tree }
 
   TResourceTree = class
-  private
-    FTotalNodes: integer;
   protected
     FRoot: TResourceTreeBranchNode;
     procedure CreateDummyRoot;
   public
-
     constructor Create;
     destructor Destroy; override;
-
-    // Add child node.
-    function AddChild(Node: TResourceTreeNode; ParentNode: TResourceTreeBranchNode)
-      : TResourceTreeNode; // inline;
-
-    // Traverse from node.
-    procedure TraverseNode(Node: TResourceTreeNode;
-      TraverseMethod: TResourceTraverseMethod);
-
-    // Traverse from root.
-    procedure Traverse(TraverseMethod: TResourceTraverseMethod;
-      UserData: pointer = nil); inline;
 
     // Clear all nodes.
     procedure Clear;
 
     property Root: TResourceTreeBranchNode read FRoot;
-    property TotalNodes: integer read FTotalNodes;
   end;
 
 implementation
 
 uses
+  System.Character,
   PE.Image;
+
+function TreeNodeComparer(const A, B: TResourceTreeNode): integer;
+var
+  NamedA, NamedB: boolean;
+  n1, n2: string;
+begin
+  NamedA := A.IsNamed;
+  NamedB := B.IsNamed;
+  // Compare named.
+  if NamedA and NamedB then
+  begin
+    n1 := TCharacter.ToUpper(A.Name);
+    n2 := TCharacter.ToUpper(B.Name);
+    exit(CompareStr(n1, n2));
+  end;
+  // Compare by ID.
+  if (not NamedA) and (not NamedB) then
+  begin
+    if A.Id > B.Id then
+      exit(1)
+    else if A.Id < B.Id then
+      exit(-1)
+    else
+      exit(0);
+  end;
+  // Compare Named vs ID (named must go first).
+  if NamedA and (not NamedB) then
+    exit(-1)
+  else if (not NamedA) and NamedB then
+    exit(1);
+end;
 
 { TResourceTreeNode }
 
-constructor TResourceTreeBranchNode.Create;
+function TResourceTreeBranchNode.Add(
+  Node: TResourceTreeNode): TResourceTreeNode;
+begin
+  Result := Node;
+  if Assigned(Node) then
+  begin
+    Node.Parent := Self;
+    FChildren.Add(Node);
+  end;
+end;
+
+function TResourceTreeBranchNode.AddNewBranch: TResourceTreeBranchNode;
+begin
+  Result := TResourceTreeBranchNode.Create;
+  Add(Result);
+end;
+
+function TResourceTreeBranchNode.AddNewLeaf: TResourceTreeLeafNode;
+begin
+  Result := TResourceTreeLeafNode.Create;
+  Add(Result);
+end;
+
+constructor TResourceTreeBranchNode.Create();
 begin
   inherited;
-  Children := TResourceTreeNodes.Create;
+  FChildren := TResourceTreeNodes.Create(TreeNodeComparer);
 end;
 
 destructor TResourceTreeBranchNode.Destroy;
 var
   n: TResourceTreeNode;
 begin
-  for n in Children do
+  for n in FChildren do
     n.Free;
-  Children.Free;
+  FChildren.Free;
   inherited;
+end;
+
+function TResourceTreeBranchNode.Find(const Name: string): TResourceTreeNode;
+var
+  tmp: TResourceTreeNode;
+  p: TResourceTreeNodes.TRBNodePtr;
+begin
+  Result := nil;
+  tmp := TResourceTreeNode.Create;
+  try
+    tmp.FName := Name;
+    p := FChildren.Find(tmp);
+    if p <> nil then
+      Result := p^.K;
+  finally
+    tmp.Free;
+  end;
+end;
+
+function TResourceTreeBranchNode.Find(Id: uint32): TResourceTreeNode;
+var
+  tmp: TResourceTreeNode;
+  p: TResourceTreeNodes.TRBNodePtr;
+begin
+  Result := nil;
+  tmp := TResourceTreeNode.Create;
+  try
+    tmp.FId := Id;
+    p := FChildren.Find(tmp);
+    if p <> nil then
+      Result := p^.K;
+  finally
+    tmp.Free;
+  end;
 end;
 
 function TResourceTreeBranchNode.GetSafeName: string;
 begin
-  if name <> '' then
+  if IsNamed then
     Result := name
   else
     Result := Format('#%d', [Id])
+end;
+
+procedure TResourceTreeBranchNode.ValidatePosition(Node: TResourceTreeNode);
+begin
+  FChildren.Remove(Node, False);
+  FChildren.Add(Node);
 end;
 
 { TResourceTreeNode }
@@ -145,7 +258,7 @@ var
   Cur: TResourceTreeNode;
   Separator: string;
 begin
-  Cur := self;
+  Cur := Self;
 
   if Cur.IsLeaf then
   begin
@@ -157,7 +270,7 @@ begin
   while (Cur.Parent <> nil) and (Cur.Parent.Parent <> nil) do
   begin
     // Leaf node don't need PathDelim.
-    if Cur = self then
+    if Cur = Self then
       Separator := ''
     else
       Separator := PathDelim;
@@ -169,32 +282,59 @@ end;
 
 function TResourceTreeNode.IsBranch: boolean;
 begin
-  Result := (self is TResourceTreeBranchNode);
+  Result := (Self is TResourceTreeBranchNode);
 end;
 
 function TResourceTreeNode.IsLeaf: boolean;
 begin
-  Result := (self is TResourceTreeLeafNode);
+  Result := (Self is TResourceTreeLeafNode);
+end;
+
+function TResourceTreeNode.IsNamed: boolean;
+begin
+  Result := Name <> '';
+end;
+
+procedure TResourceTreeNode.SetId(const Value: uint32);
+begin
+  FId := Value;
+  FName := '';
+  if Assigned(Parent) then
+    Parent.ValidatePosition(Self);
+end;
+
+procedure TResourceTreeNode.SetName(const Value: UnicodeString);
+begin
+  FId := 0;
+  FName := Value;
+  if Assigned(Parent) then
+    Parent.ValidatePosition(Self);
+end;
+
+procedure TResourceTreeNode.Traverse(TraverseMethod: TResourceTraverseMethod);
+const
+  WANT_MORE_NODES = True;
+var
+  n: TResourceTreeNode;
+begin
+  if Assigned(TraverseMethod) and (Assigned(Self)) then
+  begin
+    // Visit node.
+    if TraverseMethod(Self) = WANT_MORE_NODES then
+    begin
+      // If branch, visit children.
+      if Self.IsBranch then
+        for n in TResourceTreeBranchNode(Self).FChildren do
+          n.Traverse(TraverseMethod)
+    end;
+  end;
 end;
 
 { TResourceTree }
 
-function TResourceTree.AddChild(Node: TResourceTreeNode;
-  ParentNode: TResourceTreeBranchNode): TResourceTreeNode;
-begin
-  Result := Node;
-  if Assigned(Node) then
-  begin
-    Node.Parent := ParentNode;
-    ParentNode.Children.Add(Node);
-    Inc(FTotalNodes);
-  end;
-end;
-
 procedure TResourceTree.Clear;
 begin
   FRoot.Free; // To destroy all children.
-  FTotalNodes := 0;
   CreateDummyRoot;
 end;
 
@@ -215,35 +355,9 @@ begin
   inherited;
 end;
 
-procedure TResourceTree.Traverse(TraverseMethod: TResourceTraverseMethod;
-  UserData: pointer);
-begin
-  TraverseNode(FRoot, TraverseMethod);
-end;
-
-procedure TResourceTree.TraverseNode(Node: TResourceTreeNode;
-  TraverseMethod: TResourceTraverseMethod);
-const
-  WANT_MORE_NODES = True;
-var
-  n: TResourceTreeNode;
-begin
-  if Assigned(TraverseMethod) and (Assigned(Node)) then
-  begin
-    // Visit node.
-    if TraverseMethod(Node) = WANT_MORE_NODES then
-    begin
-      // If branch, visit children.
-      if Node.IsBranch then
-        for n in TResourceTreeBranchNode(Node).Children do
-          TraverseNode(n, TraverseMethod)
-    end;
-  end;
-end;
-
 { TResourceTreeLeafNode }
 
-constructor TResourceTreeLeafNode.Create(PE: TPEImageObject; DataRVA: TRVA;
+constructor TResourceTreeLeafNode.CreateFromRVA(PE: TPEImageObject; DataRVA: TRVA;
   DataSize: uint32; CodePage: uint32);
 begin
   FDataRVA := DataRVA;
@@ -257,21 +371,31 @@ begin
   end;
 end;
 
+constructor TResourceTreeLeafNode.CreateFromStream(Stream: TStream; Pos,
+  Size: UInt64);
+begin
+  FData := TMemoryStream.Create;
+  Stream.Position := Pos;
+  if Size = 0 then
+    Size := Stream.Size - Pos;
+  FData.CopyFrom(Stream, Size);
+end;
+
+constructor TResourceTreeLeafNode.Create;
+begin
+  FData := TMemoryStream.Create;
+end;
+
 constructor TResourceTreeLeafNode.CreateFromEntry(PE: TPEImageObject;
   const Entry: TResourceDataEntry);
 begin
-  Create(PE, Entry.DataRVA, Entry.Size, Entry.CodePage);
+  CreateFromRVA(PE, Entry.DataRVA, Entry.Size, Entry.CodePage);
 end;
 
 destructor TResourceTreeLeafNode.Destroy;
 begin
   FData.Free;
   inherited;
-end;
-
-function TResourceTreeLeafNode.GetCodePage: uint32;
-begin
-  Result := FCodepage;
 end;
 
 function TResourceTreeLeafNode.GetDataSize: uint32;

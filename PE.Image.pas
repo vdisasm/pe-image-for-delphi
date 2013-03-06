@@ -482,6 +482,8 @@ begin
   FCOFF := TCOFF.Create(self);
 
   InitParsers;
+
+  FDefaults.SetAll;
 end;
 
 procedure TPEImage.Clear;

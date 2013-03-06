@@ -77,7 +77,7 @@ begin
   if Root = nil then
     Exit(0);
   TDirectory.CreateDirectory(Dir);
-  Img.ResourceTree.TraverseNode(Root, Callback);
+  Img.ResourceTree.Root.Traverse(Callback);
   Exit(FCount);
 end;
 

@@ -34,7 +34,7 @@ type
     // Write name. Result is position of written name.
     function WriteName(const Name: UnicodeString): UInt32;
     // Write table and update offsets. Result is offset where table was written.
-    function WriteNode(Root: TResourceTreeBranchNode): UInt32;
+    function WriteBranchNode(Root: TResourceTreeBranchNode): UInt32;
     // Write leaf data and return offset where it was written.
     function WriteLeafData(Node: TResourceTreeLeafNode): UInt32;
     // Write leaf node and return offset where it was written.
@@ -60,13 +60,13 @@ begin
   FStream := Stream;
   FStream.Size := FOfsEnd;
   // Build nodes starting from root.
-  WriteNode(FPE.ResourceTree.Root);
+  WriteBranchNode(FPE.ResourceTree.Root);
 end;
 
 procedure TRsrcBuilder.CalcSizes;
 begin
   ClearSizes;
-  FPE.ResourceTree.Traverse(CalcSizesCallback);
+  FPE.ResourceTree.Root.Traverse(CalcSizesCallback);
 end;
 
 function TRsrcBuilder.CalcSizesCallback(Node: TResourceTreeNode): boolean;
@@ -151,7 +151,7 @@ begin
   FStream.Position := Pos; // restore pos
 end;
 
-function TRsrcBuilder.WriteNode(Root: TResourceTreeBranchNode): UInt32;
+function TRsrcBuilder.WriteBranchNode(Root: TResourceTreeBranchNode): UInt32;
 type
   TSimpleEntry = packed record
     IdOrNameOfs: UInt32;
@@ -179,18 +179,13 @@ begin
   Table.MajorVersion := Root.MajorVersion;
   Table.MinorVersion := Root.MinorVersion;
 
+  // todo: it can be precalculated
   Table.NumberOfNameEntries := 0;
   Table.NumberOfIDEntries := 0;
 
   for Node in Root.Children do
-    if Node.IsBranch then
-    begin
-      Branch := Node as TResourceTreeBranchNode;
-      if Branch.Name <> '' then
-        inc(Table.NumberOfNameEntries)
-      else if Branch.Id <> 0 then
-        inc(Table.NumberOfIDEntries);
-    end
+    if Node.IsNamed then
+      inc(Table.NumberOfNameEntries)
     else
       inc(Table.NumberOfIDEntries);
 
@@ -206,20 +201,18 @@ begin
   SetLength(Entries, Root.Children.Count);
   Entry := @Entries[0];
 
-  // todo: entries must be sorted
-
   for Node in Root.Children do
   begin
     // Set Id or Name.
-    if (Node.Name <> '') then
+    if Node.IsNamed then
       Entry.IdOrNameOfs := WriteName(Node.Name) or $80000000 // Named
     else
       Entry.IdOrNameOfs := Node.Id; // ID
     // Set child offset.
     if Node.IsLeaf then
-      Entry.ChildOfs := WriteLeafNode(Node as TResourceTreeLeafNode)
+      Entry.ChildOfs := WriteLeafNode(TResourceTreeLeafNode(Node))
     else
-      Entry.ChildOfs := WriteNode(Node as TResourceTreeBranchNode) or $80000000;
+      Entry.ChildOfs := WriteBranchNode(TResourceTreeBranchNode(Node)) or $80000000;
     // Next entry.
     inc(Entry);
   end;

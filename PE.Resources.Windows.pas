@@ -11,39 +11,40 @@ unit PE.Resources.Windows;
 interface
 
 uses
+  System.Classes,
   PE.Image,
   PE.Resources;
 
 { Values for Windows PE. }
 
 type
-  MAKEINTRESOURCE = PWideChar;
+  RSRCID = UInt32;
 
 const
   // The following are the predefined resource types.
   // http://msdn.microsoft.com/en-us/library/windows/desktop/ms648009(v=vs.85).aspx
 
-  RT_CURSOR       = MAKEINTRESOURCE(1);  // Hardware-dependent cursor resource.
-  RT_BITMAP       = MAKEINTRESOURCE(2);  // Bitmap resource.
-  RT_ICON         = MAKEINTRESOURCE(3);  // Hardware-dependent icon resource.
-  RT_MENU         = MAKEINTRESOURCE(4);  // Menu resource.
-  RT_DIALOG       = MAKEINTRESOURCE(5);  // Dialog box.
-  RT_STRING       = MAKEINTRESOURCE(6);  // String-table entry.
-  RT_FONTDIR      = MAKEINTRESOURCE(7);  // Font directory resource.
-  RT_FONT         = MAKEINTRESOURCE(8);  // Font resource.
-  RT_ACCELERATOR  = MAKEINTRESOURCE(9);  // Accelerator table.
-  RT_RCDATA       = MAKEINTRESOURCE(10); // Application-defined resource (raw data).
-  RT_MESSAGETABLE = MAKEINTRESOURCE(11); // Message-table entry.
-  RT_GROUP_CURSOR = MAKEINTRESOURCE(uint32(RT_CURSOR) + 11); // Hardware-independent cursor resource.
-  RT_GROUP_ICON   = MAKEINTRESOURCE(uint32(RT_ICON) + 11); // Hardware-independent icon resource.
-  RT_VERSION      = MAKEINTRESOURCE(16);                   // Version resource.
-  RT_DLGINCLUDE   = MAKEINTRESOURCE(17);                   // Allows a resource editing tool to associate a string with an .rc file.
-  RT_PLUGPLAY     = MAKEINTRESOURCE(19);                   // Plug and Play resource.
-  RT_VXD          = MAKEINTRESOURCE(20);                   // VXD.
-  RT_ANICURSOR    = MAKEINTRESOURCE(21);                   // Animated cursor.
-  RT_ANIICON      = MAKEINTRESOURCE(22);                   // Animated icon.
-  RT_HTML         = MAKEINTRESOURCE(23);                   // HTML resource.
-  RT_MANIFEST     = MAKEINTRESOURCE(24);                   // Side-by-Side Assembly Manifest.
+  RT_CURSOR       = RSRCID(1);                      // Hardware-dependent cursor resource.
+  RT_BITMAP       = RSRCID(2);                      // Bitmap resource.
+  RT_ICON         = RSRCID(3);                      // Hardware-dependent icon resource.
+  RT_MENU         = RSRCID(4);                      // Menu resource.
+  RT_DIALOG       = RSRCID(5);                      // Dialog box.
+  RT_STRING       = RSRCID(6);                      // String-table entry.
+  RT_FONTDIR      = RSRCID(7);                      // Font directory resource.
+  RT_FONT         = RSRCID(8);                      // Font resource.
+  RT_ACCELERATOR  = RSRCID(9);                      // Accelerator table.
+  RT_RCDATA       = RSRCID(10);                     // Application-defined resource (raw data).
+  RT_MESSAGETABLE = RSRCID(11);                     // Message-table entry.
+  RT_GROUP_CURSOR = RSRCID(UInt32(RT_CURSOR) + 11); // Hardware-independent cursor resource.
+  RT_GROUP_ICON   = RSRCID(UInt32(RT_ICON) + 11);   // Hardware-independent icon resource.
+  RT_VERSION      = RSRCID(16);                     // Version resource.
+  RT_DLGINCLUDE   = RSRCID(17);                     // Allows a resource editing tool to associate a string with an .rc file.
+  RT_PLUGPLAY     = RSRCID(19);                     // Plug and Play resource.
+  RT_VXD          = RSRCID(20);                     // VXD.
+  RT_ANICURSOR    = RSRCID(21);                     // Animated cursor.
+  RT_ANIICON      = RSRCID(22);                     // Animated icon.
+  RT_HTML         = RSRCID(23);                     // HTML resource.
+  RT_MANIFEST     = RSRCID(24);                     // Side-by-Side Assembly Manifest.
 
   RT_NAMES: array [0 .. 24] of string = (
     '#0',              // 0
@@ -84,12 +85,21 @@ type
     // The function is similar to FindResourceEx:
     // http://msdn.microsoft.com/en-us/library/windows/desktop/ms648043(v=vs.85).aspx
     function Find(const &Type, Name: string; Language: word = 0): TResourceTreeLeafNode;
+
+    // Add new or update existing resource and return resource node.
+    function &Set(Source: TStream; const &Type, Name: string; Language: word = 0): TResourceTreeLeafNode;
   end;
 
 implementation
 
 uses
   System.SysUtils;
+
+function TWindowsResourceTree.&Set(Source: TStream; const &Type, Name: string;
+  Language: word): TResourceTreeLeafNode;
+begin
+  raise Exception.Create('Not implemented');
+end;
 
 constructor TWindowsResourceTree.Create(ResourceTree: TResourceTree);
 begin

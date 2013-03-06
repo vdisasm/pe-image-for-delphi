@@ -15,8 +15,14 @@ type
   protected
     FBaseRVA: TRVA; // RVA of RSRC section base
     FTree: TResourceTree;
-    function ReadEntry(var RVA: TRVA; EntyKind: TEntryKind; RDT: PResourceDirectoryTable): TResourceTreeNode;
-    function ReadNode(RVA: TRVA; ParentNode: TResourceTreeBranchNode): TParserResult;
+    function ReadEntry(
+      ParentNode: TResourceTreeBranchNode;
+      var RVA: TRVA;
+      EntyKind: TEntryKind;
+      RDT: PResourceDirectoryTable): TResourceTreeNode;
+    function ReadNode(
+      ParentNode: TResourceTreeBranchNode;
+      RVA: TRVA): TParserResult;
   public
     function Parse: TParserResult; override;
   end;
@@ -51,11 +57,15 @@ begin
 
   // Read root and children.
   FTree := Img.ResourceTree;
-  ReadNode(FBaseRVA, FTree.Root);
+  ReadNode(FTree.Root, FBaseRVA);
   exit(PR_OK);
 end;
 
-function TPEResourcesParser.ReadEntry;
+function TPEResourcesParser.ReadEntry(
+  ParentNode: TResourceTreeBranchNode;
+  var RVA: TRVA;
+  EntyKind: TEntryKind;
+  RDT: PResourceDirectoryTable): TResourceTreeNode;
 var
   Img: TPEImage;
   Entry: TResourceDirectoryEntry;
@@ -103,7 +113,7 @@ begin
     // Get sub-level RVA.
     SubRVA := Entry.SubdirectoryRVA + FBaseRVA;
     // Read children.
-    ReadNode(SubRVA, BranchNode);
+    ReadNode(BranchNode, SubRVA);
     Result := BranchNode;
   end;
 
@@ -124,10 +134,16 @@ begin
           Result.Name := Img.ReadUnicodeString;
         end;
     end;
+
+    // When Result node is finished we can add it to parent.
+    ParentNode.Add(Result);
   end;
+
 end;
 
-function TPEResourcesParser.ReadNode;
+function TPEResourcesParser.ReadNode(
+  ParentNode: TResourceTreeBranchNode;
+  RVA: TRVA): TParserResult;
 var
   Img: TPEImage;
   RDT: TResourceDirectoryTable;
@@ -146,11 +162,11 @@ begin
 
   // Read named entries.
   for i := 1 to RDT.NumberOfNameEntries do
-    FTree.AddChild(ReadEntry(RVA, EK_NAME, @RDT), ParentNode);
+    ReadEntry(ParentNode, RVA, EK_NAME, @RDT);
 
   // Read Id entries.
   for i := 1 to RDT.NumberOfIDEntries do
-    FTree.AddChild(ReadEntry(RVA, EK_ID, @RDT), ParentNode);
+    ReadEntry(ParentNode, RVA, EK_ID, @RDT);
 
   exit(PR_OK);
 end;
