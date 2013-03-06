@@ -1,8 +1,17 @@
+{
+  Unit to manipulate resources in Windows oriented way.
+
+  It means 3 resource levels:
+  - Type (RT_...)
+  - Name
+  - Language
+}
 unit PE.Resources.Windows;
 
 interface
 
 uses
+  PE.Image,
   PE.Resources;
 
 { Values for Windows PE. }
@@ -11,11 +20,6 @@ type
   MAKEINTRESOURCE = PWideChar;
 
 const
-  RSRC_LEVEL_ROOT   = 0;
-  RSRC_LEVEL_TYPE   = 1; // Type: RT_xxx.
-  RSRC_LEVEL_NAMEID = 1; // Name of Id.
-  RSRC_LEVEL_DATA   = 1; // Ptr to data.
-
   // The following are the predefined resource types.
   // http://msdn.microsoft.com/en-us/library/windows/desktop/ms648009(v=vs.85).aspx
 
@@ -69,32 +73,33 @@ const
     'RT_MANIFEST'      // 24
     );
 
-
-
 type
-  TWidowsResourceTree = class
+  TWindowsResourceTree = class
   protected
     FResourceTree: TResourceTree;
   public
     constructor Create(ResourceTree: TResourceTree);
 
-    function Find(AType, AName: PWideChar): pointer;
-
-    // Add: Type, Name, Lang
+    // Find resource by Type, Name and Language (optional).
+    // The function is similar to FindResourceEx:
+    // http://msdn.microsoft.com/en-us/library/windows/desktop/ms648043(v=vs.85).aspx
+    function Find(const &Type, Name: string; Language: word = 0): TResourceTreeLeafNode;
   end;
 
 implementation
 
-{ TWidowsResourceTree }
+uses
+  System.SysUtils;
 
-constructor TWidowsResourceTree.Create(ResourceTree: TResourceTree);
+constructor TWindowsResourceTree.Create(ResourceTree: TResourceTree);
 begin
   FResourceTree := ResourceTree;
 end;
 
-function TWidowsResourceTree.Find(AType, AName: PWideChar): pointer;
+function TWindowsResourceTree.Find(const &Type, Name: string;
+  Language: word): TResourceTreeLeafNode;
 begin
-  Result := nil;
+  raise Exception.Create('Not implemented');
 end;
 
 end.
