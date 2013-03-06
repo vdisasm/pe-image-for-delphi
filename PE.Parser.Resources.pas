@@ -120,9 +120,13 @@ begin
   // Get Id or Name.
   if Result <> nil then
   begin
+    // Assigning Id or Name at this stage won't trigger sort, as Parent isn't
+    // assigned yet.
     case EntyKind of
       EK_ID:
-        Result.Id := Entry.IntegerID;
+        begin
+          Result.Id := Entry.IntegerID;
+        end;
       EK_NAME:
         begin
           NameRVA := Entry.NameRVA + FBaseRVA;

@@ -162,7 +162,6 @@ type
 var
   Table: TResourceDirectoryTable;
   Node: TResourceTreeNode;
-  Branch: TResourceTreeBranchNode;
   Entries: array of TSimpleEntry;
   Entry: PSimpleEntry;
   Pos: UInt32;

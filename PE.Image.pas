@@ -287,7 +287,7 @@ type
     function SaveToStream(AStream: TStream): boolean;
 
     // Save image to file.
-    function SaveToFile(const AFileName: string): boolean; inline;
+    function SaveToFile(const AFileName: string): boolean;
 
     { Sections }
 

@@ -32,6 +32,9 @@ type
     FName: UnicodeString;
     procedure SetId(const Value: uint32);
     procedure SetName(const Value: UnicodeString);
+
+    // Find either by name or by id.
+    function FindByNameOrId(const Name: string; Id: uint32): TResourceTreeNode;
   public
     Parent: TResourceTreeBranchNode;
 
@@ -42,6 +45,10 @@ type
 
     function IsBranch: boolean; inline;
     function IsLeaf: boolean; inline;
+
+    // Find resource by Name or Id.
+    function Find(const Name: string): TResourceTreeNode; overload; inline;
+    function Find(Id: uint32): TResourceTreeNode; overload; inline;
 
     function GetPath: string;
 
@@ -83,8 +90,19 @@ type
     // Name entries by case-insensitive string and the ID entries by numeric value.
     FChildren: TResourceTreeNodes;
 
+    procedure ChildrenNotify(Sender: TObject; const Item: TResourceTreeNode;
+      Action: TCollectionNotification);
+
     // Make sure node will be placed in right order.
-    procedure ValidatePosition(Node: TResourceTreeNode);
+    // To allow Id/Name be changed dynamically we need to call KeepNodeOrder_Begin
+    // before changing (it will remove current node without destroying it) and
+    // call KeepNodeOrder_End when change done (to add changed node). It is done
+    // internally in SetId and SetName (TResourceTreeNode).
+    // The benefit is nodes are always sorted dynamically.
+    // If KeepNodeOrder_Begin/end not called, RBTree structure will
+    // be corrupted during change of Name/Id.
+    procedure KeepNodeOrder_Begin(Node: TResourceTreeNode); inline;
+    procedure KeepNodeOrder_End(Node: TResourceTreeNode); inline;
   public
     Characteristics: uint32;
     TimeDateStamp: uint32;
@@ -101,10 +119,6 @@ type
     function Add(Node: TResourceTreeNode): TResourceTreeNode;
     function AddNewBranch: TResourceTreeBranchNode;
     function AddNewLeaf: TResourceTreeLeafNode;
-
-    // Find resource by Name or Id.
-    function Find(const Name: string): TResourceTreeNode; overload;
-    function Find(Id: uint32): TResourceTreeNode; overload;
 
     property Children: TResourceTreeNodes read FChildren;
   end;
@@ -157,15 +171,14 @@ begin
   end;
   // Compare Named vs ID (named must go first).
   if NamedA and (not NamedB) then
-    exit(-1)
-  else if (not NamedA) and NamedB then
-    exit(1);
+    exit(-1);
+  // else if (not NamedA) and NamedB then
+  exit(1);
 end;
 
 { TResourceTreeNode }
 
-function TResourceTreeBranchNode.Add(
-  Node: TResourceTreeNode): TResourceTreeNode;
+function TResourceTreeBranchNode.Add(Node: TResourceTreeNode): TResourceTreeNode;
 begin
   Result := Node;
   if Assigned(Node) then
@@ -187,54 +200,26 @@ begin
   Add(Result);
 end;
 
+procedure TResourceTreeBranchNode.ChildrenNotify(Sender: TObject;
+  const Item: TResourceTreeNode; Action: TCollectionNotification);
+begin
+  case Action of
+    cnRemoved:
+      Item.Free;
+  end;
+end;
+
 constructor TResourceTreeBranchNode.Create();
 begin
   inherited;
   FChildren := TResourceTreeNodes.Create(TreeNodeComparer);
+  FChildren.OnNotify := ChildrenNotify;
 end;
 
 destructor TResourceTreeBranchNode.Destroy;
-var
-  n: TResourceTreeNode;
 begin
-  for n in FChildren do
-    n.Free;
   FChildren.Free;
   inherited;
-end;
-
-function TResourceTreeBranchNode.Find(const Name: string): TResourceTreeNode;
-var
-  tmp: TResourceTreeNode;
-  p: TResourceTreeNodes.TRBNodePtr;
-begin
-  Result := nil;
-  tmp := TResourceTreeNode.Create;
-  try
-    tmp.FName := Name;
-    p := FChildren.Find(tmp);
-    if p <> nil then
-      Result := p^.K;
-  finally
-    tmp.Free;
-  end;
-end;
-
-function TResourceTreeBranchNode.Find(Id: uint32): TResourceTreeNode;
-var
-  tmp: TResourceTreeNode;
-  p: TResourceTreeNodes.TRBNodePtr;
-begin
-  Result := nil;
-  tmp := TResourceTreeNode.Create;
-  try
-    tmp.FId := Id;
-    p := FChildren.Find(tmp);
-    if p <> nil then
-      Result := p^.K;
-  finally
-    tmp.Free;
-  end;
 end;
 
 function TResourceTreeBranchNode.GetSafeName: string;
@@ -245,13 +230,50 @@ begin
     Result := Format('#%d', [Id])
 end;
 
-procedure TResourceTreeBranchNode.ValidatePosition(Node: TResourceTreeNode);
+procedure TResourceTreeBranchNode.KeepNodeOrder_Begin(Node: TResourceTreeNode);
 begin
-  FChildren.Remove(Node, False);
-  FChildren.Add(Node);
+  if Assigned(Self) then
+    FChildren.Remove(Node, False);
+end;
+
+procedure TResourceTreeBranchNode.KeepNodeOrder_End(Node: TResourceTreeNode);
+begin
+  if Assigned(Self) then
+    FChildren.Add(Node, False);
 end;
 
 { TResourceTreeNode }
+
+function TResourceTreeNode.Find(const Name: string): TResourceTreeNode;
+begin
+  Result := FindByNameOrId(Name, 0);
+end;
+
+function TResourceTreeNode.Find(Id: uint32): TResourceTreeNode;
+begin
+  Result := FindByNameOrId('', Id);
+end;
+
+function TResourceTreeNode.FindByNameOrId(const Name: string;
+  Id: uint32): TResourceTreeNode;
+var
+  tmp: TResourceTreeNode;
+  p: TResourceTreeNodes.TRBNodePtr;
+begin
+  Result := nil;
+  if not IsBranch then
+    exit;
+  tmp := TResourceTreeNode.Create;
+  try
+    tmp.FName := Name;
+    tmp.FId := Id;
+    p := TResourceTreeBranchNode(Self).FChildren.Find(tmp);
+    if p <> nil then
+      Result := p^.K;
+  finally
+    tmp.Free;
+  end;
+end;
 
 function TResourceTreeNode.GetPath: string;
 var
@@ -297,18 +319,18 @@ end;
 
 procedure TResourceTreeNode.SetId(const Value: uint32);
 begin
+  Parent.KeepNodeOrder_Begin(Self);
   FId := Value;
   FName := '';
-  if Assigned(Parent) then
-    Parent.ValidatePosition(Self);
+  Parent.KeepNodeOrder_End(Self);
 end;
 
 procedure TResourceTreeNode.SetName(const Value: UnicodeString);
 begin
+  Parent.KeepNodeOrder_Begin(Self);
   FId := 0;
   FName := Value;
-  if Assigned(Parent) then
-    Parent.ValidatePosition(Self);
+  Parent.KeepNodeOrder_End(Self);
 end;
 
 procedure TResourceTreeNode.Traverse(TraverseMethod: TResourceTraverseMethod);

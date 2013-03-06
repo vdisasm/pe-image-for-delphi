@@ -207,7 +207,6 @@ var
   hmod: HMODULE;
   proc: pointer;
   i, iFn: integer;
-  iRva: integer;
   va: UInt64;
 begin
   for i := 0 to FPE.Imports.Count - 1 do
@@ -281,7 +280,7 @@ begin
   Delta := FInstance - FPE.ImageBase;
 
   if Delta = 0 then
-    exit; // no relocation needed
+    exit(msOK); // no relocation needed
 
   for Reloc in FPE.Relocs do
   begin
@@ -326,7 +325,6 @@ end;
 
 function TDLL.Unload: boolean;
 begin
-  Result := False;
   if not IsImageMapped then
     exit(True);
 
