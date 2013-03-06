@@ -15,6 +15,9 @@
         <Projects Include="03 Resources\ResourceExtract.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="03 Resources\ResourceBuild.dproj">
+            <Dependencies/>
+        </Projects>
         <Projects Include="04 DLL Loader\DLLLoader.dproj">
             <Dependencies/>
         </Projects>
@@ -62,6 +65,15 @@
     <Target Name="ResourceExtract:Make">
         <MSBuild Projects="03 Resources\ResourceExtract.dproj" Targets="Make"/>
     </Target>
+    <Target Name="ResourceBuild">
+        <MSBuild Projects="03 Resources\ResourceBuild.dproj"/>
+    </Target>
+    <Target Name="ResourceBuild:Clean">
+        <MSBuild Projects="03 Resources\ResourceBuild.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ResourceBuild:Make">
+        <MSBuild Projects="03 Resources\ResourceBuild.dproj" Targets="Make"/>
+    </Target>
     <Target Name="DLLLoader">
         <MSBuild Projects="04 DLL Loader\DLLLoader.dproj"/>
     </Target>
@@ -72,13 +84,13 @@
         <MSBuild Projects="04 DLL Loader\DLLLoader.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="SampleLib;ExportsAdd;ImportsAdd;ResourceExtract;DLLLoader"/>
+        <CallTarget Targets="SampleLib;ExportsAdd;ImportsAdd;ResourceExtract;ResourceBuild;DLLLoader"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="SampleLib:Clean;ExportsAdd:Clean;ImportsAdd:Clean;ResourceExtract:Clean;DLLLoader:Clean"/>
+        <CallTarget Targets="SampleLib:Clean;ExportsAdd:Clean;ImportsAdd:Clean;ResourceExtract:Clean;ResourceBuild:Clean;DLLLoader:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="SampleLib:Make;ExportsAdd:Make;ImportsAdd:Make;ResourceExtract:Make;DLLLoader:Make"/>
+        <CallTarget Targets="SampleLib:Make;ExportsAdd:Make;ImportsAdd:Make;ResourceExtract:Make;ResourceBuild:Make;DLLLoader:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

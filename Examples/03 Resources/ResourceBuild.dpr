@@ -4,7 +4,8 @@ uses
   PE.Common,
   PE.Image,
   PE.Build,
-  PE.Build.Resource in '..\..\PE.Build.Resource.pas';
+  PE.Build.Resource in '..\..\PE.Build.Resource.pas',
+  PE.Resources.Windows in '..\..\PE.Resources.Windows.pas';
 
 const
   src = 'SampleLib.dll';
