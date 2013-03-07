@@ -1,56 +1,52 @@
+{
+  Example of creating image with resources from scratch.
+}
 program ResourceBuild;
 
 uses
-  System.SysUtils,
   PE.Common,
   PE.Image,
   PE.Build,
-  PE.Build.Resource in '..\..\PE.Build.Resource.pas',
-  PE.Resources.Windows in '..\..\PE.Resources.Windows.pas',
-  PE.Resources in '..\..\PE.Resources.pas';
+  PE.Resources.Windows,
+  PE.Resources;
 
-const
-  src = 'SampleLib.dll';
-
-procedure Example1;
+procedure CreateResources;
 var
   Img: TPEImage;
-begin
-  Img := TPEImage.Create;
-  try
-    // Parse resources only.
-    if Img.LoadFromFile(src, [PF_RESOURCES]) then
-    begin
-      // Rebuild resources
-      ReBuildDirData(Img, DDIR_RESOURCE, True);
-      Img.SaveToFile('tmp\new_resources.dll');
-    end;
-  finally
-    Img.Free;
-  end;
-end;
-
-procedure Example2;
-var
-  Img: TPEImage;
-  br: TResourceTreeBranchNode;
   lf: TResourceTreeLeafNode;
+  r: TWindowsResourceTree;
+  data1, data2, data3, data4, data5: uint32;
 begin
   Img := TPEImage.Create;
   try
-    // Add 1st branch.
-    br := Img.ResourceTree.Root.AddNewBranch;
-    br.Name := 'my1';
+    // Create Windows resource tree to handle generic resources in Windows way.
+    r := TWindowsResourceTree.Create(Img.ResourceTree);
+    try
+      // Setup data.
+      data1 := $C0DE0001;
+      data2 := $C0DE0002;
+      data3 := $C0DE0003;
+      data4 := $C0DE0004;
+      data5 := $C0DE0005;
 
-    // Add sub-branch.
-    br := br.AddNewBranch;
-    br.Name := 'my2';
+      // UpdateResource will update existing resource or create new reource
+      // if it doesn't exist.
+      
+      // Named entries.
+      r.UpdateResource(PChar(RT_RCDATA), 'abc', 1234, @data1, 4);
+      r.UpdateResource(PChar(RT_RCDATA), 'def', 2345, @data2, 4);
+      r.UpdateResource(PChar(RT_RCDATA), 'cde', 3456, @data3, 4);
+      // Non-english name.
+      r.UpdateResource(PChar(RT_RCDATA), 'Новый ресурс', 3456, @data4, 4);
+      // ID entries.
+      r.UpdateResource(PChar(RT_RCDATA), PChar(432), 4567, @data5, 4);
+      r.UpdateResource(PChar(RT_RCDATA), PChar(123), 4567, @data5, 4);
 
-    // Add leaf.
-    lf := br.AddNewLeaf;
-    lf.Id := 1234;
-    lf.Data.Write(TBytes.Create(1, 2, 3), 3);
-
+      lf := r.FindResource(PChar(RT_RCDATA), 'cde', 3456);
+      lf.Data.LoadFromFile('dummy.txt');
+    finally
+      r.Free;
+    end;
     // Rebuild resources
     ReBuildDirData(Img, DDIR_RESOURCE, True);
     Img.SaveToFile('tmp\new_resources_from_scratch.dll');
@@ -59,30 +55,7 @@ begin
   end;
 end;
 
-procedure Example3;
-var
-  Img: TPEImage;
-  n: TResourceTreeNode;
 begin
-  Img := TPEImage.Create;
-  try
-    // Parse resources only.
-    if Img.LoadFromFile('aida64u.exe', [PF_RESOURCES]) then
-    begin
-      n := img.ResourceTree.Root.Find(RT_RCDATA);
-
-      // Rebuild resources
-      // ReBuildDirData(Img, DDIR_RESOURCE, True);
-      // Img.SaveToFile('tmp\new_resources.dll');
-    end;
-  finally
-    Img.Free;
-  end;
-end;
-
-begin
-  ReportMemoryLeaksOnShutdown := True;
-
-  Example3;
+  CreateResources;
 
 end.

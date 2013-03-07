@@ -47,8 +47,8 @@ type
     function IsLeaf: boolean; inline;
 
     // Find resource by Name or Id.
-    function Find(const Name: string): TResourceTreeNode; overload; inline;
-    function Find(Id: uint32): TResourceTreeNode; overload; inline;
+    function FindByName(const Name: string): TResourceTreeNode; inline;
+    function FindByID(Id: uint32): TResourceTreeNode; inline;
 
     function GetPath: string;
 
@@ -73,6 +73,8 @@ type
     constructor CreateFromStream(Stream: TStream; Pos: UInt64 = 0; Size: UInt64 = 0);
 
     destructor Destroy; override;
+
+    procedure UpdateData(Buffer: PByte; Size: UInt32);
 
     property Data: TMemoryStream read FData;
     property DataRVA: TRVA read FDataRVA;
@@ -119,6 +121,9 @@ type
     function Add(Node: TResourceTreeNode): TResourceTreeNode;
     function AddNewBranch: TResourceTreeBranchNode;
     function AddNewLeaf: TResourceTreeLeafNode;
+
+    // Remove node. Result is True if node was found and removed.
+    function Remove(Node: TResourceTreeNode): boolean;
 
     property Children: TResourceTreeNodes read FChildren;
   end;
@@ -216,6 +221,11 @@ begin
   FChildren.OnNotify := ChildrenNotify;
 end;
 
+function TResourceTreeBranchNode.Remove(Node: TResourceTreeNode): boolean;
+begin
+  Result := FChildren.Remove(Node);
+end;
+
 destructor TResourceTreeBranchNode.Destroy;
 begin
   FChildren.Free;
@@ -244,12 +254,12 @@ end;
 
 { TResourceTreeNode }
 
-function TResourceTreeNode.Find(const Name: string): TResourceTreeNode;
+function TResourceTreeNode.FindByName(const Name: string): TResourceTreeNode;
 begin
   Result := FindByNameOrId(Name, 0);
 end;
 
-function TResourceTreeNode.Find(Id: uint32): TResourceTreeNode;
+function TResourceTreeNode.FindByID(Id: uint32): TResourceTreeNode;
 begin
   Result := FindByNameOrId('', Id);
 end;
@@ -423,6 +433,12 @@ end;
 function TResourceTreeLeafNode.GetDataSize: uint32;
 begin
   Result := FData.Size;
+end;
+
+procedure TResourceTreeLeafNode.UpdateData(Buffer: PByte; Size: UInt32);
+begin
+  FData.Size := Size;
+  Move(Buffer^, FData.Memory^, Size);
 end;
 
 end.
