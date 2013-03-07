@@ -31,19 +31,27 @@ begin
 
       // UpdateResource will update existing resource or create new reource
       // if it doesn't exist.
-      
+
       // Named entries.
       r.UpdateResource(PChar(RT_RCDATA), 'abc', 1234, @data1, 4);
       r.UpdateResource(PChar(RT_RCDATA), 'def', 2345, @data2, 4);
       r.UpdateResource(PChar(RT_RCDATA), 'cde', 3456, @data3, 4);
+
       // Non-english name.
       r.UpdateResource(PChar(RT_RCDATA), 'Новый ресурс', 3456, @data4, 4);
+
       // ID entries.
       r.UpdateResource(PChar(RT_RCDATA), PChar(432), 4567, @data5, 4);
       r.UpdateResource(PChar(RT_RCDATA), PChar(123), 4567, @data5, 4);
 
+      // Load data from file.
       lf := r.FindResource(PChar(RT_RCDATA), 'cde', 3456);
       lf.Data.LoadFromFile('dummy.txt');
+
+      // Delete resource.
+      r.UpdateResource(PChar(RT_RCDATA), PChar(999), 1000, @data1, 4);
+      r.UpdateResource(PChar(RT_RCDATA), PChar(999), 1001, @data2, 4);
+      r.RemoveResource(PChar(RT_RCDATA), PChar(999), 1000);
     finally
       r.Free;
     end;

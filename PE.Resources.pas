@@ -75,7 +75,7 @@ type
 
     destructor Destroy; override;
 
-    procedure UpdateData(Buffer: PByte; Size: UInt32);
+    procedure UpdateData(Buffer: PByte; Size: uint32);
 
     property Data: TMemoryStream read FData;
     property DataRVA: TRVA read FDataRVA;
@@ -449,8 +449,13 @@ begin
   Result := FData.Size;
 end;
 
-procedure TResourceTreeLeafNode.UpdateData(Buffer: PByte; Size: UInt32);
+procedure TResourceTreeLeafNode.UpdateData(Buffer: PByte; Size: uint32);
 begin
+  if (Buffer = nil) or (Size = 0) then
+  begin
+    FData.Clear;
+    exit;
+  end;
   FData.Size := Size;
   Move(Buffer^, FData.Memory^, Size);
 end;

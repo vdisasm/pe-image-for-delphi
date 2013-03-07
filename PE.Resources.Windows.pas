@@ -88,10 +88,11 @@ type
     procedure UpdateResource(lpType, lpName: PChar; Language: word;
       lpData: PByte; cbData: UInt32);
 
-    procedure DeleteResource(lpType, lpName: PChar; Language: word);
+    // Result is True if resource was found and removed.
+    function RemoveResource(lpType, lpName: PChar; Language: word): Boolean;
   end;
 
-function IsIntResource(lpszType: PChar): boolean;
+function IsIntResource(lpszType: PChar): Boolean;
 function GetIntResource(lpszType: PChar): word;
 
 implementation
@@ -99,7 +100,7 @@ implementation
 uses
   System.SysUtils;
 
-function IsIntResource(lpszType: PChar): boolean; inline;
+function IsIntResource(lpszType: PChar): Boolean; inline;
 begin
   Result := NativeUInt(lpszType) shr 16 = 0;
 end;
@@ -119,11 +120,11 @@ end;
 // lpName: Name or ID (intresource)
 function FetchNode(
   Parent: TResourceTreeBranchNode;
-  IsBranch: boolean;
-  CreateIfNotExists: boolean;
+  IsBranch: Boolean;
+  CreateIfNotExists: Boolean;
   lpName: PChar): TResourceTreeNode;
 var
-  bIntRsrc: boolean;
+  bIntRsrc: Boolean;
 begin
   bIntRsrc := IsIntResource(lpName);
   // Check if node with such Name/Id already exists.
@@ -156,19 +157,21 @@ begin
   end;
 end;
 
-procedure TWindowsResourceTree.DeleteResource(lpType, lpName: PChar; Language: word);
+function TWindowsResourceTree.RemoveResource(lpType, lpName: PChar; Language: word): Boolean;
 var
   n: TResourceTreeNode;
 begin
   n := FindResource(lpType, lpName, Language);
   if n <> nil then
-    n.Parent.Remove(n);
+    Result := n.Parent.Remove(n)
+  else
+    Result := False;
 end;
 
 function TWindowsResourceTree.FindResource(lpType, lpName: PChar;
   Language: word): TResourceTreeLeafNode;
 const
-  IsBranches: array [0 .. 2] of boolean = (True, True, False);
+  IsBranches: array [0 .. 2] of Boolean = (True, True, False);
 var
   i: integer;
   n: TResourceTreeNode;
@@ -201,7 +204,7 @@ var
 begin
   if (lpData = nil) and (cbData = 0) then
   begin
-    DeleteResource(lpType, lpName, Language);
+    RemoveResource(lpType, lpName, Language);
     exit;
   end;
   nRoot := FResourceTree.Root;
