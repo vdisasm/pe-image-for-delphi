@@ -32,9 +32,6 @@ type
     FName: UnicodeString;
     procedure SetId(const Value: uint32);
     procedure SetName(const Value: UnicodeString);
-
-    // Find either by name or by id.
-    function FindByNameOrId(const Name: string; Id: uint32): TResourceTreeNode;
   public
     Parent: TResourceTreeBranchNode;
 
@@ -51,6 +48,8 @@ type
     function FindByID(Id: uint32): TResourceTreeNode; inline;
     // By Name/Id.
     function FindNode(Node: TResourceTreeNode): TResourceTreeNode;
+    // Find either by name or by id.
+    function FindByNameOrId(const Name: string; Id: uint32): TResourceTreeNode;
 
     function GetPath: string;
 

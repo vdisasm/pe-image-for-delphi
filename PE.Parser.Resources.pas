@@ -75,7 +75,7 @@ var
   SubRVA, DataRVA, NameRVA: TRVA;
   LeafNode: TResourceTreeLeafNode;
   BranchNode: TResourceTreeBranchNode;
-  tmp: TResourceTreeNode;
+  TmpNode: TResourceTreeNode;
 begin
   Result := nil;
   Img := FPE as TPEImage;
@@ -144,13 +144,11 @@ begin
     end;
 
     // When Result node is finished we can add it to parent.
-    // todo: check existing
-    // todo: optimization (check it before whole reading).
-    tmp := ParentNode.FindNode(Result);
-    if tmp <> nil then
+    TmpNode := ParentNode.FindNode(Result);
+    if TmpNode <> nil then
     begin
       Result.Free;
-      exit(tmp);
+      exit(TmpNode);
     end;
     ParentNode.Add(Result);
   end;
