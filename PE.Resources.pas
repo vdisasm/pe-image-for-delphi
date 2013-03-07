@@ -49,6 +49,8 @@ type
     // Find resource by Name or Id.
     function FindByName(const Name: string): TResourceTreeNode; inline;
     function FindByID(Id: uint32): TResourceTreeNode; inline;
+    // By Name/Id.
+    function FindNode(Node: TResourceTreeNode): TResourceTreeNode;
 
     function GetPath: string;
 
@@ -282,6 +284,19 @@ begin
       Result := p^.K;
   finally
     tmp.Free;
+  end;
+end;
+
+function TResourceTreeNode.FindNode(Node: TResourceTreeNode): TResourceTreeNode;
+var
+  p: TResourceTreeNodes.TRBNodePtr;
+begin
+  Result := nil;
+  if IsBranch then
+  begin
+    p := TResourceTreeBranchNode(Self).FChildren.Find(Node);
+    if p <> nil then
+      Result := p^.K;
   end;
 end;
 

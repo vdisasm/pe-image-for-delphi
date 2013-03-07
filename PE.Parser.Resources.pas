@@ -17,7 +17,8 @@ type
     FTree: TResourceTree;
     function ReadEntry(
       ParentNode: TResourceTreeBranchNode;
-      var RVA: TRVA;
+      RVA: TRVA;
+      Index: integer;
       EntyKind: TEntryKind;
       RDT: PResourceDirectoryTable): TResourceTreeNode;
     function ReadNode(
@@ -63,7 +64,8 @@ end;
 
 function TPEResourcesParser.ReadEntry(
   ParentNode: TResourceTreeBranchNode;
-  var RVA: TRVA;
+  RVA: TRVA;
+  Index: integer;
   EntyKind: TEntryKind;
   RDT: PResourceDirectoryTable): TResourceTreeNode;
 var
@@ -73,12 +75,14 @@ var
   SubRVA, DataRVA, NameRVA: TRVA;
   LeafNode: TResourceTreeLeafNode;
   BranchNode: TResourceTreeBranchNode;
+  tmp: TResourceTreeNode;
 begin
   Result := nil;
   Img := FPE as TPEImage;
 
   // Try to read entry.
-  if not(Img.SeekRVA(RVA) and Img.ReadEx(@Entry, SizeOf(Entry))) then
+  if not(Img.SeekRVA(RVA + Index * SizeOf(Entry)) and
+    Img.ReadEx(@Entry, SizeOf(Entry))) then
   begin
     Img.Msg.Write('Bad resource entry.');
     exit;
@@ -140,9 +144,16 @@ begin
     end;
 
     // When Result node is finished we can add it to parent.
+    // todo: check existing
+    // todo: optimization (check it before whole reading).
+    tmp := ParentNode.FindNode(Result);
+    if tmp <> nil then
+    begin
+      Result.Free;
+      exit(tmp);
+    end;
     ParentNode.Add(Result);
   end;
-
 end;
 
 function TPEResourcesParser.ReadNode(
@@ -165,12 +176,12 @@ begin
   inc(RVA, SizeOf(RDT));
 
   // Read named entries.
-  for i := 1 to RDT.NumberOfNameEntries do
-    ReadEntry(ParentNode, RVA, EK_NAME, @RDT);
+  for i := 0 to RDT.NumberOfNameEntries - 1 do
+    ReadEntry(ParentNode, RVA, i, EK_NAME, @RDT);
 
   // Read Id entries.
-  for i := 1 to RDT.NumberOfIDEntries do
-    ReadEntry(ParentNode, RVA, EK_ID, @RDT);
+  for i := 0 to RDT.NumberOfIDEntries - 1 do
+    ReadEntry(ParentNode, RVA, i, EK_ID, @RDT);
 
   exit(PR_OK);
 end;
