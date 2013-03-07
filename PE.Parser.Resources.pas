@@ -15,12 +15,14 @@ type
   protected
     FBaseRVA: TRVA; // RVA of RSRC section base
     FTree: TResourceTree;
+    // Read resource node entry.
     function ReadEntry(
       ParentNode: TResourceTreeBranchNode;
       RVA: TRVA;
       Index: integer;
       EntyKind: TEntryKind;
       RDT: PResourceDirectoryTable): TResourceTreeNode;
+    // Read resource node.
     function ReadNode(
       ParentNode: TResourceTreeBranchNode;
       RVA: TRVA): TParserResult;
@@ -104,7 +106,7 @@ begin
   else
   begin
     { Branch Node. }
-    RVA := Img.PositionRVA; // Store RVA.
+    // RVA := Img.PositionRVA; // Store RVA.
     // Alloc and fill node.
     BranchNode := TResourceTreeBranchNode.Create;
     if RDT <> nil then
@@ -160,7 +162,7 @@ function TPEResourcesParser.ReadNode(
 var
   Img: TPEImage;
   RDT: TResourceDirectoryTable;
-  i: integer;
+  i, n: integer;
 begin
   Img := FPE as TPEImage;
 
@@ -173,13 +175,21 @@ begin
 
   inc(RVA, SizeOf(RDT));
 
+  n := 0;
+
   // Read named entries.
   for i := 0 to RDT.NumberOfNameEntries - 1 do
-    ReadEntry(ParentNode, RVA, i, EK_NAME, @RDT);
+  begin
+    ReadEntry(ParentNode, RVA, n, EK_NAME, @RDT);
+    inc(n);
+  end;
 
   // Read Id entries.
   for i := 0 to RDT.NumberOfIDEntries - 1 do
-    ReadEntry(ParentNode, RVA, i, EK_ID, @RDT);
+  begin
+    ReadEntry(ParentNode, RVA, n, EK_ID, @RDT);
+    inc(n);
+  end;
 
   exit(PR_OK);
 end;
