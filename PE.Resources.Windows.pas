@@ -157,9 +157,12 @@ begin
 end;
 
 procedure TWindowsResourceTree.DeleteResource(lpType, lpName: PChar; Language: word);
+var
+  n: TResourceTreeNode;
 begin
-  // todo: DeleteResource
-  raise Exception.Create('Not implemented.');
+  n := FindResource(lpType, lpName, Language);
+  if n <> nil then
+    n.Parent.Remove(n);
 end;
 
 function TWindowsResourceTree.FindResource(lpType, lpName: PChar;
