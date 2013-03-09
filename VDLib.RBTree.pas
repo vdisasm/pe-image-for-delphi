@@ -165,7 +165,7 @@ end;
 
 destructor TRBTree<T>.Destroy();
 begin
-  Clear;
+  ClearFull;
   inherited Destroy;
 end;
 
