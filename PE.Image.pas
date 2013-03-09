@@ -605,8 +605,8 @@ end;
 
 procedure TPEImage.FixSizeOfHeaders;
 begin
-  FOptionalHeader.SizeOfHeaders := AlignUp(CalcHeadersSizeNotAligned,
-    FileAlignment);
+  FOptionalHeader.SizeOfHeaders :=
+    AlignUp(CalcHeadersSizeNotAligned, FileAlignment);
 end;
 
 function TPEImage.CalcSizeOfImage: UInt64;
