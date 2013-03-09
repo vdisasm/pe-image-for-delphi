@@ -7,7 +7,10 @@ uses
 
   PE.Common,
   PE.Msg,
-  PE.Types.Directories;
+  PE.Section,
+  PE.Sections,
+  PE.Types.Directories,
+  PE.Utils;
 
 type
   TDataDirectories = class
@@ -35,8 +38,17 @@ type
 
     procedure Put(Index: cardinal; RVA, Size: uint32); overload;
 
-    property Count: integer read GetCount write SetCount;
+    // Check if directory by Index occuppies whole section. If it's true,
+    // result is section. Otherwise result is nil.
+    function GetSectionDedicatedToDir(Index: integer;
+      AlignSize: boolean = False): TPESection;
 
+    // Get index of directory, which occupies whole Section. Result is -1 if
+    // not found.
+    function GetDirDedicatedToSection(Section: TPESection;
+      AlignSize: boolean = False): integer;
+
+    property Count: integer read GetCount write SetCount;
   end;
 
 implementation
@@ -58,6 +70,38 @@ end;
 constructor TDataDirectories.Create(APE: TObject);
 begin
   self.FPE := APE;
+end;
+
+function TDataDirectories.GetSectionDedicatedToDir(Index: integer;
+  AlignSize: boolean): TPESection;
+var
+  Dir: TImageDataDirectory;
+  sec: TPESection;
+  ExpectedSize, VSize: uint32;
+  img: TPEImage;
+begin
+  Result := nil;
+  if not Get(Index, @Dir) then
+    exit;
+  if Dir.IsEmpty then
+    exit;
+  img := TPEImage(FPE);
+  if not img.Sections.RVAToSec(Dir.VirtualAddress, @sec) then
+    exit;
+  if (sec.RVA <> Dir.VirtualAddress) then
+    exit;
+  if AlignSize then
+  begin
+    ExpectedSize := AlignUp(Dir.Size, img.SectionAlignment);
+    VSize := AlignUp(sec.VirtualSize, img.SectionAlignment);
+  end
+  else
+  begin
+    ExpectedSize := Dir.Size;
+    VSize := sec.VirtualSize;
+  end;
+  if (VSize = ExpectedSize) then
+    Result := sec;
 end;
 
 function TDataDirectories.Get(Index: integer;
@@ -89,6 +133,20 @@ end;
 function TDataDirectories.GetCount: integer;
 begin
   Result := Length(FItems);
+end;
+
+function TDataDirectories.GetDirDedicatedToSection(Section: TPESection;
+  AlignSize: boolean = False): integer;
+// todo: it can be slow due to many iterations
+var
+  i: integer;
+begin
+  for i := 0 to Length(FItems) - 1 do
+  begin
+    if GetSectionDedicatedToDir(i, AlignSize) = Section then
+      exit(i);
+  end;
+  exit(-1);
 end;
 
 procedure TDataDirectories.LoadFromStream;
@@ -123,12 +181,12 @@ begin
   // end;
 
   if DeclaredCount > CountToEOF then
-    begin
-      CountToRead := CountToEOF;
+  begin
+    CountToRead := CountToEOF;
 
-      Msg.Write('[DataDirectories] Declared count of directories is greater ' +
-        'than file can contain (%d > %d).', [DeclaredCount, CountToEOF]);
-    end;
+    Msg.Write('[DataDirectories] Declared count of directories is greater ' +
+      'than file can contain (%d > %d).', [DeclaredCount, CountToEOF]);
+  end;
 
   // Read data directories.
 
