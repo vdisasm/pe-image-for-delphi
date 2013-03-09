@@ -17,17 +17,21 @@ type
   public
     constructor Create(APEImage: TObject);
 
-    function Add(const Item: TPESection): TPESection;
+    function Add(const Sec: TPESection): TPESection;
     procedure Clear;
+
+    // Change section Raw and Virtual size.
+    // Virtual size is aligned to section alignment.
+    procedure Resize(Sec: TPESection; NewSize: UInt32);
 
     function CalcNextSectionRVA: TRVA;
 
     // Add new named section.
     // If Mem <> nil, data from Mem will be copied to newly allocated block.
     // If Mem = nil, block will be allocated and filled with 0s.
-    function AddNew(const AName: AnsiString; ASize, AFlags: uint32; Mem: pointer): TPESection;
+    function AddNew(const AName: AnsiString; ASize, AFlags: UInt32; Mem: pointer): TPESection;
 
-    function SizeOfAllHeaders: uint32; inline;
+    function SizeOfAllHeaders: UInt32; inline;
 
     function FindByName(const AName: AnsiString; IgnoreCase: boolean = True): TPESection;
 
@@ -41,17 +45,17 @@ uses
 
 { TPESections }
 
-function TPESections.Add(const Item: TPESection): TPESection;
+function TPESections.Add(const Sec: TPESection): TPESection;
 var
   PE: TPEImage;
 begin
-  inherited Add(Item);
+  inherited Add(Sec);
   PE := TPEImage(FPE);
   inc(PE.FileHeader^.NumberOfSections);
-  Result := Item;
+  Result := Sec;
 end;
 
-function TPESections.AddNew(const AName: AnsiString; ASize, AFlags: uint32; Mem: pointer): TPESection;
+function TPESections.AddNew(const AName: AnsiString; ASize, AFlags: UInt32; Mem: pointer): TPESection;
 var
   h: TImageSectionHeader;
   i: integer;
@@ -59,28 +63,21 @@ var
 begin
   PE := TPEImage(FPE);
 
-  PE.Defaults.SetAll;
-
   // Clear
   FillChar(h, sizeof(h), 0);
 
   // Copy name.
   if AName <> '' then
-    begin
-      i := max(Length(h.Name), Length(AName));
-      System.Move(AName[1], h.Name[0], i);
-    end;
+  begin
+    i := max(Length(h.Name), Length(AName));
+    System.Move(AName[1], h.Name[0], i);
+  end;
 
   h.Misc.VirtualSize := AlignUp(ASize, PE.SectionAlignment);
-
   h.VirtualAddress := CalcNextSectionRVA;
-
   h.SizeOfRawData := ASize;
-
-  // h.PointerToRawData will be calculated later.
-
+  // h.PointerToRawData will be calculated later during image saving.
   h.Characteristics := AFlags;
-
   Result := TPESection.Create(h, Mem);
 
   Add(Result);
@@ -119,18 +116,36 @@ begin
   else
     a := AName;
   for Result in self do
-    begin
-      if IgnoreCase then
-        b := LowerCase(Result.Name)
-      else
-        b := Result.Name;
-      if a = b then
-        exit;
-    end;
+  begin
+    if IgnoreCase then
+      b := LowerCase(Result.Name)
+    else
+      b := Result.Name;
+    if a = b then
+      exit;
+  end;
   exit(nil);
 end;
 
-function TPESections.SizeOfAllHeaders: uint32;
+procedure TPESections.Resize(Sec: TPESection; NewSize: UInt32);
+var
+  h: TImageSectionHeader;
+  NewVirtualSize: UInt32;
+begin
+  NewVirtualSize := AlignUp(NewSize, TPEImage(FPE).SectionAlignment);
+  // Last section can be changed freely, other sections must be checked.
+  if Sec <> self.Last then
+  begin
+    if NewVirtualSize > Sec.VirtualSize then
+      raise Exception.Create('Cannot resize section: size is too big');
+  end;
+  h := Sec.ImageSectionHeader;
+  h.SizeOfRawData := NewSize;
+  h.Misc.VirtualSize := NewVirtualSize;
+  Sec.SetHeader(h, nil, False);
+end;
+
+function TPESections.SizeOfAllHeaders: UInt32;
 begin
   Result := Count * sizeof(TImageSectionHeader)
 end;

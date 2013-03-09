@@ -93,6 +93,13 @@ begin
         if dir.Size >= stream.Size then
           if img.RVAToSec(dir.VirtualAddress, @sec) then
           begin
+            // If directory occupies whole section.
+            if (sec.RVA = dir.VirtualAddress) and (sec.RawSize = dir.Size) then
+            begin
+              // We can resize the section.
+              img.Sections.Resize(sec, stream.Size);
+            end;
+            // Set dest rva/size.
             destRVA := dir.VirtualAddress;
             destSize := dir.Size;
           end;
