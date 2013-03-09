@@ -124,7 +124,8 @@ type
     function AddNewLeaf: TResourceTreeLeafNode;
 
     // Remove node. Result is True if node was found and removed.
-    function Remove(Node: TResourceTreeNode): boolean;
+    function Remove(Node: TResourceTreeNode;
+      RemoveSelfIfNoChildren: boolean = False): boolean;
 
     property Children: TResourceTreeNodes read FChildren;
   end;
@@ -222,9 +223,12 @@ begin
   FChildren.OnNotify := ChildrenNotify;
 end;
 
-function TResourceTreeBranchNode.Remove(Node: TResourceTreeNode): boolean;
+function TResourceTreeBranchNode.Remove(Node: TResourceTreeNode;
+  RemoveSelfIfNoChildren: boolean): boolean;
 begin
   Result := FChildren.Remove(Node);
+  if RemoveSelfIfNoChildren and (Self.FChildren.Count = 0) and (Parent <> nil) then
+    Self.Parent.Remove(Self, True);
 end;
 
 destructor TResourceTreeBranchNode.Destroy;
