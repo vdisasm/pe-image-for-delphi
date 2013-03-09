@@ -27,7 +27,7 @@ type
     FOfsNames: UInt32;
     FOfsData: UInt32;
     FOfsEnd: UInt32;
-    procedure CalcOffsets; inline;
+    procedure CalcOffsets;
   private
     FBaseRVA: TRVA;
     FStream: TStream;
@@ -49,6 +49,9 @@ type
 implementation
 
 uses
+  // Expand
+  PE.Image,
+  //
   PE.Utils;
 
 procedure TRsrcBuilder.Build(DirRVA: TRVA; Stream: TStream);

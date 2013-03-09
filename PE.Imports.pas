@@ -82,11 +82,15 @@ var
   verify: AnsiString;
   tmp: TPEImportFunction;
 begin
+{$WARN IMPLICIT_STRING_CAST OFF}
+{$WARN IMPLICIT_STRING_CAST_LOSS OFF}
   verify := LowerCase(AName);
   for tmp in FFunctions do
     if LowerCase(tmp.Name) = verify then
       exit(tmp);
   exit(nil);
+{$WARN IMPLICIT_STRING_CAST ON}
+{$WARN IMPLICIT_STRING_CAST_LOSS ON}
 end;
 
 procedure TPEImportLibrary.ImportFunctionNotify(Sender: TObject;
@@ -131,11 +135,15 @@ var
   tmp: TPEImportLibrary;
   verify: AnsiString;
 begin
+{$WARN IMPLICIT_STRING_CAST OFF}
+{$WARN IMPLICIT_STRING_CAST_LOSS OFF}
   verify := LowerCase(LibName);
   for tmp in self do
     if LowerCase(tmp.Name) = verify then
       exit(tmp);
   exit(nil);
+{$WARN IMPLICIT_STRING_CAST ON}
+{$WARN IMPLICIT_STRING_CAST_LOSS ON}
 end;
 
 end.

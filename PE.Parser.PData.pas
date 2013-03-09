@@ -154,9 +154,9 @@ end;
 function ParsePDATA(PE: TPEImage; out Data: TPDATARecords): integer;
 var
   sec: TPESection;
-  i, cnt: integer;
+  i: integer;
+  Cnt, Size: cardinal;
   actual: integer;
-  size: integer;
   D: TPDATARecord;
 begin
   SetLength(Data, 0);

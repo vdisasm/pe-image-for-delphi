@@ -96,8 +96,10 @@ begin
     inc(Buf, FieldSize);
     inc(FieldDesc);
 
+{$WARN COMPARING_SIGNED_UNSIGNED OFF}
     if (MaxSize <> -1) and (Result >= MaxSize) then
       break;
+{$WARN COMPARING_SIGNED_UNSIGNED ON}
   end;
 
 end;

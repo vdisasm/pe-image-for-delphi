@@ -9,12 +9,12 @@ type
   public
     constructor Create(PEImage: TObject);
 
-    procedure SetImageBits; inline;
-    procedure SetFileAlignment; inline;
-    procedure SetSectionAlignment; inline;
-    procedure SetFileHdr; inline;
-    procedure SetOptionalHeader; inline;
-    procedure SetLFANew; inline;
+    procedure SetImageBits;
+    procedure SetFileAlignment;
+    procedure SetSectionAlignment;
+    procedure SetFileHdr;
+    procedure SetOptionalHeader;
+    procedure SetLFANew;
 
     procedure SetAll;
   end;
@@ -22,6 +22,9 @@ type
 implementation
 
 uses
+  // Expand
+  PE.Headers,
+  //
   PE.Common,
   PE.Image,
   PE.Types.DOSHeader,

@@ -50,6 +50,11 @@ type
 implementation
 
 uses
+  // Expand
+  PE.Types.FileHeader,
+  PE.Utils,
+  PE.Sections,
+  //
   System.SysUtils,
 
   PE.Imports,

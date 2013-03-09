@@ -20,6 +20,10 @@ type
 implementation
 
 uses
+  // Expand
+  PE.Image,
+  PE.Types.FileHeader,
+  //
   PE.Imports,
   PE.Types.Imports;
 

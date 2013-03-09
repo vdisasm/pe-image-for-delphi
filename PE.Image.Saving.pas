@@ -1,3 +1,4 @@
+{$WARN COMBINING_SIGNED_UNSIGNED OFF}
 unit PE.Image.Saving;
 
 interface
@@ -11,6 +12,11 @@ function SaveImageToStream(APE: TObject; AStream: TStream): boolean;
 implementation
 
 uses
+  // To expand.
+  PE.Headers,
+  PE.Common,
+  PE.DataDirectories,
+  //
   PE.Types.DOSHeader,
   PE.Types.FileHeader,
   PE.Types.NTHeaders,
@@ -78,7 +84,7 @@ end;
 procedure FillSecHdrRawOfs(PE: TPEImage; ofsSecHdr: uint32);
 var
   s: TPESection;
-  ofs: uint32;
+  ofs: uint64;
 begin
   ofs := ofsSecHdr + PE.Sections.Count * SizeOf(TImageSectionHeader);
   for s in PE.Sections do

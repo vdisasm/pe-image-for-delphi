@@ -25,6 +25,14 @@ uses
 
 { TPEImportParser }
 
+function ReadGoodILTItem(PE: TPEImage; var dq: uint64): boolean;
+begin
+  dq := 0;
+  if not PE.ReadEx(@dq, PE.ImageBits div 8) then
+    exit(false);
+  Result := dq <> 0;
+end;
+
 function TPEImportParser.Parse: TParserResult;
 type
   TImpDirs = TList<TImportDirectoryTable>;
@@ -45,14 +53,6 @@ var
   Lib: TPEImportLibrary;
   PE: TPEImage;
   DllName: RawByteString;
-  function ReadGoodILTItem(PE: TPEImage; var dq: uint64): boolean; inline;
-  begin
-    dq := 0;
-    if not PE.ReadEx(@dq, PE.ImageBits div 8) then
-      exit(false);
-    Result := dq <> 0;
-  end;
-
 begin
   PE := TPEImage(FPE);
 
@@ -130,7 +130,7 @@ begin
       end;
 
       // read IAT elements
-      while PE.SeekRVA(IATRVA) and ReadGoodILTItem(FPE as TPEImage, dq) do
+      while PE.SeekRVA(IATRVA) and ReadGoodILTItem(TPEImage(FPE), dq) do
       begin
         ILT.Create(dq, bIs32);
 

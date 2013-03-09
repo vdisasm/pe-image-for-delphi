@@ -205,7 +205,7 @@ begin
   if Depth > 2 then
     Depth := 2;
   n := FResourceTree.Root;
-  i := 0;
+  val := nil; // compiler friendly
   for i := 0 to Depth do
   begin
     case i of

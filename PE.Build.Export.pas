@@ -4,6 +4,9 @@
 
   todo: clear old export data
 }
+
+{$WARN COMBINING_SIGNED_UNSIGNED OFF}
+
 unit PE.Build.Export;
 
 interface

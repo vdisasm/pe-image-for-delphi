@@ -638,9 +638,11 @@ end;
 
 function TPEImage.CalcSecHdrOfs: TFileOffset;
 begin
+{$WARN COMBINING_SIGNED_UNSIGNED OFF}
   Result := FLFANew + 4 + SizeOf(TImageFileHeader) +
     CalcSizeOfPureOptionalHeader + FDataDirectories.Count *
     SizeOf(TImageDataDirectory);
+{$WARN COMBINING_SIGNED_UNSIGNED ON}
 end;
 
 function TPEImage.CalcSecHdrEndOfs: TFileOffset;
@@ -680,7 +682,7 @@ begin
 
     if not Sec.IsNameSafe then
     begin
-      Sec.Name := format('sec_%4.4x', [Result]);
+      Sec.Name := AnsiString(format('sec_%4.4x', [Result]));
       Msg.Write('Section has not safe name. Overriding to %s', [Sec.Name]);
     end;
 
@@ -732,7 +734,7 @@ begin
       begin
         t := Sec.Name;
         delete(t, 1, 1);
-        val(t, StringOfs, err);
+        val(string(t), StringOfs, err);
         if err = 0 then
           if FCOFF.GetString(StringOfs, t) then
             if t <> '' then

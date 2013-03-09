@@ -47,7 +47,8 @@ uses
   PE.Types.TLS in 'PE.Types.TLS.pas',
   PE.Utils in 'PE.Utils.pas',
   PE.Resources.Extract in 'PE.Resources.Extract.pas',
-  PE.Build.Resource in 'PE.Build.Resource.pas';
+  PE.Build.Resource in 'PE.Build.Resource.pas',
+  VDLib.RBTree in 'VDLib.RBTree.pas';
 
 begin
 end.

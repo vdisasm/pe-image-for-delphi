@@ -40,6 +40,9 @@ type
 implementation
 
 uses
+  // Expand
+  PE.Types.FileHeader,
+  //
   PE.Image,
   PE.Utils;
 
@@ -111,6 +114,8 @@ function TPESections.FindByName(const AName: AnsiString;
 var
   a, b: AnsiString;
 begin
+{$WARN IMPLICIT_STRING_CAST OFF}
+{$WARN IMPLICIT_STRING_CAST_LOSS OFF}
   if IgnoreCase then
     a := LowerCase(AName)
   else
@@ -125,6 +130,8 @@ begin
       exit;
   end;
   exit(nil);
+{$WARN IMPLICIT_STRING_CAST ON}
+{$WARN IMPLICIT_STRING_CAST_LOSS ON}
 end;
 
 procedure TPESections.Resize(Sec: TPESection; NewSize: UInt32);

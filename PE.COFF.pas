@@ -25,6 +25,10 @@ type
 implementation
 
 uses
+  // Expand
+  PE.Types.FileHeader,
+  //
+  PE.Common,
   PE.Image,
   PE.Utils;
 

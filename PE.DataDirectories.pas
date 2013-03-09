@@ -31,7 +31,7 @@ type
 
     // Put directory safely. If Index > than current item count, empty items
     // will be added.
-    procedure Put(Index: cardinal; const Dir: TImageDataDirectory); overload;
+    procedure Put(Index: integer; const Dir: TImageDataDirectory); overload;
 
     procedure Put(Index: cardinal; RVA, Size: uint32); overload;
 
@@ -42,6 +42,9 @@ type
 implementation
 
 uses
+  // Expand
+  PE.Headers,
+  //
   PE.Image;
 
 { TDataDirectories }
@@ -65,10 +68,12 @@ begin
     OutDir^ := FItems[Index];
 end;
 
-procedure TDataDirectories.Put(Index: cardinal; const Dir: TImageDataDirectory);
+procedure TDataDirectories.Put(Index: integer; const Dir: TImageDataDirectory);
 begin
   if Index >= Length(FItems) then
-    SetLength(FItems, Index + 1);
+    SetLength(FItems, Index + 1)
+  else if Index < 0 then
+    Index := 0;
   FItems[Index] := Dir;
 end;
 
