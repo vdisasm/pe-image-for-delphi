@@ -33,6 +33,9 @@ type
 
     function SizeOfAllHeaders: UInt32; inline;
 
+    function RVAToOfs(RVA: TRVA; OutOfs: PDword): boolean;
+    function RVAToSec(RVA: TRVA; OutSec: PPESection): boolean;
+
     function FindByName(const AName: AnsiString; IgnoreCase: boolean = True): TPESection;
 
   end;
@@ -150,6 +153,36 @@ begin
   h.SizeOfRawData := NewSize;
   h.Misc.VirtualSize := NewVirtualSize;
   Sec.SetHeader(h, nil, False);
+end;
+
+function TPESections.RVAToOfs(RVA: TRVA; OutOfs: PDword): boolean;
+var
+  Sec: TPESection;
+begin
+  for Sec in self do
+  begin
+    if Sec.ContainRVA(RVA) then
+    begin
+      if Assigned(OutOfs) then
+        OutOfs^ := (RVA - Sec.RVA) + Sec.RawOffset;
+      exit(True);
+    end;
+  end;
+  exit(False);
+end;
+
+function TPESections.RVAToSec(RVA: TRVA; OutSec: PPESection): boolean;
+var
+  Sec: TPESection;
+begin
+  for Sec in self do
+    if Sec.ContainRVA(RVA) then
+    begin
+      if OutSec <> nil then
+        OutSec^ := Sec;
+      exit(True);
+    end;
+  Result := False;
 end;
 
 function TPESections.SizeOfAllHeaders: UInt32;

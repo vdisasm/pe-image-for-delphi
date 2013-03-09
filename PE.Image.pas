@@ -1025,36 +1025,13 @@ begin
 end;
 
 function TPEImage.RVAToOfs(RVA: TRVA; OutOfs: PDword): boolean;
-var
-  i: integer;
-  rva0, rva1: dword;
 begin
-  for i := 0 to FSections.Count - 1 do
-  begin
-    rva0 := FSections[i].RVA;
-    rva1 := rva0 + FSections[i].VirtualSize;
-    if (RVA >= rva0) and (RVA < rva1) then
-    begin
-      if Assigned(OutOfs) then
-        OutOfs^ := (RVA - rva0) + FSections[i].RawOffset;
-      exit(True);
-    end;
-  end;
-  exit(false);
+  Result := FSections.RVAToOfs(RVA, OutOfs);
 end;
 
 function TPEImage.RVAToSec(RVA: TRVA; OutSec: PPESection): boolean;
-var
-  Sec: TPESection;
 begin
-  for Sec in FSections do
-    if Sec.ContainRVA(RVA) then
-    begin
-      if OutSec <> nil then
-        OutSec^ := Sec;
-      exit(True);
-    end;
-  Result := false;
+  Result := FSections.RVAToSec(RVA, OutSec);
 end;
 
 function TPEImage.RVAToVA(RVA: TRVA): UInt64;
