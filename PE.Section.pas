@@ -25,8 +25,6 @@ type
     FMem: TBytes;       // Memory allocated for section, size = raw size
     function GetImageSectionHeader: TImageSectionHeader;
     function GetMemPtr: PByte;
-    procedure SetRawSize(const Value: uint32);
-    procedure SetVirtualSize(const Value: uint32);
 
     procedure SetAllocatedSize(Value: uint32);
   public
@@ -161,17 +159,6 @@ begin
   end;
 end;
 
-procedure TPESection.SetRawSize(const Value: uint32);
-begin
-  FRawSize := Value;
-end;
-
-procedure TPESection.SetVirtualSize(const Value: uint32);
-begin
-  FVSize := Value;
-  SetAllocatedSize(Value);
-end;
-
 procedure TPESection.ClearData;
 begin
   SetAllocatedSize(0);
@@ -258,6 +245,7 @@ end;
 
 function TPESection.SaveDataToStream(AStream: TStream): boolean;
 begin
+{$WARN COMPARING_SIGNED_UNSIGNED OFF}
   Result := false;
   if (FMem = nil) or (FRawSize = 0) then
   begin
@@ -266,6 +254,7 @@ begin
     Exit;
   end;
   Result := AStream.Write(Mem^, FRawSize) = FRawSize;
+{$WARN COMPARING_SIGNED_UNSIGNED ON}
 end;
 
 function TPESection.LoadHeaderFromStream(AStream: TStream;
@@ -273,6 +262,7 @@ function TPESection.LoadHeaderFromStream(AStream: TStream;
 var
   sh: TImageSectionHeader;
 begin
+{$WARN IMPLICIT_STRING_CAST_LOSS OFF}
   if StreamRead(AStream, sh, sizeof(sh)) then
   begin
     SetHeader(sh, nil);
@@ -281,6 +271,7 @@ begin
     Exit(True);
   end;
   Exit(false);
+{$WARN IMPLICIT_STRING_CAST_LOSS ON}
 end;
 
 end.
