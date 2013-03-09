@@ -16,14 +16,19 @@ type
   TPESection = class
   private
     FMsg: PMsgMgr;
-    FName: AnsiString; // Section name.
-    FVSize: uint32; // Virtual Size.
-    FRVA: TRVA; // Relative Virtual Address.
-    FRawSize: uint32; // Raw size.
+    FName: AnsiString;  // Section name.
+    FVSize: uint32;     // Virtual Size.
+    FRVA: TRVA;         // Relative Virtual Address.
+    FRawSize: uint32;   // Raw size.
     FRawOffset: uint32; // Raw offset.
-    FFlags: uint32; // Section flags.
-    FMem: PByte; // Memory allocated for section, size = raw size
+    FFlags: uint32;     // Section flags.
+    FMem: TBytes;       // Memory allocated for section, size = raw size
     function GetImageSectionHeader: TImageSectionHeader;
+    function GetMemPtr: PByte;
+    procedure SetRawSize(const Value: uint32);
+    procedure SetVirtualSize(const Value: uint32);
+
+    procedure SetAllocatedSize(Value: uint32);
   public
 
     constructor Create(const ASecHdr: TImageSectionHeader; AMem: pointer;
@@ -31,16 +36,20 @@ type
 
     destructor Destroy; override;
 
-    // Get size of allocated mem.
-    function GetAllocatedSize: UInt32;
+    function GetAllocatedSize: uint32;
 
     // Set section values from Section Header.
-    procedure SetHeader(ASecHdr: TImageSectionHeader; ASrcData: pointer);
+    // Allocate memory for section data.
+    // If ChangeData is True memory will be overwritten.
+    procedure SetHeader(ASecHdr: TImageSectionHeader; ASrcData: pointer;
+      ChangeData: boolean = True);
 
     // Load Section Header from stream.
+    // Allocate memory for section data.
     function LoadHeaderFromStream(AStream: TStream; AId: integer): boolean;
 
     // Can be used to load mapped section.
+    // SetHeader must be called first.
     function LoadDataFromStreamEx(AStream: TStream;
       ARawOffset, ARawSize: uint32): boolean;
 
@@ -56,8 +65,6 @@ type
     // Deallocate section data.
     procedure ClearData;
 
-    procedure ClearMem; inline;
-
     function ContainRVA(RVA: TRVA): boolean; inline;
     function GetEndRVA: TRVA; inline;
     function GetEndRawOffset: uint32; inline;
@@ -66,11 +73,11 @@ type
 
     property Name: AnsiString read FName write FName;
     property VirtualSize: uint32 read FVSize;
-    property RVA: TRVA read FRVA write FRVA;
-    property RawSize: uint32 read FRawSize write FRawSize;
+    property RVA: TRVA read FRVA;
+    property RawSize: uint32 read FRawSize;
     property RawOffset: uint32 read FRawOffset write FRawOffset;
     property Flags: uint32 read FFlags write FFlags;
-    property Mem: PByte read FMem;
+    property Mem: PByte read GetMemPtr;
     property ImageSectionHeader: TImageSectionHeader read GetImageSectionHeader;
   end;
 
@@ -105,8 +112,8 @@ begin
   try
     fs := TFileStream.Create(FileName, fmCreate or fmShareDenyWrite);
     try
-      fs.Write(Self.FMem^, Self.FRawSize);
-      Result := true;
+      fs.Write(Self.Mem^, Self.FRawSize);
+      Result := True;
     finally
       FreeAndNil(fs);
     end;
@@ -115,12 +122,16 @@ begin
   end;
 end;
 
-procedure TPESection.SetHeader(ASecHdr: TImageSectionHeader; ASrcData: pointer);
+procedure TPESection.SetAllocatedSize(Value: uint32);
+begin
+  SetLength(FMem, Value);
+end;
+
+procedure TPESection.SetHeader(ASecHdr: TImageSectionHeader; ASrcData: pointer;
+  ChangeData: boolean);
 var
   SizeToAlloc: uint32;
 begin
-  ClearData;
-
   FName := ASecHdr.Name;
   FVSize := ASecHdr.Misc.VirtualSize;
   FRVA := ASecHdr.VirtualAddress;
@@ -128,34 +139,42 @@ begin
   FRawOffset := ASecHdr.PointerToRawData;
   FFlags := ASecHdr.Characteristics;
 
-  SizeToAlloc := GetAllocatedSize;
-
-  if SizeToAlloc = 0 then
-    raise Exception.Create('Section data size = 0.');
-
-  // If no source mem specified, alloc empty block.
-  // If have source mem, copy it.
-  if ASrcData = nil then
-    FMem := AllocMem(SizeToAlloc)
-  else
+  if ChangeData then
   begin
-    GetMem(FMem, SizeToAlloc);
-    Move(ASrcData^, FMem^, SizeToAlloc);
+    SizeToAlloc := FVSize;
+
+    if SizeToAlloc = 0 then
+      raise Exception.Create('Section data size = 0.');
+
+    // If no source mem specified, alloc empty block.
+    // If have source mem, copy it.
+    if ASrcData = nil then
+    begin
+      SetAllocatedSize(0);
+      SetAllocatedSize(SizeToAlloc);
+    end
+    else
+    begin
+      SetAllocatedSize(SizeToAlloc);
+      Move(ASrcData^, Mem^, SizeToAlloc);
+    end;
   end;
 end;
 
-procedure TPESection.ClearMem;
+procedure TPESection.SetRawSize(const Value: uint32);
 begin
-  if FMem <> nil then
-  begin
-    Freemem(FMem);
-    FMem := nil;
-  end;
+  FRawSize := Value;
+end;
+
+procedure TPESection.SetVirtualSize(const Value: uint32);
+begin
+  FVSize := Value;
+  SetAllocatedSize(Value);
 end;
 
 procedure TPESection.ClearData;
 begin
-  ClearMem;
+  SetAllocatedSize(0);
   FRawSize := 0;
   FRawOffset := 0;
 end;
@@ -179,12 +198,14 @@ begin
   Result.Characteristics := Flags;
 end;
 
-function TPESection.GetAllocatedSize: UInt32;
+function TPESection.GetMemPtr: PByte;
 begin
-  if FRawSize <> 0 then
-    Result := FRawSize
-  else
-    Result := FVSize;
+  Result := @FMem[0];
+end;
+
+function TPESection.GetAllocatedSize: uint32;
+begin
+  Result := Length(FMem);
 end;
 
 function TPESection.GetEndRawOffset: uint32;
@@ -207,35 +228,32 @@ function TPESection.LoadDataFromStreamEx(AStream: TStream;
 var
   cnt: uint32;
 begin
-  ClearMem;
+  if (ARawOffset = 0) or (ARawSize = 0) then
+    Exit(false); // Bad args.
 
-  if (ARawOffset <> 0) and (ARawSize <> 0) then
+  if not StreamSeek(AStream, ARawOffset) then
+    Exit(false); // Can't find position in file.
+
+  if ARawSize > GetAllocatedSize then
+    ARawSize := GetAllocatedSize;
+
+  cnt := AStream.Read(Mem^, ARawSize);
+  if cnt = 0 then
   begin
-    if not StreamSeek(AStream, ARawOffset) then
-      exit(false);
-
-    GetMem(FMem, ARawSize);
-
-    cnt := AStream.Read(FMem^, ARawSize);
-    if cnt = 0 then
-    begin
-      ClearData;
-      if Assigned(FMsg) then
-        FMsg.Write('Section %s has no raw data.', [FName]);
-    end
-    else if (cnt <> ARawSize) then
-    begin
-      if Assigned(FMsg) then
-        FMsg.Write
-          ('Section %s has less raw data than header declares: 0x%x instead of 0x%x.',
-          [FName, cnt, ARawSize]);
-      ReallocMem(FMem, cnt);
-      if Assigned(FMsg) then
-        FMsg.Write('Actual raw size was loaded.');
-    end;
-    exit(true);
+    ClearData;
+    if Assigned(FMsg) then
+      FMsg.Write('Section %s has no raw data.', [FName]);
+  end
+  else if (cnt <> ARawSize) then
+  begin
+    if Assigned(FMsg) then
+      FMsg.Write
+        ('Section %s has less raw data than header declares: 0x%x instead of 0x%x.',
+        [FName, cnt, ARawSize]);
+    if Assigned(FMsg) then
+      FMsg.Write('Actual raw size was loaded.');
   end;
-  exit(false);
+  Exit(True);
 end;
 
 function TPESection.SaveDataToStream(AStream: TStream): boolean;
@@ -245,9 +263,9 @@ begin
   begin
     if Assigned(FMsg) then
       FMsg.Write('No data to save.');
-    exit;
+    Exit;
   end;
-  Result := AStream.Write(FMem^, FRawSize) = FRawSize;
+  Result := AStream.Write(Mem^, FRawSize) = FRawSize;
 end;
 
 function TPESection.LoadHeaderFromStream(AStream: TStream;
@@ -260,9 +278,9 @@ begin
     SetHeader(sh, nil);
     if sh.Name = '' then
       FName := Format('#%3.3d', [AId]);
-    exit(true);
+    Exit(True);
   end;
-  exit(false);
+  Exit(false);
 end;
 
 end.
