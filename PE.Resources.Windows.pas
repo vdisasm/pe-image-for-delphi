@@ -76,13 +76,22 @@ const
 
 type
   TWindowsResourceTree = class
+  private
+    function FindResourceInternal(lpType, lpName: PChar; Language: word;
+      Depth: cardinal): TResourceTreeNode;
   protected
     FResourceTree: TResourceTree;
   public
     constructor Create(ResourceTree: TResourceTree);
 
-    function FindResource(lpType, lpName: PChar; Language: word): TResourceTreeLeafNode;
+    // Find Type-Name-Language leaf.
+    function FindResource(lpType, lpName: PChar; Language: word): TResourceTreeLeafNode; overload;
+    // Find Type-Name branch.
+    function FindResource(lpType, lpName: PChar): TResourceTreeBranchNode; overload;
+    // Find Type branch.
+    function FindResource(lpType: PChar): TResourceTreeBranchNode; overload;
 
+    // Update resource by full path.
     // lpType, lpName: if <= $FFFF it's ID otherwise it point to Name string.
     // If (lpData=nil) and (cbData=0) then resource is deleted.
     procedure UpdateResource(lpType, lpName: PChar; Language: word;
@@ -161,15 +170,31 @@ function TWindowsResourceTree.RemoveResource(lpType, lpName: PChar; Language: wo
 var
   n: TResourceTreeNode;
 begin
-  n := FindResource(lpType, lpName, Language);
+  n := FindResourceInternal(lpType, lpName, Language, 2);
   if n <> nil then
     Result := n.Parent.Remove(n)
   else
     Result := False;
 end;
 
-function TWindowsResourceTree.FindResource(lpType, lpName: PChar;
-  Language: word): TResourceTreeLeafNode;
+function TWindowsResourceTree.FindResource(lpType, lpName: PChar; Language: word): TResourceTreeLeafNode;
+begin
+  Result := TResourceTreeLeafNode(FindResourceInternal(lpType, lpName, Language, 2));
+end;
+
+function TWindowsResourceTree.FindResource(lpType, lpName: PChar):
+  TResourceTreeBranchNode;
+begin
+  Result := TResourceTreeBranchNode(FindResourceInternal(lpType, lpName, 0, 1));
+end;
+
+function TWindowsResourceTree.FindResource(lpType: PChar): TResourceTreeBranchNode;
+begin
+  Result := TResourceTreeBranchNode(FindResourceInternal(lpType, nil, 0, 0));
+end;
+
+function TWindowsResourceTree.FindResourceInternal(lpType, lpName: PChar;
+  Language: word; Depth: cardinal): TResourceTreeNode;
 const
   IsBranches: array [0 .. 2] of Boolean = (True, True, False);
 var
@@ -177,9 +202,11 @@ var
   n: TResourceTreeNode;
   val: PChar;
 begin
+  if Depth > 2 then
+    Depth := 2;
   n := FResourceTree.Root;
   i := 0;
-  for i := 0 to 2 do
+  for i := 0 to Depth do
   begin
     case i of
       0:
@@ -193,7 +220,7 @@ begin
     if n = nil then
       exit(nil);
   end;
-  Result := TResourceTreeLeafNode(n);
+  Result := n;
 end;
 
 procedure TWindowsResourceTree.UpdateResource(lpType, lpName: PChar;
