@@ -4,7 +4,8 @@ interface
 
 uses
   System.Generics.Collections,
-  PE.Common;
+  PE.Common,
+  VDLib.RBTree;
 
 {$region 'constants'}
 const
@@ -229,7 +230,7 @@ type
 
   PReloc = ^TReloc;
 
-  TRelocs = TList<TReloc>;
+  TRelocs = TRBTree<TReloc>;
 
 implementation
 

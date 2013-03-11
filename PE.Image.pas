@@ -468,7 +468,16 @@ begin
   FSections := TPESections.Create(self);
   FSections.OnNotify := DoNotifySections;
 
-  FRelocs := TRelocs.Create;
+  FRelocs := TRelocs.Create(
+    function(const A, B: TReloc): integer
+    begin
+      if A.RVA > B.RVA then
+        exit(1)
+      else if A.RVA < B.RVA then
+        exit(-1)
+      else
+        exit(0);
+    end);
 
   FImports := TPEImports.Create;
   FImports.OnNotify := DoNotifyImports;
@@ -519,7 +528,7 @@ begin
 end;
 
 procedure TPEImage.DoNotifyImports(Sender: TObject;
-  const Item: TPEImportLibrary; Action: TCollectionNotification);
+const Item: TPEImportLibrary; Action: TCollectionNotification);
 begin
   if Assigned(Item) then
     if Action = cnRemoved then
@@ -527,7 +536,7 @@ begin
 end;
 
 procedure TPEImage.DoNotifySections(Sender: TObject; const Item: TPESection;
-  Action: TCollectionNotification);
+Action: TCollectionNotification);
 begin
   if Assigned(Item) then
     if Action = cnRemoved then
@@ -540,7 +549,7 @@ begin
 end;
 
 function TPEImage.DumpRegionToFile(const AFileName: string; RVA: TRVA;
-  Size: uint32): uint32;
+Size: uint32): uint32;
 var
   fs: TFileStream;
 begin
@@ -553,7 +562,7 @@ begin
 end;
 
 function TPEImage.DumpRegionToStream(AStream: TStream; RVA: TRVA;
-  Size: uint32): uint32;
+Size: uint32): uint32;
 const
   BUFSIZE = 8192;
 var
@@ -1065,7 +1074,7 @@ begin
 end;
 
 function TPEImage.LoadFromFile(const AFileName: string;
-  AParseStages: TParserFlags): boolean;
+AParseStages: TParserFlags): boolean;
 var
   fs: TFileStream;
 begin
@@ -1086,14 +1095,14 @@ begin
 end;
 
 function TPEImage.LoadFromMappedImage(const AFileName: string;
-  AParseStages: TParserFlags): boolean;
+AParseStages: TParserFlags): boolean;
 begin
   FPEMemoryStream := TPEMemoryStream.Create(AFileName);
   Result := LoadFromStream(FPEMemoryStream, AParseStages, PEIMAGE_KIND_MEMORY);
 end;
 
 function TPEImage.LoadFromStream(AStream: TStream; AParseStages: TParserFlags;
-  ImageKind: TPEImageKind): boolean;
+ImageKind: TPEImageKind): boolean;
 var
   OptHdrOfs, SecHdrOfs, SecHdrEndOfs, SecDataOfs: TFileOffset;
   SecHdrGapSize: integer;
@@ -1281,7 +1290,7 @@ begin
 end;
 
 function TPEImage.SaveOverlayToFile(const AFileName: string;
-  Append: boolean = false): boolean;
+Append: boolean = false): boolean;
 var
   src, dst: TStream;
   ovr: POverlay;
