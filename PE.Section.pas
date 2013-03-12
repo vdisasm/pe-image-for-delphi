@@ -63,6 +63,8 @@ type
     // Deallocate section data.
     procedure ClearData;
 
+    procedure Resize(NewSize: uint32);
+
     function ContainRVA(RVA: TRVA): boolean; inline;
     function GetEndRVA: TRVA; inline;
     function GetEndRawOffset: uint32; inline;
@@ -272,6 +274,13 @@ begin
   end;
   Exit(false);
 {$WARN IMPLICIT_STRING_CAST_LOSS ON}
+end;
+
+procedure TPESection.Resize(NewSize: uint32);
+begin
+  FRawSize := NewSize;
+  FVSize := NewSize;
+  SetAllocatedSize(NewSize);
 end;
 
 end.

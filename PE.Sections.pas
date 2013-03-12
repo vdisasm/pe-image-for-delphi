@@ -38,6 +38,9 @@ type
 
     function FindByName(const AName: AnsiString; IgnoreCase: boolean = True): TPESection;
 
+    // Fill section memory with specified byte and return number of bytes
+    // actually written.
+    function FillMemory(RVA: TRVA; Size: UInt32; FillByte: Byte = 0): UInt32;
   end;
 
 implementation
@@ -112,6 +115,26 @@ begin
   FPE := APEImage;
 end;
 
+function TPESections.FillMemory(RVA: TRVA; Size: UInt32;
+  FillByte: Byte): UInt32;
+var
+  Sec: TPESection;
+  Ofs, CanWrite: UInt32;
+  p: PByte;
+begin
+  Result := 0;
+  if not RVAToSec(RVA, @Sec) then
+    Exit;
+  Ofs := RVA - Sec.RVA;                   // offset of RVA in section
+  CanWrite := Sec.GetAllocatedSize - Ofs; // max we can write to section end
+  if CanWrite < Size then
+    Result := CanWrite
+  else
+    Result := Size;
+  p := Sec.Mem + Ofs;
+  System.FillChar(p^, Result, FillByte);
+end;
+
 function TPESections.FindByName(const AName: AnsiString;
   IgnoreCase: boolean): TPESection;
 var
@@ -130,29 +153,29 @@ begin
     else
       b := Result.Name;
     if a = b then
-      exit;
+      Exit;
   end;
-  exit(nil);
+  Exit(nil);
 {$WARN IMPLICIT_STRING_CAST ON}
 {$WARN IMPLICIT_STRING_CAST_LOSS ON}
 end;
 
 procedure TPESections.Resize(Sec: TPESection; NewSize: UInt32);
 var
-  h: TImageSectionHeader;
   NewVirtualSize: UInt32;
+  EndRVA: TRVA;
 begin
-  NewVirtualSize := AlignUp(NewSize, TPEImage(FPE).SectionAlignment);
   // Last section can be changed freely, other sections must be checked.
   if Sec <> self.Last then
   begin
-    if NewVirtualSize > Sec.VirtualSize then
+    // Get new size and rva for this section.
+    NewVirtualSize := AlignUp(NewSize, TPEImage(FPE).SectionAlignment);
+    EndRVA := Sec.RVA + NewVirtualSize;
+    // Check if new section end would be already occupied.
+    if RVAToSec(EndRVA + NewVirtualSize, nil) then
       raise Exception.Create('Cannot resize section: size is too big');
   end;
-  h := Sec.ImageSectionHeader;
-  h.SizeOfRawData := NewSize;
-  h.Misc.VirtualSize := NewVirtualSize;
-  Sec.SetHeader(h, nil, False);
+  Sec.Resize(NewSize);
 end;
 
 function TPESections.RVAToOfs(RVA: TRVA; OutOfs: PDword): boolean;
@@ -165,10 +188,10 @@ begin
     begin
       if Assigned(OutOfs) then
         OutOfs^ := (RVA - Sec.RVA) + Sec.RawOffset;
-      exit(True);
+      Exit(True);
     end;
   end;
-  exit(False);
+  Exit(False);
 end;
 
 function TPESections.RVAToSec(RVA: TRVA; OutSec: PPESection): boolean;
@@ -180,7 +203,7 @@ begin
     begin
       if OutSec <> nil then
         OutSec^ := Sec;
-      exit(True);
+      Exit(True);
     end;
   Result := False;
 end;
