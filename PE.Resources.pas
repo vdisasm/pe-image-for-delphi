@@ -149,7 +149,7 @@ type
 implementation
 
 uses
-  System.Character,
+  // System.Character,
   PE.Image;
 
 function TreeNodeComparer(const A, B: TResourceTreeNode): integer;
@@ -162,8 +162,10 @@ begin
   // Compare named.
   if NamedA and NamedB then
   begin
-    n1 := TCharacter.ToUpper(A.Name);
-    n2 := TCharacter.ToUpper(B.Name);
+    // n1 := TCharacter.ToUpper(A.Name);
+    // n2 := TCharacter.ToUpper(B.Name);
+    n1 := UpperCase(A.Name);
+    n2 := UpperCase(B.Name);
     exit(CompareStr(n1, n2));
   end;
   // Compare by ID.
