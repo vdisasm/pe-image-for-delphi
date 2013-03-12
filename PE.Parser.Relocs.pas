@@ -33,7 +33,7 @@ var
   reloc: TReloc;
   PE: TPEImage;
 begin
-  PE := (FPE as TPEImage);
+  PE := TPEImage(FPE);
   PE.Relocs.Clear;
 
   if not PE.DataDirectories.Get(DDIR_RELOCATION, @rlDir) then
@@ -61,7 +61,7 @@ begin
         reloc.RVA := r_rva;
         reloc.&Type := r_type;
         // reloc.pos := Ofs;
-        PE.Relocs.Add(reloc);
+        PE.Relocs.Put(reloc);
       end;
 
     end;

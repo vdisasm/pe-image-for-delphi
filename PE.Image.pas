@@ -468,11 +468,7 @@ begin
   FSections := TPESections.Create(self);
   FSections.OnNotify := DoNotifySections;
 
-  FRelocs := TRelocs.Create(
-    function(const A, B: TReloc): integer
-    begin
-      Result := CompareRVA(A.RVA, B.RVA);
-    end);
+  FRelocs := TRelocs.Create;
 
   FImports := TPEImports.Create;
   FImports.OnNotify := DoNotifyImports;
