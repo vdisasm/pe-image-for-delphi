@@ -32,6 +32,9 @@ type
 
     function Get(Index: integer; OutDir: PImageDataDirectory): boolean;
 
+    // Get directory name.
+    function GetName(Index: integer): string;
+
     // Put directory safely. If Index > than current item count, empty items
     // will be added.
     procedure Put(Index: integer; const Dir: TImageDataDirectory); overload;
@@ -147,6 +150,16 @@ begin
       exit(i);
   end;
   exit(-1);
+end;
+
+function TDataDirectories.GetName(Index: integer): string;
+var
+  dir: TImageDataDirectory;
+begin
+  if Get(Index, @dir) then
+    Result := DirectoryNames[index]
+  else
+    Result := '';
 end;
 
 procedure TDataDirectories.LoadFromStream;

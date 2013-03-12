@@ -41,6 +41,26 @@ type
 const
   IMAGE_NUMBEROF_DIRECTORY_ENTRIES  = 16;
 
+  DirectoryNames: array [0 .. IMAGE_NUMBEROF_DIRECTORY_ENTRIES - 1] of string =
+    (
+    'Export',
+    'Import',
+    'Resource',
+    'Exception',
+    'Certificate',
+    'Base Relocation',
+    'Debug',
+    'Architecture',
+    'Global Pointer',
+    'Thread Local Storage',
+    'Load Config',
+    'Bound Import',
+    'Import Address Table',
+    'Delay Import Descriptor',
+    'CLR Runtime Header',
+    ''
+    );
+
 // variant #2
 // TImageDataDirectories = packed array [0 .. IMAGE_NUMBEROF_DIRECTORY_ENTRIES-1] of TImageDataDirectory;
 
