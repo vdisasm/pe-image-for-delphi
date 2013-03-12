@@ -25,6 +25,8 @@ function AlignUp(Value: uint64; Align: uint32): uint64;
 
 function IsStringASCII(const S: AnsiString): boolean;
 
+function CompareRVA(A, B: TRVA): Integer; inline;
+
 implementation
 
 { Stream }
@@ -36,7 +38,7 @@ end;
 
 function StreamPeek(AStream: TStream; var Buf; Count: longint): boolean; inline;
 var
-  Read: integer;
+  Read: Integer;
 begin
   Read := AStream.Read(Buf, Count);
   AStream.Seek(-Read, soFromCurrent);
@@ -70,7 +72,7 @@ end;
 
 procedure StreamSeekWithPadding(AStream: TStream; Offset: TFileOffset);
 var
-  d: integer;
+  d: Integer;
   p: pointer;
 begin
   if Offset <= AStream.Size then
@@ -129,6 +131,16 @@ begin
     if not(byte(A) in [32 .. 126]) then
       exit(False);
   exit(True);
+end;
+
+function CompareRVA(A, B: TRVA): Integer;
+begin
+  if A > B then
+    exit(1)
+  else if A < B then
+    exit(-1)
+  else
+    exit(0);
 end;
 
 end.

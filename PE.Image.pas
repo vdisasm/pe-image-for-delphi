@@ -471,12 +471,7 @@ begin
   FRelocs := TRelocs.Create(
     function(const A, B: TReloc): integer
     begin
-      if A.RVA > B.RVA then
-        exit(1)
-      else if A.RVA < B.RVA then
-        exit(-1)
-      else
-        exit(0);
+      Result := CompareRVA(A.RVA, B.RVA);
     end);
 
   FImports := TPEImports.Create;
