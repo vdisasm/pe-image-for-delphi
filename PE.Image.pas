@@ -326,6 +326,10 @@ type
     function DumpRegionToStream(AStream: TStream; RVA: TRVA; Size: uint32): uint32;
     function DumpRegionToFile(const AFileName: string; RVA: TRVA; Size: uint32): uint32;
 
+    { Regions }
+
+    procedure RegionRemove(RVA: TRVA; Size: UInt32);
+
     { Properties }
 
     property Msg: TMsgMgr read FMsg;
@@ -912,6 +916,13 @@ begin
   SetLength(Result, Len);
   for i := 1 to Len do
     Read(@Result[i], 2);
+end;
+
+procedure TPEImage.RegionRemove(RVA: TRVA; Size: UInt32);
+begin
+  // Currently it's just placeholder.
+  // Mark memory as free.
+  FSections.FillMemory(RVA, Size, $CC);
 end;
 
 function TPEImage.ReadANSIString: RawByteString;

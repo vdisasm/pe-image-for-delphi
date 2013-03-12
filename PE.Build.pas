@@ -112,6 +112,9 @@ begin
         stream.Size, builder.GetDefaultSectionFlags, nil);
       destRVA := sec.RVA;
       destSize := stream.Size;
+      // Make old data directory region unused.
+      if img.DataDirectories.Get(DDIR_ID, @dir) then
+        img.RegionRemove(dir.VirtualAddress, dir.Size);
     end;
 
     // Rebuild data to have valid RVAs (if prognose is wrong)
