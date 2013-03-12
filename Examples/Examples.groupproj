@@ -21,6 +21,9 @@
         <Projects Include="04 DLL Loader\DLLLoader.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="05 FillMem\FillMem.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -83,14 +86,23 @@
     <Target Name="DLLLoader:Make">
         <MSBuild Projects="04 DLL Loader\DLLLoader.dproj" Targets="Make"/>
     </Target>
+    <Target Name="FillMem">
+        <MSBuild Projects="05 FillMem\FillMem.dproj"/>
+    </Target>
+    <Target Name="FillMem:Clean">
+        <MSBuild Projects="05 FillMem\FillMem.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="FillMem:Make">
+        <MSBuild Projects="05 FillMem\FillMem.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="SampleLib;ExportsAdd;ImportsAdd;ResourceExtract;ResourceBuild;DLLLoader"/>
+        <CallTarget Targets="SampleLib;ExportsAdd;ImportsAdd;ResourceExtract;ResourceBuild;DLLLoader;FillMem"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="SampleLib:Clean;ExportsAdd:Clean;ImportsAdd:Clean;ResourceExtract:Clean;ResourceBuild:Clean;DLLLoader:Clean"/>
+        <CallTarget Targets="SampleLib:Clean;ExportsAdd:Clean;ImportsAdd:Clean;ResourceExtract:Clean;ResourceBuild:Clean;DLLLoader:Clean;FillMem:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="SampleLib:Make;ExportsAdd:Make;ImportsAdd:Make;ResourceExtract:Make;ResourceBuild:Make;DLLLoader:Make"/>
+        <CallTarget Targets="SampleLib:Make;ExportsAdd:Make;ImportsAdd:Make;ResourceExtract:Make;ResourceBuild:Make;DLLLoader:Make;FillMem:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>
