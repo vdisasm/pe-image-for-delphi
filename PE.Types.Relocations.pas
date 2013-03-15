@@ -30,7 +30,7 @@ type
 
   TBaseRelocationEntry = packed record
     raw: uint16;
-    function GetOffset: UInt32;
+    function GetOffset: uint16;
     function GetType: byte;
   end;
 
@@ -91,7 +91,7 @@ end;
 
 { TBaseRelocationEntry }
 
-function TBaseRelocationEntry.GetOffset: UInt32;
+function TBaseRelocationEntry.GetOffset: uint16;
 begin
   result := raw and $0FFF;
 end;
