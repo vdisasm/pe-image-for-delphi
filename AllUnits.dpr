@@ -5,6 +5,8 @@ uses
   PE.Build.Export in 'PE.Build.Export.pas',
   PE.Build.Import in 'PE.Build.Import.pas',
   PE.Build in 'PE.Build.pas',
+  PE.Build.Relocs in 'PE.Build.Relocs.pas',
+  PE.Build.Resource in 'PE.Build.Resource.pas',
   PE.COFF in 'PE.COFF.pas',
   PE.COFF.Types in 'PE.COFF.Types.pas',
   PE.Common in 'PE.Common.pas',
@@ -27,6 +29,7 @@ uses
   PE.Parser.Relocs in 'PE.Parser.Relocs.pas',
   PE.Parser.Resources in 'PE.Parser.Resources.pas',
   PE.Parser.TLS in 'PE.Parser.TLS.pas',
+  PE.Resources.Extract in 'PE.Resources.Extract.pas',
   PE.Resources in 'PE.Resources.pas',
   PE.Resources.Windows in 'PE.Resources.Windows.pas',
   PE.RTTI in 'PE.RTTI.pas',
@@ -46,8 +49,6 @@ uses
   PE.Types.Sections in 'PE.Types.Sections.pas',
   PE.Types.TLS in 'PE.Types.TLS.pas',
   PE.Utils in 'PE.Utils.pas',
-  PE.Resources.Extract in 'PE.Resources.Extract.pas',
-  PE.Build.Resource in 'PE.Build.Resource.pas',
   VDLib.RBTree in 'VDLib.RBTree.pas';
 
 begin

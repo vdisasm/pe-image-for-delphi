@@ -287,7 +287,7 @@ begin
   if Delta = 0 then
     exit(msOK); // no relocation needed
 
-  for Reloc in FPE.Relocs do
+  for Reloc in FPE.Relocs.Items do
   begin
     case Reloc.&Type of
       IMAGE_REL_BASED_ABSOLUTE:

@@ -24,6 +24,9 @@
         <Projects Include="05 FillMem\FillMem.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="06 Relocs\BuildRelocs.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -95,14 +98,23 @@
     <Target Name="FillMem:Make">
         <MSBuild Projects="05 FillMem\FillMem.dproj" Targets="Make"/>
     </Target>
+    <Target Name="BuildRelocs">
+        <MSBuild Projects="06 Relocs\BuildRelocs.dproj"/>
+    </Target>
+    <Target Name="BuildRelocs:Clean">
+        <MSBuild Projects="06 Relocs\BuildRelocs.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="BuildRelocs:Make">
+        <MSBuild Projects="06 Relocs\BuildRelocs.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="SampleLib;ExportsAdd;ImportsAdd;ResourceExtract;ResourceBuild;DLLLoader;FillMem"/>
+        <CallTarget Targets="SampleLib;ExportsAdd;ImportsAdd;ResourceExtract;ResourceBuild;DLLLoader;FillMem;BuildRelocs"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="SampleLib:Clean;ExportsAdd:Clean;ImportsAdd:Clean;ResourceExtract:Clean;ResourceBuild:Clean;DLLLoader:Clean;FillMem:Clean"/>
+        <CallTarget Targets="SampleLib:Clean;ExportsAdd:Clean;ImportsAdd:Clean;ResourceExtract:Clean;ResourceBuild:Clean;DLLLoader:Clean;FillMem:Clean;BuildRelocs:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="SampleLib:Make;ExportsAdd:Make;ImportsAdd:Make;ResourceExtract:Make;ResourceBuild:Make;DLLLoader:Make;FillMem:Make"/>
+        <CallTarget Targets="SampleLib:Make;ExportsAdd:Make;ImportsAdd:Make;ResourceExtract:Make;ResourceBuild:Make;DLLLoader:Make;FillMem:Make;BuildRelocs:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

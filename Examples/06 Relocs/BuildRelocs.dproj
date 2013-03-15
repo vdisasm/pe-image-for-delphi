@@ -1,9 +1,9 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <ProjectGuid>{563BBFE2-4D67-4021-A116-332D0BF71BC7}</ProjectGuid>
+        <ProjectGuid>{06E52CBD-92E1-456F-B4FF-F38F2E33D052}</ProjectGuid>
         <ProjectVersion>14.4</ProjectVersion>
         <FrameworkType>None</FrameworkType>
-        <MainSource>AllUnits.dpr</MainSource>
+        <MainSource>BuildRelocs.dpr</MainSource>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Debug</Config>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
@@ -45,13 +45,13 @@
         <Base>true</Base>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
-        <DCC_UnitSearchPath>vdlib;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
+        <DCC_UnitSearchPath>..\..;..\..\vdlib;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <VerInfo_Locale>1033</VerInfo_Locale>
-        <Manifest_File>None</Manifest_File>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
+        <Manifest_File>None</Manifest_File>
         <DCC_DcuOutput>.\$(Platform)\$(Config)</DCC_DcuOutput>
-        <DCC_ExeOutput>bin</DCC_ExeOutput>
+        <DCC_ExeOutput>..\..\bin\examples</DCC_ExeOutput>
         <DCC_E>false</DCC_E>
         <DCC_N>false</DCC_N>
         <DCC_S>false</DCC_S>
@@ -59,16 +59,16 @@
         <DCC_K>false</DCC_K>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_OSX32)'!=''">
-        <DCC_UsePackage>bindcompfmx;DBXSqliteDriver;fmx;rtl;dbrtl;DbxClientDriver;IndySystem;bindcomp;inetdb;DBXInterBaseDriver;DataSnapClient;DataSnapCommon;DataSnapServer;DataSnapProviderClient;xmlrtl;DbxCommonDriver;IndyProtocols;dbxcds;DBXMySQLDriver;bindengine;soaprtl;bindcompdbx;DBXOracleDriver;CustomIPTransport;dsnap;IndyIPServer;DBXInformixDriver;fmxase;IndyCore;IndyIPCommon;DBXFirebirdDriver;inet;fmxobj;inetdbxpress;DBXSybaseASADriver;fmxdae;dbexpress;DataSnapIndy10ServerTransport;IndyIPClient;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>bindcompfmx;DBXSqliteDriver;fmx;rtl;dbrtl;DbxClientDriver;IndySystem;bindcomp;inetdb;DBXInterBaseDriver;DataSnapClient;DataSnapCommon;DataSnapServer;DataSnapProviderClient;xmlrtl;DbxCommonDriver;IndyProtocols;DBXMySQLDriver;dbxcds;bindengine;bindcompdbx;soaprtl;DBXOracleDriver;CustomIPTransport;dsnap;DBXInformixDriver;IndyIPServer;fmxase;IndyCore;IndyIPCommon;DBXFirebirdDriver;inet;fmxobj;inetdbxpress;DBXSybaseASADriver;fmxdae;dbexpress;DataSnapIndy10ServerTransport;IndyIPClient;$(DCC_UsePackage)</DCC_UsePackage>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
-        <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
+        <DCC_UsePackage>CrossFPC_XE3;bindcompfmx;DBXSqliteDriver;vcldbx;fmx;rtl;dbrtl;DbxClientDriver;IndySystem;TeeDB;bindcomp;inetdb;inetdbbde;vclib;DBXInterBaseDriver;DataSnapClient;DataSnapCommon;DBXOdbcDriver;DataSnapServer;Tee;DataSnapProviderClient;xmlrtl;DBXSybaseASEDriver;ibxpress;DbxCommonDriver;svnui;vclimg;IndyProtocols;DBXMySQLDriver;dbxcds;MetropolisUILiveTile;bindengine;vclactnband;vcldb;bindcompdbx;FMXTee;vcldsnap;bindcompvcl;soaprtl;TeeUI;vclie;DBXDb2Driver;vcltouch;websnap;DBXOracleDriver;CustomIPTransport;vclribbon;VclSmp;dsnap;DBXInformixDriver;IndyIPServer;Intraweb;fmxase;vcl;DataSnapConnectors;IndyCore;DBXMSSQLDriver;CloudService;IndyIPCommon;DBXFirebirdDriver;FmxTeeUI;dsnapcon;inet;fmxobj;vclx;inetdbxpress;webdsnap;svn;DBXSybaseASADriver;fmxdae;bdertl;dbexpress;DataSnapIndy10ServerTransport;adortl;IndyIPClient;$(DCC_UsePackage)</DCC_UsePackage>
         <VerInfo_Locale>1033</VerInfo_Locale>
-        <DCC_UsePackage>bindcompfmx;DBXSqliteDriver;vcldbx;fmx;rtl;dbrtl;DbxClientDriver;IndySystem;TeeDB;bindcomp;inetdb;vclib;inetdbbde;DBXInterBaseDriver;DataSnapClient;DataSnapCommon;DBXOdbcDriver;DataSnapServer;Tee;FrameViewerXE3;DataSnapProviderClient;xmlrtl;svnui;ibxpress;DbxCommonDriver;DBXSybaseASEDriver;vclimg;IndyProtocols;dbxcds;DBXMySQLDriver;DatasnapConnectorsFreePascal;MetropolisUILiveTile;vclactnband;bindengine;vcldb;soaprtl;bindcompdbx;vcldsnap;bindcompvcl;FMXTee;TeeUI;vclie;vcltouch;DBXDb2Driver;websnap;DBXOracleDriver;CustomIPTransport;vclribbon;VclSmp;dsnap;IndyIPServer;DBXInformixDriver;Intraweb;fmxase;vcl;IndyCore;DataSnapConnectors;IndyIPCommon;CloudService;DBXMSSQLDriver;dsnapcon;DBXFirebirdDriver;FmxTeeUI;inet;fmxobj;vclx;inetdbxpress;webdsnap;svn;DBXSybaseASADriver;fmxdae;bdertl;dbexpress;adortl;DataSnapIndy10ServerTransport;IndyIPClient;$(DCC_UsePackage)</DCC_UsePackage>
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
+        <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
-        <DCC_UsePackage>bindcompfmx;DBXSqliteDriver;fmx;rtl;dbrtl;DbxClientDriver;IndySystem;bindcomp;inetdb;DBXInterBaseDriver;DataSnapClient;DataSnapCommon;DBXOdbcDriver;DataSnapServer;DataSnapProviderClient;xmlrtl;DbxCommonDriver;DBXSybaseASEDriver;vclimg;IndyProtocols;dbxcds;DBXMySQLDriver;vclactnband;bindengine;vcldb;soaprtl;bindcompdbx;vcldsnap;bindcompvcl;vclie;vcltouch;DBXDb2Driver;websnap;DBXOracleDriver;CustomIPTransport;VclSmp;dsnap;IndyIPServer;DBXInformixDriver;fmxase;vcl;IndyCore;IndyIPCommon;DBXMSSQLDriver;dsnapcon;DBXFirebirdDriver;inet;fmxobj;vclx;inetdbxpress;webdsnap;DBXSybaseASADriver;fmxdae;dbexpress;DataSnapIndy10ServerTransport;IndyIPClient;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>bindcompfmx;DBXSqliteDriver;fmx;rtl;dbrtl;DbxClientDriver;IndySystem;bindcomp;inetdb;DBXInterBaseDriver;DataSnapClient;DataSnapCommon;DBXOdbcDriver;DataSnapServer;DataSnapProviderClient;xmlrtl;DBXSybaseASEDriver;DbxCommonDriver;vclimg;IndyProtocols;DBXMySQLDriver;dbxcds;bindengine;vclactnband;vcldb;bindcompdbx;vcldsnap;bindcompvcl;soaprtl;vclie;DBXDb2Driver;vcltouch;websnap;DBXOracleDriver;CustomIPTransport;VclSmp;dsnap;DBXInformixDriver;IndyIPServer;fmxase;vcl;IndyCore;DBXMSSQLDriver;IndyIPCommon;DBXFirebirdDriver;dsnapcon;inet;fmxobj;vclx;inetdbxpress;webdsnap;DBXSybaseASADriver;fmxdae;dbexpress;DataSnapIndy10ServerTransport;IndyIPClient;$(DCC_UsePackage)</DCC_UsePackage>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1)'!=''">
         <DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
@@ -91,55 +91,6 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
-        <DCCReference Include="PE.Build.Common.pas"/>
-        <DCCReference Include="PE.Build.Export.pas"/>
-        <DCCReference Include="PE.Build.Import.pas"/>
-        <DCCReference Include="PE.Build.pas"/>
-        <DCCReference Include="PE.Build.Relocs.pas"/>
-        <DCCReference Include="PE.Build.Resource.pas"/>
-        <DCCReference Include="PE.COFF.pas"/>
-        <DCCReference Include="PE.COFF.Types.pas"/>
-        <DCCReference Include="PE.Common.pas"/>
-        <DCCReference Include="PE.DataDirectories.pas"/>
-        <DCCReference Include="PE.DLLLoader.pas"/>
-        <DCCReference Include="PE.ExportSym.pas"/>
-        <DCCReference Include="PE.FileHeaderToStr.pas"/>
-        <DCCReference Include="PE.Headers.pas"/>
-        <DCCReference Include="PE.Image.Defaults.pas"/>
-        <DCCReference Include="PE.Image.pas"/>
-        <DCCReference Include="PE.Image.Saving.pas"/>
-        <DCCReference Include="PE.Image.x86.pas"/>
-        <DCCReference Include="PE.Imports.pas"/>
-        <DCCReference Include="PE.MemoryStream.pas"/>
-        <DCCReference Include="PE.Msg.pas"/>
-        <DCCReference Include="PE.Parser.Export.pas"/>
-        <DCCReference Include="PE.Parser.Headers.pas"/>
-        <DCCReference Include="PE.Parser.Import.pas"/>
-        <DCCReference Include="PE.Parser.PData.pas"/>
-        <DCCReference Include="PE.Parser.Relocs.pas"/>
-        <DCCReference Include="PE.Parser.Resources.pas"/>
-        <DCCReference Include="PE.Parser.TLS.pas"/>
-        <DCCReference Include="PE.Resources.Extract.pas"/>
-        <DCCReference Include="PE.Resources.pas"/>
-        <DCCReference Include="PE.Resources.Windows.pas"/>
-        <DCCReference Include="PE.RTTI.pas"/>
-        <DCCReference Include="PE.Section.pas"/>
-        <DCCReference Include="PE.Sections.pas"/>
-        <DCCReference Include="PE.TLS.pas"/>
-        <DCCReference Include="PE.Types.Directories.pas"/>
-        <DCCReference Include="PE.Types.DOSHeader.pas"/>
-        <DCCReference Include="PE.Types.Export.pas"/>
-        <DCCReference Include="PE.Types.FileHeader.pas"/>
-        <DCCReference Include="PE.Types.Imports.pas"/>
-        <DCCReference Include="PE.Types.NTHeaders.pas"/>
-        <DCCReference Include="PE.Types.OptionalHeader.pas"/>
-        <DCCReference Include="PE.Types.pas"/>
-        <DCCReference Include="PE.Types.Relocations.pas"/>
-        <DCCReference Include="PE.Types.Resources.pas"/>
-        <DCCReference Include="PE.Types.Sections.pas"/>
-        <DCCReference Include="PE.Types.TLS.pas"/>
-        <DCCReference Include="PE.Utils.pas"/>
-        <DCCReference Include="VDLib.RBTree.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -193,7 +144,7 @@
                     <VersionInfoKeys Name="CFBundleExecutable"/>
                 </VersionInfoKeys>
                 <Source>
-                    <Source Name="MainSource">AllUnits.dpr</Source>
+                    <Source Name="MainSource">BuildRelocs.dpr</Source>
                 </Source>
                 <Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\dcloffice2k170.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
