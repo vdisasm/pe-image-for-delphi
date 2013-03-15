@@ -1,3 +1,8 @@
+{
+  Memory Stream based on already mapped PE image in current process.
+  Basically it's TMemoryStream with Memory pointing to ImageBase and Size equal
+  to SizeOfImage.
+}
 unit PE.MemoryStream;
 
 interface
@@ -9,14 +14,18 @@ uses
 type
   TPEMemoryStream = class(TCustomMemoryStream)
   private
-    FModuleToUnload: HMODULE;
+    FModuleToUnload: HMODULE; // needed if forced module loading.
     FModuleFileName: string;
     FModuleSize: uint32;
   public
+    // Create stream from module in current process.
+    // If module is not found exception raise.
+    // To force loading module set ForceLoadingModule to True.
     constructor Create(const ModuleName: string; ForceLoadingModule: boolean = False);
 
     destructor Destroy; override;
 
+    // Simply read SizeOfImage from memory.
     class function GetModuleImageSize(ModulePtr: PByte): uint32; static;
   end;
 
@@ -54,7 +63,6 @@ begin
   FModuleSize := TPEMemoryStream.GetModuleImageSize(FModulePtr);
 
   SetPointer(FModulePtr, FModuleSize);
-
 end;
 
 destructor TPEMemoryStream.Destroy;

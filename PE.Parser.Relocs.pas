@@ -63,10 +63,8 @@ begin
         // reloc.pos := Ofs;
         PE.Relocs.Put(reloc);
       end;
-
     end;
   end;
-
   exit(PR_OK);
 end;
 
