@@ -63,7 +63,8 @@ type
     function Find(RVA: TRVA; out Reloc: TReloc): Boolean;
 
     // Add non-existing item, or update existing item.
-    procedure Put(const Value: TReloc);
+    procedure Put(const Value: TReloc); overload;
+    procedure Put(RVA: TRVA; &Type: Integer); overload;
 
     // Result is True if reloc was found and removed.
     function Remove(RVA: TRVA): Boolean;
@@ -177,6 +178,15 @@ begin
   if p = nil then
     Exit(nil);
   Exit(@p^.K);
+end;
+
+procedure TRelocs.Put(RVA: TRVA; &Type: Integer);
+var
+  r: TReloc;
+begin
+  r.RVA := RVA;
+  r.&Type := &Type;
+  Put(r);
 end;
 
 end.

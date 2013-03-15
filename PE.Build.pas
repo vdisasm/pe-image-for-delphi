@@ -28,7 +28,8 @@ uses
 
   PE.Build.Export,
   PE.Build.Import,
-  PE.Build.Resource;
+  PE.Build.Resource,
+  PE.Build.Relocs;
 
 const
   RebuilderTable: array [0 .. DDIR_LAST] of TDirectoryBuilderClass =
@@ -38,7 +39,7 @@ const
     PE.Build.Resource.TRsrcBuilder, // resources
     nil,                            // exception
     nil,                            // certificate
-    nil,                            // relocations
+    PE.Build.Relocs.TRelocBuilder,  // relocations
     nil,                            // debug
     nil,                            // architecture
     nil,                            // global ptr

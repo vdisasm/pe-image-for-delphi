@@ -22,6 +22,7 @@ function Min(A, B: uint64): uint64; inline;
 function Max(A, B: uint64): uint64; inline;
 
 function AlignUp(Value: uint64; Align: uint32): uint64;
+function AlignDown(Value: uint64; Align: uint32): uint64;
 
 function IsStringASCII(const S: AnsiString): boolean;
 
@@ -121,6 +122,11 @@ begin
     Result := Value
   else
     Result := (d + 1) * Align;
+end;
+
+function AlignDown(Value: uint64; Align: uint32): uint64;
+begin
+  Result := (Value div Align) * Align;
 end;
 
 function IsStringASCII(const S: AnsiString): boolean;
