@@ -51,6 +51,9 @@ type
     function GetDirDedicatedToSection(Section: TPESection;
       AlignSize: boolean = False): integer;
 
+    // Save directory data to file.
+    function SaveToFile(Index: integer; const FileName: string): boolean;
+
     property Count: integer read GetCount write SetCount;
   end;
 
@@ -154,9 +157,9 @@ end;
 
 function TDataDirectories.GetName(Index: integer): string;
 var
-  dir: TImageDataDirectory;
+  Dir: TImageDataDirectory;
 begin
-  if Get(Index, @dir) then
+  if Get(Index, @Dir) then
     Result := DirectoryNames[index]
   else
     Result := '';
@@ -213,6 +216,19 @@ begin
   // Set final count.
   self.Count := CountToRead;
 
+end;
+
+function TDataDirectories.SaveToFile(Index: integer;
+  const FileName: string): boolean;
+var
+  Dir: TImageDataDirectory;
+begin
+  if Get(Index, @Dir) then
+  begin
+    TPEImage(FPE).DumpRegionToFile(FileName, Dir.VirtualAddress, Dir.Size);
+    exit(True);
+  end;
+  exit(False);
 end;
 
 function TDataDirectories.SaveToStream(Stream: TStream): integer;
