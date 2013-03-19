@@ -14,6 +14,8 @@ type
   TPESections = class(TList<TPESection>)
   private
     FPE: TObject;
+    procedure ItemNotify(Sender: TObject; const Item: TPESection;
+      Action: TCollectionNotification);
   public
     constructor Create(APEImage: TObject);
 
@@ -55,12 +57,8 @@ uses
 { TPESections }
 
 function TPESections.Add(const Sec: TPESection): TPESection;
-var
-  PE: TPEImage;
 begin
   inherited Add(Sec);
-  PE := TPEImage(FPE);
-  inc(PE.FileHeader^.NumberOfSections);
   Result := Sec;
 end;
 
@@ -113,6 +111,7 @@ constructor TPESections.Create(APEImage: TObject);
 begin
   inherited Create;
   FPE := APEImage;
+  self.OnNotify := ItemNotify;
 end;
 
 function TPESections.FillMemory(RVA: TRVA; Size: UInt32;
@@ -160,6 +159,23 @@ begin
 {$WARN IMPLICIT_STRING_CAST_LOSS ON}
 end;
 
+procedure TPESections.ItemNotify(Sender: TObject; const Item: TPESection;
+  Action: TCollectionNotification);
+begin
+  case Action of
+    cnAdded:
+      inc(TPEImage(FPE).FileHeader^.NumberOfSections);
+    cnRemoved:
+      begin
+        dec(TPEImage(FPE).FileHeader^.NumberOfSections);
+        if Item <> nil then
+          Item.Free;
+      end;
+    cnExtracted:
+      dec(TPEImage(FPE).FileHeader^.NumberOfSections);
+  end;
+end;
+
 procedure TPESections.Resize(Sec: TPESection; NewSize: UInt32);
 var
   NewVirtualSize: UInt32;
@@ -168,12 +184,19 @@ begin
   // Last section can be changed freely, other sections must be checked.
   if Sec <> self.Last then
   begin
-    // Get new size and rva for this section.
-    NewVirtualSize := AlignUp(NewSize, TPEImage(FPE).SectionAlignment);
-    EndRVA := Sec.RVA + NewVirtualSize;
-    // Check if new section end would be already occupied.
-    if RVAToSec(EndRVA + NewVirtualSize, nil) then
-      raise Exception.Create('Cannot resize section: size is too big');
+    if NewSize = 0 then
+    begin
+      Remove(Sec);
+    end
+    else
+    begin
+      // Get new size and rva for this section.
+      NewVirtualSize := AlignUp(NewSize, TPEImage(FPE).SectionAlignment);
+      EndRVA := Sec.RVA + NewVirtualSize;
+      // Check if new section end would be already occupied.
+      if RVAToSec(EndRVA + NewVirtualSize, nil) then
+        raise Exception.Create('Cannot resize section: size is too big');
+    end;
   end;
   Sec.Resize(NewSize);
 end;

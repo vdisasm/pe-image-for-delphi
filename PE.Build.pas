@@ -105,29 +105,40 @@ begin
             destSize := dir.Size;
           end;
 
-    // If we still have no section, create new with default name and flags.
-    // User can change it later.
-    if sec = nil then
+    // If stream is empty, no need to rebuild anything.
+    if stream.Size <> 0 then
     begin
-      sec := img.Sections.AddNew(AnsiString(builder.GetDefaultSectionName),
-        stream.Size, builder.GetDefaultSectionFlags, nil);
-      destRVA := sec.RVA;
-      destSize := stream.Size;
-      // Make old data directory region unused.
-      if img.DataDirectories.Get(DDIR_ID, @dir) then
-        img.RegionRemove(dir.VirtualAddress, dir.Size);
-    end;
 
-    // Rebuild data to have valid RVAs (if prognose is wrong)
-    if builder.NeedRebuildingIfRVAChanged then
-      if prognoseRVA <> destRVA then
+      // If we still have no section, create new with default name and flags.
+      // User can change it later.
+      if sec = nil then
       begin
-        stream.Clear;
-        builder.Build(destRVA, stream);
+        sec := img.Sections.AddNew(AnsiString(builder.GetDefaultSectionName),
+          stream.Size, builder.GetDefaultSectionFlags, nil);
+        destRVA := sec.RVA;
+        destSize := stream.Size;
+        // Make old data directory region unused.
+        if img.DataDirectories.Get(DDIR_ID, @dir) then
+          img.RegionRemove(dir.VirtualAddress, dir.Size);
       end;
 
-    // Move built data to section.
-    Move(stream.Memory^, sec.Mem^, stream.Size);
+      // Rebuild data to have valid RVAs (if prognose is wrong)
+      if builder.NeedRebuildingIfRVAChanged then
+        if prognoseRVA <> destRVA then
+        begin
+          stream.Clear;
+          builder.Build(destRVA, stream);
+        end;
+
+      // Move built data to section.
+      Move(stream.Memory^, sec.Mem^, stream.Size);
+    end
+    else
+    begin
+      // If stream size = 0
+      destRVA := 0;
+      destSize := 0;
+    end;
 
     // Update directory pointer.
     img.DataDirectories.Put(DDIR_ID, destRVA, destSize);

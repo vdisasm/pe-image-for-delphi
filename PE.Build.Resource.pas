@@ -55,15 +55,24 @@ uses
   PE.Utils;
 
 procedure TRsrcBuilder.Build(DirRVA: TRVA; Stream: TStream);
+var
+  root: TResourceTreeBranchNode;
 begin
   FBaseRVA := DirRVA;
   CalcSizes;
   CalcOffsets;
+
+  root := FPE.ResourceTree.Root;
+
+  // If there's no items at root exit.
+  if root.Children.Count = 0 then
+    exit;
+
   // Setup stream.
   FStream := Stream;
   FStream.Size := FOfsEnd;
   // Build nodes starting from root.
-  WriteBranchNode(FPE.ResourceTree.Root);
+  WriteBranchNode(root);
 end;
 
 procedure TRsrcBuilder.CalcSizes;
