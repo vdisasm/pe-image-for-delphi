@@ -45,6 +45,8 @@ begin
   SetSectionAlignment;
   SetFileHdr;
   SetOptionalHeader;
+  // Ensure all directories will be present.
+  TPEImage(FPE).DataDirectories.Put(DDIR_LAST, 0, 0);
 end;
 
 procedure TPEDefaults.SetFileAlignment;
