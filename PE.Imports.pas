@@ -14,7 +14,12 @@ type
   public
     Ordinal: uint16;
     Name: AnsiString;
-    RVA: TRVA; // rva that will be binded by loader
+
+    // RVA patched by loader.
+    // If image is not bound loader get address of function and write it at RVA.
+    // If image is bound nothing changed because value at RVA is already set.
+    RVA: TRVA;
+
     procedure Clear; inline;
     constructor CreateEmpty;
     constructor Create(RVA: TRVA; const Name: AnsiString; Ordinal: uint16 = 0);
@@ -27,11 +32,12 @@ type
   TPEImportLibrary = class
   private
     FName: AnsiString; // imported library name
+    FBound: Boolean;
     FFunctions: TPEImportFunctions;
     procedure ImportFunctionNotify(Sender: TObject; const Item: TPEImportFunction;
       Action: TCollectionNotification);
   public
-    constructor Create(const AName: AnsiString);
+    constructor Create(const AName: AnsiString; Bound: Boolean = False);
     destructor Destroy; override;
 
     // Find function by name. Result is nil if not found.
@@ -39,6 +45,7 @@ type
 
     property Name: AnsiString read FName;
     property Functions: TPEImportFunctions read FFunctions;
+    property Bound: Boolean read FBound;
   end;
 
   TPEImports = class(TList<TPEImportLibrary>)
@@ -63,12 +70,13 @@ end;
 
 { TImportLibrary }
 
-constructor TPEImportLibrary.Create(const AName: AnsiString);
+constructor TPEImportLibrary.Create(const AName: AnsiString; Bound: Boolean);
 begin
   inherited Create;
   FFunctions := TPEImportFunctions.Create;
   FFunctions.OnNotify := ImportFunctionNotify;
   FName := AName;
+  FBound := Bound;
 end;
 
 destructor TPEImportLibrary.Destroy;

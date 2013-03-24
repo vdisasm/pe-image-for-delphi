@@ -102,7 +102,7 @@ begin
       DllName := PE.ReadANSIString;
 
       // Create library.
-      Lib := TPEImportLibrary.Create(DllName);
+      Lib := TPEImportLibrary.Create(DllName, IDir.IsBound);
 
       // skip bad dll name
       if Lib.Name = '' then
