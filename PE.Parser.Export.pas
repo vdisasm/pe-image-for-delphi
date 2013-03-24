@@ -27,7 +27,7 @@ var
   ExpIDD: TImageDataDirectory;
   ExpDir: TImageExportDirectory;
   i, base, ordnl: Integer;
-  rvas: packed array of uint32;
+  RVAs: packed array of uint32;
   NamePointerRVAs: packed array of uint32;
   OrdinalTableRVAs: packed array of UInt16;
   Exp: array of TPEExportSym;
@@ -66,7 +66,7 @@ begin
 
       base := ExpDir.OrdinalBase;
 
-      // total exports
+      // Check if there's too many exports.
       if (ExpDir.AddressTableEntries >= SUSPICIOUS_MIN_LIMIT_EXPORTS) or
         (ExpDir.NumberOfNamePointers >= SUSPICIOUS_MIN_LIMIT_EXPORTS) then
       begin
@@ -74,37 +74,40 @@ begin
       end;
 
       SetLength(Exp, ExpDir.AddressTableEntries);
-      SetLength(rvas, ExpDir.AddressTableEntries);
-
-      // name/ordinal only
-      SetLength(NamePointerRVAs, ExpDir.NumberOfNamePointers);
-      SetLength(OrdinalTableRVAs, ExpDir.NumberOfNamePointers);
+      SetLength(RVAs, ExpDir.AddressTableEntries);
 
       // load RVAs of exported data
-      if not(SeekRVA(ExpDir.ExportAddressTableRVA) and ReadEx(@rvas[0],
-        4 * ExpDir.AddressTableEntries)) then
+      if not(SeekRVA(ExpDir.ExportAddressTableRVA) and
+        ReadEx(@RVAs[0], 4 * ExpDir.AddressTableEntries)) then
         exit(PR_ERROR);
 
-      // load RVAs of name pointers
-      if not((SeekRVA(ExpDir.NamePointerRVA)) and ReadEx(@NamePointerRVAs[0],
-        4 * ExpDir.NumberOfNamePointers)) then
-        exit(PR_ERROR);
+      if ExpDir.NumberOfNamePointers <> 0 then
+      begin
+        // name/ordinal only
+        SetLength(NamePointerRVAs, ExpDir.NumberOfNamePointers);
+        SetLength(OrdinalTableRVAs, ExpDir.NumberOfNamePointers);
 
-      // load ordinals according to names
-      if not((SeekRVA(ExpDir.OrdinalTableRVA)) and ReadEx(@OrdinalTableRVAs[0],
-        2 * ExpDir.NumberOfNamePointers)) then
-        exit(PR_ERROR);
+        // load RVAs of name pointers
+        if not((SeekRVA(ExpDir.NamePointerRVA)) and
+          ReadEx(@NamePointerRVAs[0], 4 * ExpDir.NumberOfNamePointers)) then
+          exit(PR_ERROR);
+
+        // load ordinals according to names
+        if not((SeekRVA(ExpDir.OrdinalTableRVA)) and
+          ReadEx(@OrdinalTableRVAs[0], 2 * ExpDir.NumberOfNamePointers)) then
+          exit(PR_ERROR);
+      end;
 
       for i := 0 to ExpDir.AddressTableEntries - 1 do
       begin
         Item := TPEExportSym.Create;
         Item.Ordinal := i + base;
-        Item.RVA := rvas[i];
+        Item.RVA := RVAs[i];
 
         Exp[i] := Item;
 
         // if rva in export section, it's forwarder
-        Exp[i].Forwarder := ExpIDD.Contain(rvas[i]);
+        Exp[i].Forwarder := ExpIDD.Contain(RVAs[i]);
       end;
 
       // read names
