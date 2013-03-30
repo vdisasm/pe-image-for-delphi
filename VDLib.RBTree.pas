@@ -52,20 +52,14 @@ Type
     end;
 
   private
-    type
-    TCacheRec = record
-      Key: T;
-      Node: TRBNodePtr;
-    end;
-
   var
     // Cache (1 item).
     FUseCache: Boolean;
-    FCacheIsValid: Boolean;
-    FCacheRec: TCacheRec;
+    FCacheRec: TRBNodePtr;
     procedure InvalidateCache; inline;
-    function FindInCache(const Key: T; out Node: TRBNodePtr): Boolean; inline;
-    procedure UpdateCache(const Key: T; out Node: TRBNodePtr); inline;
+    function IsCacheValid: Boolean; inline;
+    function FindInCache(const Key: T; out Node: TRBNodePtr): Boolean; // inline;
+    procedure UpdateCache(const Key: T; Node: TRBNodePtr); // inline;
   private
     FRoot, FFirst, FLast: TRBNodePtr;
     FCompare: TCompareLessFunc;
@@ -96,7 +90,7 @@ Type
 
     function Exists(const Key: T): Boolean; inline;
 
-    function Find(const Key: T): TRBNodePtr; overload; inline;
+    function Find(const Key: T): TRBNodePtr; overload; // inline;
     function Find(const Key: T; ComapareFunc: TCompareLessFunc): TRBNodePtr; overload;
 
     // Find first item lesser than Key (or nil if none).
@@ -201,25 +195,32 @@ end;
 procedure TRBTree<T>.Clear(Quick: Boolean);
 begin
   InvalidateCache;
-  if Quick then
-    ClearQuick
-  else
-    ClearFull;
+  // if Quick then
+  // ClearQuick
+  // else
+  ClearFull;
+end;
+
+function TRBTree<T>.IsCacheValid: Boolean;
+begin
+  Result := FCacheRec <> nil;
 end;
 
 procedure TRBTree<T>.InvalidateCache;
 begin
-  FCacheIsValid := False;
+  FCacheRec := nil;
 end;
 
 procedure TRBTree<T>.ClearFull;
 begin
+  InvalidateCache;
   while FCount <> 0 do
     Delete(First);
 end;
 
 procedure TRBTree<T>.ClearQuick;
 begin
+  InvalidateCache;
   if FRoot <> nil then
   begin
     QuickErase(FRoot);
@@ -301,11 +302,11 @@ end;
 
 function TRBTree<T>.FindInCache(const Key: T; out Node: TRBNodePtr): Boolean;
 begin
-  if FUseCache and FCacheIsValid then
-    if (not DoCompareLess(Key, FCacheRec.Key)) and
-      (not DoCompareLess(FCacheRec.Key, Key)) then
+  if FUseCache and IsCacheValid then
+    if (not DoCompareLess(Key, FCacheRec^.K)) and
+      (not DoCompareLess(FCacheRec^.K, Key)) then
     begin
-      Node := FCacheRec.Node;
+      Node := FCacheRec;
       Exit(True);
     end;
   Exit(False);
@@ -439,13 +440,11 @@ begin
   InvalidateCache;
 end;
 
-procedure TRBTree<T>.UpdateCache(const Key: T; out Node: TRBNodePtr);
+procedure TRBTree<T>.UpdateCache(const Key: T; Node: TRBNodePtr);
 begin
   if FUseCache then
   begin
-    FCacheIsValid := True;
-    FCacheRec.Key := Key;
-    FCacheRec.Node := Node;
+    FCacheRec := Node;
   end;
 end;
 
@@ -807,6 +806,7 @@ end;
 
 function TRBTree<T>.Replace(const OldKey, NewKey: T): TRBNodePtr;
 begin
+  InvalidateCache;
   Remove(OldKey);
   Result := Add(NewKey);
 end;
