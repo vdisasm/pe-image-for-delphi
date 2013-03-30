@@ -141,9 +141,9 @@ end;
 constructor TRelocs.Create;
 begin
   FItems := TRelocTree.Create(
-    function(const A, B: TReloc): integer
+    function(const A, B: TReloc): boolean
     begin
-      result := CompareRVA(A.RVA, B.RVA);
+      result := A.RVA < B.RVA;
     end);
 end;
 

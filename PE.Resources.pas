@@ -149,40 +149,25 @@ type
 implementation
 
 uses
-  // System.Character,
   PE.Image;
 
-function TreeNodeComparer(const A, B: TResourceTreeNode): integer;
+function TreeNodeCompareLess(const A, B: TResourceTreeNode): boolean;
 var
   NamedA, NamedB: boolean;
   n1, n2: string;
 begin
   NamedA := A.IsNamed;
   NamedB := B.IsNamed;
-  // Compare named.
-  if NamedA and NamedB then
+  if NamedA and NamedB then // Compare named.
   begin
-    // n1 := TCharacter.ToUpper(A.Name);
-    // n2 := TCharacter.ToUpper(B.Name);
     n1 := UpperCase(A.Name);
     n2 := UpperCase(B.Name);
-    exit(CompareStr(n1, n2));
+    exit(CompareStr(n1, n2) < 0);
   end;
-  // Compare by ID.
-  if (not NamedA) and (not NamedB) then
-  begin
-    if A.Id > B.Id then
-      exit(1)
-    else if A.Id < B.Id then
-      exit(-1)
-    else
-      exit(0);
-  end;
-  // Compare Named vs ID (named must go first).
-  if NamedA and (not NamedB) then
-    exit(-1);
-  // else if (not NamedA) and NamedB then
-  exit(1);
+  if (not NamedA) and (not NamedB) then // Compare by ID.
+    Result := A.Id < B.Id
+  else // Compare Named vs ID (named must go first).
+    Result := NamedA and (not NamedB);
 end;
 
 { TResourceTreeNode }
@@ -221,7 +206,7 @@ end;
 constructor TResourceTreeBranchNode.Create();
 begin
   inherited;
-  FChildren := TResourceTreeNodes.Create(TreeNodeComparer);
+  FChildren := TResourceTreeNodes.Create(TreeNodeCompareLess);
   FChildren.OnNotify := ChildrenNotify;
 end;
 

@@ -23,7 +23,7 @@ Type
 
   public type
 
-    TCompareFunc = reference to function(const A, B: T): Integer;
+    TCompareLessFunc = reference to function(const A, B: T): Boolean;
 
     TRBNodePtr = ^TRBNode;
     PRBNodePtr = ^TRBNodePtr;
@@ -68,7 +68,7 @@ Type
     procedure UpdateCache(const Key: T; out Node: TRBNodePtr); inline;
   private
     FRoot, FFirst, FLast: TRBNodePtr;
-    FCompare: TCompareFunc;
+    FCompare: TCompareLessFunc;
     FCount: Integer;
 
     FOnNotify: TCollectionNotifyEvent<T>;
@@ -85,9 +85,9 @@ Type
     procedure ClearQuick;
     procedure ClearFull;
 
-    function DoCompare(const A, B: T): Integer; virtual;
+    function DoCompareLess(const A, B: T): Boolean; virtual;
   public
-    constructor Create(Compare: TCompareFunc);
+    constructor Create(Less: TCompareLessFunc);
     destructor Destroy(); override;
 
     // Quick first frees all records then updates count and root.
@@ -97,7 +97,7 @@ Type
     function Exists(const Key: T): Boolean; inline;
 
     function Find(const Key: T): TRBNodePtr; overload; inline;
-    function Find(const Key: T; ComapareFunc: TCompareFunc): TRBNodePtr; overload;
+    function Find(const Key: T; ComapareFunc: TCompareLessFunc): TRBNodePtr; overload;
 
     // Find first item lesser than Key (or nil if none).
     function FindLesser(const Key: T): TRBNodePtr;
@@ -140,11 +140,11 @@ Type
 
 implementation
 
-constructor TRBTree<T>.Create(Compare: TCompareFunc);
+constructor TRBTree<T>.Create(Less: TCompareLessFunc);
 begin
-  inherited Create();
+  inherited Create;
   FCount := 0;
-  FCompare := Compare;
+  FCompare := Less;
   FRoot := nil;
   FFirst := nil;
   FLast := nil;
@@ -166,10 +166,10 @@ end;
 destructor TRBTree<T>.Destroy();
 begin
   ClearFull;
-  inherited Destroy;
+  inherited;
 end;
 
-function TRBTree<T>.DoCompare(const A, B: T): Integer;
+function TRBTree<T>.DoCompareLess(const A, B: T): Boolean;
 begin
   if @FCompare = nil then
     raise Exception.Create('Need comparer function')
@@ -235,10 +235,9 @@ begin
   Result := Find(Key, FCompare);
 end;
 
-function TRBTree<T>.Find(const Key: T; ComapareFunc: TCompareFunc): TRBNodePtr;
+function TRBTree<T>.Find(const Key: T; ComapareFunc: TCompareLessFunc): TRBNodePtr;
 var
-  cmp: Integer;
-  tmpCompare: TCompareFunc;
+  tmpCompare: TCompareLessFunc;
 begin
   tmpCompare := self.FCompare;
   self.FCompare := ComapareFunc;
@@ -252,21 +251,17 @@ begin
     Result := FRoot;
     while Result <> nil do
     begin
-      cmp := DoCompare(Result^.K, Key);
-      if cmp < 0 then
+      if DoCompareLess(Result^.K, Key) then
         Result := Result^.Right
-      else if cmp > 0 then
+      else if DoCompareLess(Key, Result^.K) then
         Result := Result^.Left
       else
-        break; // Found.
+      begin
+        // If item found, update cache.
+        UpdateCache(Key, Result);
+        break;
+      end;
     end;
-
-    // If item found, update cache.
-    if cmp = 0 then
-    begin
-      UpdateCache(Key, Result);
-    end;
-
   finally
     self.FCompare := tmpCompare;
   end;
@@ -279,7 +274,7 @@ begin
   Result := nil;
   Cur := FRoot;
   while Cur <> nil do
-    if FCompare(Cur^.K, Key) < 0 then
+    if FCompare(Cur^.K, Key) then
     begin
       Result := Cur;
       Cur := Cur^.Right;
@@ -295,7 +290,7 @@ begin
   Result := nil;
   Cur := FRoot;
   while Cur <> nil do
-    if FCompare(Cur^.K, Key) >= 0 then
+    if not FCompare(Cur^.K, Key) then
     begin
       Result := Cur;
       Cur := Cur^.Left;
@@ -307,7 +302,8 @@ end;
 function TRBTree<T>.FindInCache(const Key: T; out Node: TRBNodePtr): Boolean;
 begin
   if FUseCache and FCacheIsValid then
-    if DoCompare(Key, FCacheRec.Key) = 0 then
+    if (not DoCompareLess(Key, FCacheRec.Key)) and
+      (not DoCompareLess(FCacheRec.Key, Key)) then
     begin
       Node := FCacheRec.Node;
       Exit(True);
@@ -317,7 +313,6 @@ end;
 
 function TRBTree<T>.FindEx(const Key: T; Prev, Cur, Next: PRBNodePtr): Boolean;
 var
-  cmp: Integer;
   tPrev, tCur, tNext: TRBNodePtr;
 begin
   tCur := FRoot;
@@ -327,14 +322,12 @@ begin
 
   while tCur <> nil do
   begin
-    cmp := DoCompare(tCur^.K, Key);
-
-    if cmp < 0 then
+    if DoCompareLess(tCur^.K, Key) then
     begin
       tPrev := tCur;
       tCur := tCur^.Right;
     end
-    else if cmp > 0 then
+    else if DoCompareLess(Key, tCur^.K) then
     begin
       tNext := tCur;
       tCur := tCur^.Left;
@@ -361,8 +354,6 @@ begin
 end;
 
 function TRBTree<T>.FindEx(const Key: T; out Prev, Cur, Next: TRBNodePtr): Boolean;
-var
-  cmp: Integer;
 begin
   Result := False;
   Cur := FRoot;
@@ -370,14 +361,12 @@ begin
   Next := nil;
   while Cur <> nil do
   begin
-    cmp := DoCompare(Cur^.K, Key);
-
-    if cmp < 0 then
+    if DoCompareLess(Cur^.K, Key) then
     begin
       Prev := Cur;
       Cur := Cur^.Right;
     end
-    else if cmp > 0 then
+    else if DoCompareLess(Key, Cur^.K) then
     begin
       Next := Cur;
       Cur := Cur^.Left;
@@ -477,7 +466,6 @@ end;
 function TRBTree<T>.Add(const Key: T; SendNotification: Boolean = True): TRBNodePtr;
 var
   x, y, z, zpp: TRBNodePtr;
-  cmp: Integer;
 begin
   InvalidateCache;
 
@@ -488,10 +476,10 @@ begin
 
   Result := z;
 
-  if (FFirst = nil) or (DoCompare(Key, FFirst^.K) < 0) then
+  if (FFirst = nil) or (DoCompareLess(Key, FFirst^.K)) then
     FFirst := z;
 
-  if (FLast = nil) or (DoCompare(FLast^.K, Key) < 0) then
+  if (FLast = nil) or (DoCompareLess(FLast^.K, Key)) then
     FLast := z;
 
   y := nil;
@@ -499,10 +487,9 @@ begin
   while (x <> nil) do
   begin
     y := x;
-    cmp := DoCompare(Key, x^.K);
-    if (cmp < 0) then
+    if DoCompareLess(Key, x^.K) then
       x := x^.Left
-    else if (cmp > 0) then
+    else if DoCompareLess(x^.K, Key) then
       x := x^.Right
     else
     begin
@@ -518,7 +505,7 @@ begin
   z^.Parent := y;
   if (y = nil) then
     FRoot := z
-  else if (DoCompare(Key, y^.K) < 0) then
+  else if (DoCompareLess(Key, y^.K)) then
     y^.Left := z
   else
     y^.Right := z;
