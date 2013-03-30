@@ -104,6 +104,8 @@ begin
       // Create library.
       Lib := TPEImportLibrary.Create(DllName, IDir.IsBound);
 
+      Lib.TimeDateStamp := IDir.TimeDateStamp;
+
       // skip bad dll name
       if Lib.Name = '' then
       begin

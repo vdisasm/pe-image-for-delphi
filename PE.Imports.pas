@@ -34,6 +34,7 @@ type
     FName: AnsiString; // imported library name
     FBound: Boolean;
     FFunctions: TPEImportFunctions;
+    FTimeDateStamp: uint32;
     procedure ImportFunctionNotify(Sender: TObject; const Item: TPEImportFunction;
       Action: TCollectionNotification);
   public
@@ -46,6 +47,7 @@ type
     property Name: AnsiString read FName;
     property Functions: TPEImportFunctions read FFunctions;
     property Bound: Boolean read FBound;
+    property TimeDateStamp: uint32 read FTimeDateStamp write FTimeDateStamp;
   end;
 
   TPEImports = class(TList<TPEImportLibrary>)
