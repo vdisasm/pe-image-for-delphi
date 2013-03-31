@@ -18,17 +18,19 @@ type
     msImageSizeError,
     msMapSectionsError,
     msSectionAllocError,
-    msProtectSectionsError
+    msProtectSectionsError,
+    msEntryPointFailure
     );
 
 type
-  TDLLMain = function(hInstDLL: HINST; fdwReason: DWORD; lpvReserver: LPVOID): BOOL; stdcall;
+  TEXEEntry = procedure(); stdcall;
+  TDLLEntry = function(hInstDLL: HINST; fdwReason: DWORD; lpvReserver: LPVOID): BOOL; stdcall;
 
   TDLL = class
   private
     FPE: TPEImage;
     FInstance: NativeUInt;
-    FEntry: TDLLMain;
+    FEntry: Pointer;
     FSizeOfImage: UInt32;
     function MapSections(PrefferedVa: UInt64): TMapStatus;
     function ProtectSections: TMapStatus;
@@ -125,7 +127,7 @@ type
 
   TPEB32 = packed record
     tmp: UInt64;
-    ImageBase: pointer;
+    ImageBase: Pointer;
   end;
 
 function GetPeb32: PPEB32;
@@ -174,9 +176,12 @@ begin
   if FSizeOfImage = 0 then
     exit(msImageSizeError);
 
-  // Commit memory for whole image.
-  FInstance := NativeUInt(VirtualAlloc(pointer(PrefferedVa), FSizeOfImage, MEM_COMMIT, PAGE_NOACCESS));
-
+  // Reserve memory for image.
+  FInstance := NativeUInt(VirtualAlloc(Pointer(PrefferedVa), FSizeOfImage, MEM_RESERVE, PAGE_READWRITE));
+  if FInstance = 0 then
+    exit(msSectionAllocError);
+  // Commit memory.
+  FInstance := NativeUInt(VirtualAlloc(Pointer(PrefferedVa), FSizeOfImage, MEM_COMMIT, PAGE_READWRITE));
   if FInstance = 0 then
     exit(msSectionAllocError);
 
@@ -191,8 +196,8 @@ begin
       va := pbyte(FInstance) + sec.RVA;
 
       // Protect section for copying raw data.
-      if not VirtualProtect(va, sec.VirtualSize, PAGE_READWRITE, dw) then
-        exit;
+      // if not VirtualProtect(va, sec.VirtualSize, PAGE_READWRITE, dw) then
+      // exit;
 
       size := min(sec.VirtualSize, sec.RawSize);
 
@@ -210,7 +215,7 @@ var
   ImpLib: TPEImportLibrary;
   ImpLibName, ImpFnName: AnsiString;
   hmod: HMODULE;
-  proc: pointer;
+  proc: Pointer;
   i, iFn: integer;
   va: UInt64;
 begin
@@ -260,13 +265,16 @@ var
   va: pbyte;
   dw: DWORD;
 begin
+  // todo: flags -> protect
+  // todo: IMAGE_SCN_MEM_DISCARDABLE
+
   for i := 0 to FPE.Sections.Count - 1 do
   begin
     Result := msProtectSectionsError;
     sec := FPE.Sections[i];
     if sec.VirtualSize <> 0 then
     begin
-      va := pointer(FInstance);
+      va := Pointer(FInstance);
       inc(va, sec.RVA);
       prot := CharacteristicsToProtect(sec.Flags);
       if not VirtualProtect(va, sec.VirtualSize, prot, dw) then
@@ -305,6 +313,8 @@ begin
 end;
 
 function TDLL.Load(PrefferedVa: UInt64): TMapStatus;
+var
+  EntryOK: boolean;
 begin
   if IsImageMapped then
     exit(msImageAlreadyMapped);
@@ -317,11 +327,21 @@ begin
     Check(Result, ProcessImports(True)) and
     Check(Result, ProtectSections()) then
   begin
-    FEntry := pointer(FInstance + FPE.EntryPointRVA);
-    // DLL initialization.
-    FEntry(FInstance, DLL_PROCESS_ATTACH, nil);
+    FEntry := Pointer(FInstance + FPE.EntryPointRVA);
 
-    exit(msOK);
+    // Call Entry Point.
+    if FPE.IsDLL then
+      EntryOK := TDLLEntry(FEntry)(FInstance, DLL_PROCESS_ATTACH, nil)
+    else
+    begin
+      TEXEEntry(FEntry)();
+      EntryOK := True;
+    end;
+
+    if EntryOK then
+      exit(msOK)
+    else
+      Result := msEntryPointFailure;
   end;
 
   // If something failed.
@@ -335,13 +355,14 @@ begin
 
   // DLL finalization.
   if @FEntry <> nil then
-    FEntry(FInstance, DLL_PROCESS_DETACH, nil);
+    if FPE.IsDLL then
+      TDLLEntry(FEntry)(FInstance, DLL_PROCESS_DETACH, nil);
 
   // Unload imported libraries.
   ProcessImports(False);
 
   // Free image memory
-  VirtualFree(pointer(FInstance), FSizeOfImage, MEM_DECOMMIT);
+  VirtualFree(Pointer(FInstance), FSizeOfImage, MEM_DECOMMIT);
   FInstance := 0;
 
   Result := True;
