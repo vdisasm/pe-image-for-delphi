@@ -1,8 +1,8 @@
 {
-  Load and map DLL into current process.
-  DLL MUST have relocations or be RIP-addressed to loaded normally.
+  Load and map module into current process.
+  Module MUST have relocations or be RIP-addressed to be loaded normally.
 }
-unit PE.DLLLoader;
+unit PE.ExecutableLoader;
 
 interface
 
@@ -26,7 +26,7 @@ type
   TEXEEntry = procedure(); stdcall;
   TDLLEntry = function(hInstDLL: HINST; fdwReason: DWORD; lpvReserver: LPVOID): BOOL; stdcall;
 
-  TDLL = class
+  TExecutableModule = class
   private
     FPE: TPEImage;
     FInstance: NativeUInt;
@@ -139,18 +139,18 @@ end;
 
 { TDLL }
 
-constructor TDLL.Create(PE: TPEImage);
+constructor TExecutableModule.Create(PE: TPEImage);
 begin
   FPE := PE;
 end;
 
-destructor TDLL.Destroy;
+destructor TExecutableModule.Destroy;
 begin
   Unload;
   inherited;
 end;
 
-function TDLL.IsImageMapped: boolean;
+function TExecutableModule.IsImageMapped: boolean;
 begin
   Result := FInstance <> 0;
 end;
@@ -161,7 +161,7 @@ begin
   Result := ms = msOK;
 end;
 
-function TDLL.MapSections(PrefferedVa: UInt64): TMapStatus;
+function TExecutableModule.MapSections(PrefferedVa: UInt64): TMapStatus;
 var
   i: integer;
   sec: TPESection;
@@ -176,12 +176,10 @@ begin
   if FSizeOfImage = 0 then
     exit(msImageSizeError);
 
-  // Reserve memory for image.
-  FInstance := NativeUInt(VirtualAlloc(Pointer(PrefferedVa), FSizeOfImage, MEM_RESERVE, PAGE_READWRITE));
-  if FInstance = 0 then
-    exit(msSectionAllocError);
-  // Commit memory.
-  FInstance := NativeUInt(VirtualAlloc(Pointer(PrefferedVa), FSizeOfImage, MEM_COMMIT, PAGE_READWRITE));
+  // Reserve and commit memory for image.
+  FInstance := NativeUInt(VirtualAlloc(Pointer(PrefferedVa), FSizeOfImage,
+    MEM_RESERVE or MEM_COMMIT, PAGE_READWRITE));
+
   if FInstance = 0 then
     exit(msSectionAllocError);
 
@@ -194,13 +192,7 @@ begin
     if sec.VirtualSize <> 0 then
     begin
       va := pbyte(FInstance) + sec.RVA;
-
-      // Protect section for copying raw data.
-      // if not VirtualProtect(va, sec.VirtualSize, PAGE_READWRITE, dw) then
-      // exit;
-
       size := min(sec.VirtualSize, sec.RawSize);
-
       if not FPE.SeekRVA(sec.RVA) then
         exit;
       FPE.Read(va, size);
@@ -210,7 +202,7 @@ begin
   Result := msOK;
 end;
 
-function TDLL.ProcessImports(LoadImport: boolean): TMapStatus;
+function TExecutableModule.ProcessImports(LoadImport: boolean): TMapStatus;
 var
   ImpLib: TPEImportLibrary;
   ImpLibName, ImpFnName: AnsiString;
@@ -257,7 +249,7 @@ begin
   Result := msOK;
 end;
 
-function TDLL.ProtectSections: TMapStatus;
+function TExecutableModule.ProtectSections: TMapStatus;
 var
   i: integer;
   sec: TPESection;
@@ -265,9 +257,6 @@ var
   va: pbyte;
   dw: DWORD;
 begin
-  // todo: flags -> protect
-  // todo: IMAGE_SCN_MEM_DISCARDABLE
-
   for i := 0 to FPE.Sections.Count - 1 do
   begin
     Result := msProtectSectionsError;
@@ -284,7 +273,7 @@ begin
   Result := msOK;
 end;
 
-function TDLL.Relocate: TMapStatus;
+function TExecutableModule.Relocate: TMapStatus;
 var
   Reloc: TReloc;
   Delta: UInt32;
@@ -298,21 +287,19 @@ begin
   for Reloc in FPE.Relocs.Items do
   begin
     case Reloc.&Type of
-      IMAGE_REL_BASED_ABSOLUTE:
-        ;
       IMAGE_REL_BASED_HIGHLOW:
         begin
           pDst := PCardinal(FInstance + Reloc.RVA);
           inc(pDst^, Delta);
         end;
       else
-        raise Exception.Create('Unsupported relocation type');
+        raise Exception.CreateFmt('Unsupported relocation type: %d', [Reloc.&Type]);
     end;
   end;
   Result := msOK;
 end;
 
-function TDLL.Load(PrefferedVa: UInt64): TMapStatus;
+function TExecutableModule.Load(PrefferedVa: UInt64): TMapStatus;
 var
   EntryOK: boolean;
 begin
@@ -348,7 +335,7 @@ begin
   Unload;
 end;
 
-function TDLL.Unload: boolean;
+function TExecutableModule.Unload: boolean;
 begin
   if not IsImageMapped then
     exit(True);
