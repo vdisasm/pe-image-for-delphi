@@ -28,7 +28,7 @@ type
 
 type
   TEXEEntry = procedure(); stdcall;
-  TDLLEntry = function(hInstDLL: HINST; fdwReason: DWORD; lpvReserver: LPVOID): BOOL; stdcall;
+  TDLLEntry = function(hInstDLL: HINST; fdwReason: DWORD; lpvReserved: LPVOID): BOOL; stdcall;
 
   TLoadedModules = TDictionary<string, HMODULE>;
 
