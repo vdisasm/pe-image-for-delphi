@@ -179,7 +179,7 @@ end;
 procedure TPESections.Resize(Sec: TPESection; NewSize: UInt32);
 var
   NewVirtualSize: UInt32;
-  EndRVA: TRVA;
+  LastRVA: TRVA;
 begin
   // Last section can be changed freely, other sections must be checked.
   if Sec <> self.Last then
@@ -192,9 +192,9 @@ begin
     begin
       // Get new size and rva for this section.
       NewVirtualSize := AlignUp(NewSize, TPEImage(FPE).SectionAlignment);
-      EndRVA := Sec.RVA + NewVirtualSize;
+      LastRVA := Sec.RVA + NewVirtualSize - 1;
       // Check if new section end would be already occupied.
-      if RVAToSec(EndRVA + NewVirtualSize, nil) then
+      if RVAToSec(LastRVA, nil) then
         raise Exception.Create('Cannot resize section: size is too big');
     end;
   end;

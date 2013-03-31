@@ -97,10 +97,9 @@ begin
             // If directory occupies whole section.
             if (sec.RVA = dir.VirtualAddress) and (sec.RawSize = dir.Size) then
             begin
-              // We can resize the section.
-              img.Sections.Resize(sec, stream.Size);
+              // Leave section as it is.
             end;
-            // Set dest rva/size.
+            // Set dest rva/size (reuse this section).
             destRVA := dir.VirtualAddress;
             destSize := dir.Size;
           end;
