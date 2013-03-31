@@ -7,6 +7,7 @@ unit PE.ExecutableLoader;
 interface
 
 uses
+  System.Generics.Collections,
   WinApi.Windows,
   PE.Image;
 
@@ -19,6 +20,8 @@ type
     msMapSectionsError,
     msSectionAllocError,
     msProtectSectionsError,
+    msImportLibraryNotFound,
+    msImportFunctionNotFound,
     msEntryPointFailure
     );
 
@@ -26,19 +29,26 @@ type
   TEXEEntry = procedure(); stdcall;
   TDLLEntry = function(hInstDLL: HINST; fdwReason: DWORD; lpvReserver: LPVOID): BOOL; stdcall;
 
+  TLoadedModules = TDictionary<string, HMODULE>;
+
   TExecutableModule = class
   private
     FPE: TPEImage;
     FInstance: NativeUInt;
     FEntry: Pointer;
     FSizeOfImage: UInt32;
+    FLoadedImports: TLoadedModules;
+    function Check(const Desc: string; var rslt: TMapStatus; ms: TMapStatus): boolean;
+
     function MapSections(PrefferedVa: UInt64): TMapStatus;
     function ProtectSections: TMapStatus;
     function Relocate: TMapStatus;
     // LoadImport:
     // True means load and fix imports.
     // False: unload imported libraries.
-    function ProcessImports(LoadImport: boolean): TMapStatus;
+    function ProcessImports: TMapStatus;
+
+    procedure UnloadImports;
   public
     constructor Create(PE: TPEImage);
     destructor Destroy; override;
@@ -139,26 +149,34 @@ end;
 
 { TDLL }
 
+function TExecutableModule.Check(const Desc: string; var rslt: TMapStatus;
+  ms: TMapStatus): boolean;
+begin
+  rslt := ms;
+  Result := ms = msOK;
+
+  if Result then
+    FPE.Msg.Write(Desc + ' .. OK.')
+  else
+    FPE.Msg.Write(Desc + ' .. failed.')
+end;
+
 constructor TExecutableModule.Create(PE: TPEImage);
 begin
   FPE := PE;
+  FLoadedImports := TLoadedModules.Create;
 end;
 
 destructor TExecutableModule.Destroy;
 begin
   Unload;
+  FLoadedImports.Free;
   inherited;
 end;
 
 function TExecutableModule.IsImageMapped: boolean;
 begin
   Result := FInstance <> 0;
-end;
-
-function Check(var rslt: TMapStatus; ms: TMapStatus): boolean; inline;
-begin
-  rslt := ms;
-  Result := ms = msOK;
 end;
 
 function TExecutableModule.MapSections(PrefferedVa: UInt64): TMapStatus;
@@ -202,34 +220,49 @@ begin
   Result := msOK;
 end;
 
-function TExecutableModule.ProcessImports(LoadImport: boolean): TMapStatus;
+function TExecutableModule.ProcessImports: TMapStatus;
 var
   ImpLib: TPEImportLibrary;
   ImpLibName, ImpFnName: AnsiString;
+  s: string;
   hmod: HMODULE;
   proc: Pointer;
   i, iFn: integer;
   va: UInt64;
+  ModuleMustBeFreed: boolean;
 begin
   for i := 0 to FPE.Imports.Count - 1 do
   begin
     // Get next import library.
     ImpLib := FPE.Imports[i];
     ImpLibName := ImpLib.Name;
-    // Check if module already in address space.
-    hmod := GetModuleHandleA(PAnsiChar(ImpLibName));
 
-    // On unloading.
-    if (not LoadImport) and (hmod <> 0) then
+    FPE.Msg.Write('Processing import module: "%s"', [ImpLibName]);
+
+    // Check if module already in address space.
+    hmod := GetModuleHandle(PChar(ImpLibName));
+    ModuleMustBeFreed := hmod = 0;
+
+    // Try make system load lib from default paths.
+    if hmod = 0 then
+      hmod := LoadLibrary(PChar(ImpLibName));
+    // Try load from dir, where image located.
+    if (hmod = 0) and (FPE.FileName <> '') then
     begin
-      FreeLibrary(hmod);
-      continue; // skip part below
+      s := ExtractFilePath(FPE.FileName) + ImpLibName;
+      hmod := LoadLibrary(PChar(s));
+    end;
+    // If lib not found, raise.
+    if hmod = 0 then
+    begin
+      FPE.Msg.Write('Imported module "%s" not found.', [ImpLibName]);
+      exit(msImportLibraryNotFound);
     end;
 
-    if hmod = 0 then
-      hmod := LoadLibraryA(PAnsiChar(ImpLibName));
-    if hmod = 0 then
-      raise Exception.CreateFmt('Library %s not found.', [ImpLibName]);
+    // Module found.
+    if ModuleMustBeFreed then
+      FLoadedImports.Add(ImpLibName, hmod);
+
     // Process import functions.
     for iFn := 0 to ImpLib.Functions.Count - 1 do
     begin
@@ -237,7 +270,10 @@ begin
       ImpFnName := ImpLib.Functions[iFn].Name;
       proc := GetProcAddress(hmod, PAnsiChar(ImpFnName));
       if proc = nil then
-        raise Exception.CreateFmt('Functon %s not found.', [ImpFnName]);
+      begin
+        FPE.Msg.Write('Imported function "%s" not found.', [ImpFnName]);
+        exit(msImportFunctionNotFound);
+      end;
       // Patch.
       va := FInstance + ImpLib.Functions[iFn].RVA;
       if FPE.Is32bit then
@@ -309,18 +345,24 @@ begin
   Result := msError;
 
   if
-    Check(Result, MapSections(PrefferedVa)) and
-    Check(Result, Relocate()) and
-    Check(Result, ProcessImports(True)) and
-    Check(Result, ProtectSections()) then
+    Check('Map Sections', Result, MapSections(PrefferedVa)) and
+    Check('Fix Relocation', Result, Relocate()) and
+    Check('Fix Imports', Result, ProcessImports) and
+    Check('Protect Sections', Result, ProtectSections()) then
   begin
     FEntry := Pointer(FInstance + FPE.EntryPointRVA);
 
     // Call Entry Point.
     if FPE.IsDLL then
-      EntryOK := TDLLEntry(FEntry)(FInstance, DLL_PROCESS_ATTACH, nil)
+    begin
+      FPE.Msg.Write('Calling DLL Entry with DLL_PROCESS_ATTACH.');
+      EntryOK := TDLLEntry(FEntry)(FInstance, DLL_PROCESS_ATTACH, nil);
+      if not EntryOK then
+        FPE.Msg.Write('DLL returned FALSE.');
+    end
     else
     begin
+      FPE.Msg.Write('Calling EXE Entry.');
       TEXEEntry(FEntry)();
       EntryOK := True;
     end;
@@ -343,16 +385,31 @@ begin
   // DLL finalization.
   if @FEntry <> nil then
     if FPE.IsDLL then
+    begin
+      FPE.Msg.Write('Calling DLL Entry with DLL_PROCESS_DETACH.');
       TDLLEntry(FEntry)(FInstance, DLL_PROCESS_DETACH, nil);
+    end;
 
   // Unload imported libraries.
-  ProcessImports(False);
+  UnloadImports;
 
   // Free image memory
   VirtualFree(Pointer(FInstance), FSizeOfImage, MEM_RELEASE);
   FInstance := 0;
 
   Result := True;
+end;
+
+procedure TExecutableModule.UnloadImports;
+var
+  Pair: TPair<string, HMODULE>;
+begin
+  for Pair in FLoadedImports do
+  begin
+    FPE.Msg.Write('Unloading import "%s"', [Pair.Key]);
+    FreeLibrary(Pair.value);
+  end;
+  FLoadedImports.Clear;
 end;
 
 end.
