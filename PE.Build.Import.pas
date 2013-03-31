@@ -67,7 +67,7 @@ begin
 
     Stream.Seek(ofsDIR, 0);
     IDir.ImportLookupTableRVA := DirRVA + ofsILT;
-    IDir.TimeDataStamp := 0;
+    IDir.TimeDateStamp := 0;
     IDir.ForwarderChain := 0;
     IDir.NameRVA := DirRVA + sOfs;
     if FPE.Imports[iLib].Functions.Count > 0 then
