@@ -21,7 +21,8 @@ type
     msSectionAllocError,
     msProtectSectionsError,
     msImportLibraryNotFound,
-    msImportFunctionNotFound,
+    msImportNameNotFound,
+    msImportOrdinalNotFound,
     msEntryPointFailure
     );
 
@@ -240,12 +241,12 @@ begin
     FPE.Msg.Write('Processing import module: "%s"', [ImpLibName]);
 
     // Check if module already in address space.
-    hmod := GetModuleHandle(PChar(ImpLibName));
+    hmod := GetModuleHandleA(PAnsiChar(ImpLibName));
     ModuleMustBeFreed := hmod = 0;
 
     // Try make system load lib from default paths.
     if hmod = 0 then
-      hmod := LoadLibrary(PChar(ImpLibName));
+      hmod := LoadLibraryA(PAnsiChar(ImpLibName));
     // Try load from dir, where image located.
     if (hmod = 0) and (FPE.FileName <> '') then
     begin
@@ -255,7 +256,8 @@ begin
     // If lib not found, raise.
     if hmod = 0 then
     begin
-      FPE.Msg.Write('Imported module "%s" not found.', [ImpLibName]);
+      FPE.Msg.Write('Imported module "%s" not loaded.', [ImpLibName]);
+      // It's either not found, or its dependencies not found.
       exit(msImportLibraryNotFound);
     end;
 
@@ -266,14 +268,30 @@ begin
     // Process import functions.
     for iFn := 0 to ImpLib.Functions.Count - 1 do
     begin
-      // Find function by name.
-      ImpFnName := ImpLib.Functions[iFn].Name;
-      proc := GetProcAddress(hmod, PAnsiChar(ImpFnName));
-      if proc = nil then
+      // Find imported function.
+
+      // By Name.
+      if ImpLib.Functions[iFn].Name <> '' then
       begin
-        FPE.Msg.Write('Imported function "%s" not found.', [ImpFnName]);
-        exit(msImportFunctionNotFound);
+        ImpFnName := ImpLib.Functions[iFn].Name;
+        proc := GetProcAddress(hmod, PAnsiChar(ImpFnName));
+        if proc = nil then
+        begin
+          FPE.Msg.Write('Imported name "%s" not found.', [ImpFnName]);
+          exit(msImportNameNotFound);
+        end;
+      end
+      else
+      // By Ordinal.
+      begin
+        proc := GetProcAddress(hmod, PAnsiChar(ImpLib.Functions[iFn].Ordinal));
+        if proc = nil then
+        begin
+          FPE.Msg.Write('Imported ordinal "%d" not found.', [ImpLib.Functions[iFn].Ordinal]);
+          exit(msImportOrdinalNotFound);
+        end;
       end;
+
       // Patch.
       va := FInstance + ImpLib.Functions[iFn].RVA;
       if FPE.Is32bit then
