@@ -44,10 +44,7 @@ type
     function MapSections(PrefferedVa: UInt64): TMapStatus;
     function ProtectSections: TMapStatus;
     function Relocate: TMapStatus;
-    // LoadImport:
-    // True means load and fix imports.
-    // False: unload imported libraries.
-    function ProcessImports: TMapStatus;
+    function LoadImports: TMapStatus;
 
     procedure UnloadImports;
   public
@@ -67,7 +64,7 @@ uses
   PE.Types.FileHeader,
   PE.Utils,
   PE.Sections,
-  //
+
   System.SysUtils,
 
   PE.Imports,
@@ -129,24 +126,6 @@ begin
   else
     Result := d2;
 end;
-
-{$REGION 'PEB'}
-
-
-type
-  PPEB32 = ^TPEB32;
-
-  TPEB32 = packed record
-    tmp: UInt64;
-    ImageBase: Pointer;
-  end;
-
-function GetPeb32: PPEB32;
-asm
-  mov eax, fs:[18h]   // teb
-  mov eax, [eax+30h]  // teb.peb
-end;
-{$ENDREGION}
 
 { TDLL }
 
@@ -221,7 +200,7 @@ begin
   Result := msOK;
 end;
 
-function TExecutableModule.ProcessImports: TMapStatus;
+function TExecutableModule.LoadImports: TMapStatus;
 var
   ImpLib: TPEImportLibrary;
   ImpLibName, ImpFnName: AnsiString;
@@ -365,7 +344,7 @@ begin
   if
     Check('Map Sections', Result, MapSections(PrefferedVa)) and
     Check('Fix Relocation', Result, Relocate()) and
-    Check('Fix Imports', Result, ProcessImports) and
+    Check('Fix Imports', Result, LoadImports) and
     Check('Protect Sections', Result, ProtectSections()) then
   begin
     FEntry := Pointer(FInstance + FPE.EntryPointRVA);
