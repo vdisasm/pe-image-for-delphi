@@ -349,7 +349,7 @@ begin
   ProcessImports(False);
 
   // Free image memory
-  VirtualFree(Pointer(FInstance), FSizeOfImage, MEM_DECOMMIT);
+  VirtualFree(Pointer(FInstance), FSizeOfImage, MEM_RELEASE);
   FInstance := 0;
 
   Result := True;
