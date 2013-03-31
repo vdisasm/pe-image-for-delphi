@@ -159,6 +159,8 @@ type
     function Is32bit: boolean; inline;
     function Is64bit: boolean; inline;
 
+    function IsDLL: boolean; inline;
+
     // Get image bitness. 32/64 or 0 if unknown.
     function GetImageBits: UInt16; inline;
     procedure SetImageBits(Value: UInt16);
@@ -747,6 +749,11 @@ end;
 function TPEImage.Is64bit: boolean;
 begin
   Result := FOptionalHeader.Magic = PE_MAGIC_PE32PLUS;
+end;
+
+function TPEImage.IsDLL: boolean;
+begin
+  Result := (FFileHeader.Characteristics and IMAGE_FILE_DLL) <> 0;
 end;
 
 class function TPEImage.IsPE(const FileName: string): boolean;
