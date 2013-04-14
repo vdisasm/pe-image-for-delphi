@@ -1,8 +1,5 @@
 {
   Generic Red-Black Tree
-
-  Currently cache work only for Find function.
-  Cache is invalidated on Add or Delete.
 }
 
 unit VDLib.RBTRee;
@@ -570,9 +567,15 @@ procedure TRBTree<T>.Delete(z: TRBNodePtr; SendNotification: Boolean);
 var
   w, x, y, x_parent: TRBNodePtr;
   tmpcol: TNodeKind;
+  OldKey: T;
 begin
   InvalidateCache;
 
+  if SendNotification then
+    OldKey := z^.K; // store it for notification in the end
+
+  z^.K := Default(T); // finalize key
+  {$region 'delete'}
   y := z;
   x := nil;
   x_parent := nil;
@@ -648,7 +651,8 @@ begin
         FLast := Maximum(x);
     end;
   end;
-
+  {$endregion 'delete'}
+  {$region 'rebalance'}
   // Rebalance tree
   if (y^.Kind = NODE_BLACK) then
   begin
@@ -730,11 +734,11 @@ begin
     if (x <> nil) then
       x^.Kind := NODE_BLACK;
   end;
-
+  {$endregion 'rebalance'}
   dec(FCount);
 
   if SendNotification then
-    Notify(y^.K, cnRemoved);
+    Notify(OldKey, cnRemoved);
 
   FreeMem(y);
 end;

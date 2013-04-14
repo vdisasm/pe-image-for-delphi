@@ -11,7 +11,6 @@ uses
   PE.COFF.Types in 'PE.COFF.Types.pas',
   PE.Common in 'PE.Common.pas',
   PE.DataDirectories in 'PE.DataDirectories.pas',
-  PE.DLLLoader in 'PE.DLLLoader.pas',
   PE.ExportSym in 'PE.ExportSym.pas',
   PE.FileHeaderToStr in 'PE.FileHeaderToStr.pas',
   PE.Headers in 'PE.Headers.pas',
@@ -49,7 +48,8 @@ uses
   PE.Types.Sections in 'PE.Types.Sections.pas',
   PE.Types.TLS in 'PE.Types.TLS.pas',
   PE.Utils in 'PE.Utils.pas',
-  VDLib.RBTree in 'VDLib.RBTree.pas';
+  VDLib.RBTree in 'VDLib.RBTree.pas',
+  PE.ExecutableLoader in 'PE.ExecutableLoader.pas';
 
 begin
 end.
