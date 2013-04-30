@@ -48,6 +48,9 @@ Type
       function MoveNext: Boolean;
     end;
 
+  strict private
+    function Find(const Key: T; ComapareFunc: TCompareLessFunc): TRBNodePtr; overload;
+
   private
   var
     // Cache (1 item).
@@ -88,7 +91,6 @@ Type
     function Exists(const Key: T): Boolean; inline;
 
     function Find(const Key: T): TRBNodePtr; overload; // inline;
-    function Find(const Key: T; ComapareFunc: TCompareLessFunc): TRBNodePtr; overload;
 
     // Find first item lesser than Key (or nil if none).
     function FindLesser(const Key: T): TRBNodePtr;
@@ -110,7 +112,7 @@ Type
     procedure Delete(z: TRBNodePtr; SendNotification: Boolean = True); overload; virtual;
 
     // Return True if item was found and removed.
-    function Remove(const Key: T; SendNotification: Boolean = True): Boolean; overload; inline;
+    function Remove(const Key: T; SendNotification: Boolean = True): Boolean;
 
     function Next(var x: TRBNodePtr): Boolean;
     function Prev(var x: TRBNodePtr): Boolean;
