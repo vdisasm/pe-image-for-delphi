@@ -24,11 +24,19 @@ type
   public
     function FindRelativeJump(Sec: TPESection; TargetVA: TVA; List: TList<TVA>): Boolean;
     function FindRelativeCall(Sec: TPESection; TargetVA: TVA; List: TList<TVA>): Boolean;
+
+    // Fill Count bytes at VA with nops (0x90).
+    // Result is number of nops written.
+    function Nop(VA: TVA; Count: integer = 1): UInt32;
+
+    // Nop Call or Jump.
+    function NopCallOrJump(VA: TVA): Boolean;
   end;
 
 implementation
 
 const
+  OPCODE_NOP      = $90;
   OPCODE_CALL_REL = $E8;
   OPCODE_JUMP_REL = $E9;
 
@@ -62,29 +70,39 @@ begin
     exit(False);
 
   while self.PositionVA <= va1 do
-    begin
-      curVa := self.PositionVA;
+  begin
+    curVa := self.PositionVA;
 
-      // get opcode
-      if Read(@opc, SizeOf(ByteOpcode)) <> SizeOf(ByteOpcode) then
-        exit;
-      if opc = ByteOpcode then
-        // on found probably jmp/call
-        begin
-          delta := int32(ReadUInt32);
-          tstVa := curVa + SizeOf(ByteOpcode) + SizeOf(delta) + delta;
-          if tstVa = TargetVA then
-            begin // hit
-              List.Add(curVa);
-              Result := True; // at least 1 result is ok
-            end
-          else
-            begin
-              if not SeekVA(curVa + SizeOf(ByteOpcode)) then
-                exit;
-            end;
-        end;
+    // get opcode
+    if Read(@opc, SizeOf(ByteOpcode)) <> SizeOf(ByteOpcode) then
+      exit;
+    if opc = ByteOpcode then
+    // on found probably jmp/call
+    begin
+      delta := int32(ReadUInt32);
+      tstVa := curVa + SizeOf(ByteOpcode) + SizeOf(delta) + delta;
+      if tstVa = TargetVA then
+      begin // hit
+        List.Add(curVa);
+        Result := True; // at least 1 result is ok
+      end
+      else
+      begin
+        if not SeekVA(curVa + SizeOf(ByteOpcode)) then
+          exit;
+      end;
     end;
+  end;
+end;
+
+function TPEImageX86.Nop(VA: TVA; Count: integer): UInt32;
+begin
+  Result := Sections.FillMemory(VAToRVA(VA), Count, OPCODE_NOP);
+end;
+
+function TPEImageX86.NopCallOrJump(VA: TVA): Boolean;
+begin
+  Result := Sections.FillMemoryEx(VAToRVA(VA), 5, True, OPCODE_NOP) = 5;
 end;
 
 end.

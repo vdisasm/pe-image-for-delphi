@@ -43,6 +43,10 @@ type
     // Fill section memory with specified byte and return number of bytes
     // actually written.
     function FillMemory(RVA: TRVA; Size: UInt32; FillByte: Byte = 0): UInt32;
+
+    // WholeSizeOrNothing: either write Size bytes or write nothing.
+    function FillMemoryEx(RVA: TRVA; Size: UInt32; WholeSizeOrNothing: boolean;
+      FillByte: Byte = 0): UInt32;
   end;
 
 implementation
@@ -116,18 +120,27 @@ end;
 
 function TPESections.FillMemory(RVA: TRVA; Size: UInt32;
   FillByte: Byte): UInt32;
+begin
+  Result := FillMemoryEx(RVA, Size, False, FillByte);
+end;
+
+function TPESections.FillMemoryEx(RVA: TRVA; Size: UInt32;
+  WholeSizeOrNothing: boolean; FillByte: Byte): UInt32;
 var
   Sec: TPESection;
   Ofs, CanWrite: UInt32;
   p: PByte;
 begin
-  Result := 0;
   if not RVAToSec(RVA, @Sec) then
-    Exit;
+    Exit(0);
   Ofs := RVA - Sec.RVA;                   // offset of RVA in section
-  CanWrite := Sec.GetAllocatedSize - Ofs; // max we can write to section end
+  CanWrite := Sec.GetAllocatedSize - Ofs; // max we can write before section end
   if CanWrite < Size then
-    Result := CanWrite
+  begin
+    if WholeSizeOrNothing then
+      Exit(0); //
+    Result := CanWrite;
+  end
   else
     Result := Size;
   p := Sec.Mem + Ofs;
