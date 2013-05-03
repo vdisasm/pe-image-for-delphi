@@ -43,6 +43,8 @@ type
     PrologEndAddress: uint32;
   end;
 
+  PPDATA_MIPS32 = ^TPDATA_MIPS32;
+
   { ARM, PowerPC, SH3 and SH4 Windows CE platforms }
   TPDATA_ARM = packed record
   strict private
@@ -70,12 +72,16 @@ type
 
   end;
 
+  PPDATA_ARM = ^TPDATA_ARM;
+
   { For x64 and Itanium platforms }
   TPDATA_x64 = packed record
     BeginAddress: uint32;      // The RVA of the corresponding function.
     EndAddress: uint32;        // The RVA of the end of the function.
     UnwindInformation: uint32; // The RVA of the unwind information.
   end;
+
+  PPDATA_x64 = ^TPDATA_x64;
 
   { For the ARMv7 platform }
   TPDATA_ARMv7 = packed record
@@ -87,6 +93,8 @@ type
     // inline form of the unwind information, including function length.
     UnwindInformation: uint32;
   end;
+
+  PPDATA_ARMv7 = ^TPDATA_ARMv7;
 
 type
   TPDATAType = (pdata_NONE, pdata_MIPS32, pdata_ARM, pdata_x64, pdata_ARMv7);
