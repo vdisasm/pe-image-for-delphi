@@ -29,7 +29,7 @@ begin
     IMAGE_FILE_MACHINE_EBC:
       Result := 'EFI byte code';
     IMAGE_FILE_MACHINE_I386:
-      Result := 'Intel 386 or later processors and compatible processors';
+      Result := 'Intel 386 and compatible processors';
     IMAGE_FILE_MACHINE_IA64:
       Result := 'Intel Itanium processor family';
     IMAGE_FILE_MACHINE_M32R:
