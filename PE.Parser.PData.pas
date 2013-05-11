@@ -223,7 +223,7 @@ end;
 
 function TPDATAItem.IsEmpty: boolean;
 begin
-  result := self.MIPS32.BeginAddress = 0;
+  result := self.BeginAddress = 0;
 end;
 
 end.
