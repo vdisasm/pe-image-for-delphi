@@ -39,6 +39,8 @@ type
     constructor Create;
     destructor Destroy; override;
 
+    function Count: integer; inline;
+
     procedure Add(const Func: TPEImportFunction);
 
     function FindByRVA(RVA: TRVA): TPEImportFunction;
@@ -77,6 +79,11 @@ end;
 procedure TPEImportFunctions.Add(const Func: TPEImportFunction);
 begin
   FFunctionsByRVA.Add(Func);
+end;
+
+function TPEImportFunctions.Count: integer;
+begin
+  Result := FFunctionsByRVA.Count;
 end;
 
 constructor TPEImportFunctions.Create;

@@ -68,6 +68,8 @@ uses
   System.SysUtils,
 
   PE.Imports,
+  PE.Imports.Func,
+  PE.Imports.Lib,
   PE.Section,
   PE.Types.Relocations;
 
@@ -165,7 +167,6 @@ var
   sec: TPESection;
   size: DWORD;
   va: pbyte;
-  dw: DWORD;
 begin
   Result := msMapSectionsError;
 
@@ -203,18 +204,16 @@ end;
 function TExecutableModule.LoadImports: TMapStatus;
 var
   ImpLib: TPEImportLibrary;
+  ImpFn: TPEImportFunction;
   ImpLibName, ImpFnName: AnsiString;
   s: string;
   hmod: HMODULE;
   proc: Pointer;
-  i, iFn: integer;
   va: UInt64;
   ModuleMustBeFreed: boolean;
 begin
-  for i := 0 to FPE.Imports.Count - 1 do
+  for ImpLib in FPE.Imports.LibsByName do
   begin
-    // Get next import library.
-    ImpLib := FPE.Imports[i];
     ImpLibName := ImpLib.Name;
 
     FPE.Msg.Write('Processing import module: "%s"', [ImpLibName]);
@@ -245,14 +244,14 @@ begin
       FLoadedImports.Add(ImpLibName, hmod);
 
     // Process import functions.
-    for iFn := 0 to ImpLib.Functions.Count - 1 do
+    for ImpFn in ImpLib.Functions.FunctionsByRVA do
     begin
       // Find imported function.
 
       // By Name.
-      if ImpLib.Functions[iFn].Name <> '' then
+      if ImpFn.Name <> '' then
       begin
-        ImpFnName := ImpLib.Functions[iFn].Name;
+        ImpFnName := ImpFn.Name;
         proc := GetProcAddress(hmod, PAnsiChar(ImpFnName));
         if proc = nil then
         begin
@@ -263,16 +262,16 @@ begin
       else
       // By Ordinal.
       begin
-        proc := GetProcAddress(hmod, PAnsiChar(ImpLib.Functions[iFn].Ordinal));
+        proc := GetProcAddress(hmod, PAnsiChar(ImpFn.Ordinal));
         if proc = nil then
         begin
-          FPE.Msg.Write('Imported ordinal "%d" not found.', [ImpLib.Functions[iFn].Ordinal]);
+          FPE.Msg.Write('Imported ordinal "%d" not found.', [ImpFn.Ordinal]);
           exit(msImportOrdinalNotFound);
         end;
       end;
 
       // Patch.
-      va := FInstance + ImpLib.Functions[iFn].RVA;
+      va := FInstance + ImpFn.RVA;
       if FPE.Is32bit then
         PUINT(va)^ := UInt32(proc)
       else if FPE.Is64bit then

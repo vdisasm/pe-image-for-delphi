@@ -25,17 +25,19 @@ uses
   PE.Types.FileHeader,
   //
   PE.Imports,
+  PE.Imports.Lib,
+  PE.Imports.Func,
   PE.Types.Imports;
 
 procedure TImportBuilder.Build(DirRVA: UInt64; Stream: TStream);
 var
   IDir: TImportDirectoryTable;
-  iLib, iFn: integer;
   sOfs: uint32;
   ofsILT: uint32;
   ofsDIR: uint32;
   NameOrdSize: byte;
   lib: TPEImportLibrary;
+  fn: TPEImportFunction;
   strA: AnsiString;
   dq: UInt64;
   hint: word;
@@ -54,24 +56,22 @@ begin
   ofsDIR := 0;
 
   // calc size for import names|ordinals
-  for iLib := 0 to FPE.Imports.Count - 1 do
-    for iFn := 0 to FPE.Imports[iLib].Functions.Count - 1 + 1 do
+  for lib in FPE.Imports.LibsByName do
+    for fn in lib.Functions.FunctionsByRVA do
       inc(sOfs, NameOrdSize);
 
   Stream.Size := sOfs;
 
   // write
-  for iLib := 0 to FPE.Imports.Count - 1 do
+  for lib in FPE.Imports.LibsByName do
   begin
-    lib := FPE.Imports[iLib];
-
     Stream.Seek(ofsDIR, 0);
     IDir.ImportLookupTableRVA := DirRVA + ofsILT;
     IDir.TimeDateStamp := 0;
     IDir.ForwarderChain := 0;
     IDir.NameRVA := DirRVA + sOfs;
-    if FPE.Imports[iLib].Functions.Count > 0 then
-      IDir.ImportAddressTable := lib.Functions[0].RVA
+    if lib.Functions.Count > 0 then
+      IDir.ImportAddressTable := lib.Functions.FunctionsByRVA.First.K.RVA
     else
       IDir.ImportAddressTable := 0;
     Stream.Write(IDir, sizeof(TImportDirectoryTable));
@@ -86,10 +86,10 @@ begin
     inc(sOfs, Length(strA));
 
     // write import names/ords
-    for iFn := 0 to lib.Functions.Count - 1 do
+    for fn in lib.Functions.FunctionsByRVA do
     begin
       Stream.Seek(ofsILT, 0);
-      if lib.Functions[iFn].Name <> '' then
+      if fn.Name <> '' then
       begin
         // by name
         // ofs of name
@@ -101,7 +101,7 @@ begin
         hint := 0;
         Stream.Write(hint, 2);
         // name
-        strA := lib.Functions[iFn].Name + #0;
+        strA := fn.Name + #0;
         if Length(strA) mod 2 <> 0 then
           strA := strA + #0;
         Stream.Write(strA[1], Length(strA));
@@ -110,7 +110,7 @@ begin
       else
       begin
         // by ordinal
-        dq := lib.Functions[iFn].Ordinal;
+        dq := fn.Ordinal;
         if FPE.Is32bit then
           dq := dq or $80000000
         else

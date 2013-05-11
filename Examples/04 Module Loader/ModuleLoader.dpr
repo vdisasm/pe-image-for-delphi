@@ -1,24 +1,24 @@
-program DLLLoader;
+program ModuleLoader;
 
 uses
   PE.Image,
-  PE.DLLLoader;
+  PE.ExecutableLoader;
 
 var
   Img: TPEImage;
-  DLL: TDLL;
+  Module: TExecutableModule;
 
 begin
   Img := TPEImage.Create;
-  DLL := TDLL.Create(Img);
+  Module := TExecutableModule.Create(Img);
   try
     if Img.LoadFromFile('SampleLib.dll') then
     begin
-      if DLL.Load() <> msOK then
+      if Module.Load() <> msOK then
           ; // error
     end;
   finally
-    DLL.Free; // free it before Img.
+    Module.Free; // free it before Img.
     Img.Free;
   end;
 
