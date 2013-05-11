@@ -100,7 +100,12 @@ type
   TPDATAType = (pdata_NONE, pdata_MIPS32, pdata_ARM, pdata_x64, pdata_ARMv7);
 
   TPDATAItem = record
+    function IsEmpty: boolean; inline;
+    procedure Clear; inline;
+  public
     case TPDATAType of
+      pdata_NONE:
+        (BeginAddress: uint32); // common field, can be RVA or VA
       pdata_MIPS32:
         (MIPS32: TPDATA_MIPS32);
       pdata_ARM:
@@ -111,17 +116,12 @@ type
         (ARMv7: TPDATA_ARMv7);
   end;
 
-  TPDATARecord = record
-    &Type: TPDATAType;
-    Data: TPDATAItem;
-    procedure Clear; inline;
-  end;
-
 type
-  TPDATARecords = array of TPDATARecord;
+  TPDATAItems = array of TPDATAItem;
 
   // Parses .PDATA section (if exists) and returns count of elements found
-function ParsePDATA(PE: TPEImage; out Data: TPDATARecords): integer;
+function ParsePDATA(PE: TPEImage; out &Type: TPDATAType;
+  out Items: TPDATAItems): integer;
 
 implementation
 
@@ -159,15 +159,16 @@ end;
 
 { ParsePDATA }
 
-function ParsePDATA(PE: TPEImage; out Data: TPDATARecords): integer;
+function ParsePDATA(PE: TPEImage; out &Type: TPDATAType;
+  out Items: TPDATAItems): integer;
 var
   sec: TPESection;
-  i: integer;
-  Cnt, Size: cardinal;
-  actual: integer;
-  D: TPDATARecord;
+  i, Cnt, Size, Actual: integer;
 begin
-  SetLength(Data, 0);
+  SetLength(Items, 0);
+
+  Size := 0;
+  &Type := pdata_NONE;
 
   sec := PE.Sections.FindByName('.pdata');
 
@@ -179,36 +180,50 @@ begin
     (PE.SeekRVA(sec.RVA)) then
   begin
     case PE.FileHeader^.Machine of
-      IMAGE_FILE_MACHINE_ARM:
+      IMAGE_FILE_MACHINE_ARM,
+        IMAGE_FILE_MACHINE_AMD64:
         begin
-          size := sizeof(TPDATA_ARM);
-          cnt := sec.RawSize div size;
-          actual := 0;
-          SetLength(Data, cnt); // pre-allocate
-          for i := 1 to cnt do
-          begin
-            D.Clear;
-            D.&Type := pdata_ARM;
-            if not PE.ReadEx(@D.Data.ARM, size) then
-              break;
-            if D.Data.ARM.IsEmpty then
-              break;
-            inc(actual);
-            Data[i - 1] := D;
+          // Load.
+          case PE.FileHeader^.Machine of
+            IMAGE_FILE_MACHINE_ARM:
+              begin
+                Size := sizeof(TPDATA_ARM);
+                &Type := pdata_ARM;
+              end;
+            IMAGE_FILE_MACHINE_AMD64:
+              begin
+                Size := sizeof(TPDATA_x64);
+                &Type := pdata_x64;
+              end;
           end;
-          SetLength(Data, actual); // post-trim
+          Cnt := sec.VirtualSize div Size;
+          Actual := 0;
+          SetLength(Items, Cnt); // pre-allocate
+          for i := 0 to Cnt - 1 do
+          begin
+            if (not PE.ReadEx(@Items[i], Size)) or (Items[i].IsEmpty) then
+              break;
+            inc(Actual);
+          end;
+          if Actual <> Cnt then
+            SetLength(Items, Actual); // trim
         end;
     end;
   end;
 
-  result := Length(Data);
+  result := Length(Items);
 end;
 
-{ TPDATARecord }
+{ TPDATAItem }
 
-procedure TPDATARecord.Clear;
+procedure TPDATAItem.Clear;
 begin
   FillChar(self, sizeof(self), 0);
+end;
+
+function TPDATAItem.IsEmpty: boolean;
+begin
+  result := self.MIPS32.BeginAddress = 0;
 end;
 
 end.
