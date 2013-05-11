@@ -1120,6 +1120,12 @@ begin
   if not LoadDosHeader(AStream, FDosHeader) then
     exit; // dos header failed
 
+  if (FDosHeader.e_lfanew mod 8) <> 0 then
+  begin
+    Msg.Write('PE header is not 8-byte aligned.');
+    exit;
+  end;
+
   // Check if e_lfanew is ok
   if not StreamSeek(AStream, FDosHeader.e_lfanew) then
     exit; // e_lfanew is wrong
