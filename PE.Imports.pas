@@ -5,124 +5,51 @@ interface
 uses
   System.Generics.Collections,
   System.SysUtils,
-  PE.Common;
+  PE.Common,
+  PE.Imports.Func,
+  PE.Imports.Lib,
+  VDLib.RBTree;
 
 type
-  { PEImage import record }
-
-  TPEImportFunction = class
-  public
-    Ordinal: uint16;
-    Name: AnsiString;
-
-    // RVA patched by loader.
-    // If image is not bound loader get address of function and write it at RVA.
-    // If image is bound nothing changed because value at RVA is already set.
-    RVA: TRVA;
-
-    procedure Clear; inline;
-    constructor CreateEmpty;
-    constructor Create(RVA: TRVA; const Name: AnsiString; Ordinal: uint16 = 0);
-  end;
-
-  PPEImportFunction = ^TPEImportFunction;
-
-  TPEImportFunctions = TList<TPEImportFunction>;
-
-  TPEImportLibrary = class
+  TPEImports = class
+  private type
+    TLibTree = TRBTree<TPEImportLibrary>;
   private
-    FName: AnsiString; // imported library name
-    FBound: Boolean;
-    FFunctions: TPEImportFunctions;
-    FTimeDateStamp: uint32;
-    procedure ImportFunctionNotify(Sender: TObject; const Item: TPEImportFunction;
+    FLibsByName: TLibTree;
+    procedure LibTreeItemNotify(Sender: TObject; const Item: TPEImportLibrary;
       Action: TCollectionNotification);
   public
-    constructor Create(const AName: AnsiString; Bound: Boolean = False);
+    constructor Create;
     destructor Destroy; override;
 
-    // Find function by name. Result is nil if not found.
-    function FindFunc(const AName: AnsiString): TPEImportFunction;
+    procedure Clear;
 
-    property Name: AnsiString read FName;
-    property Functions: TPEImportFunctions read FFunctions;
-    property Bound: Boolean read FBound;
-    property TimeDateStamp: uint32 read FTimeDateStamp write FTimeDateStamp;
-  end;
+    function Count: integer; inline;
 
-  TPEImports = class(TList<TPEImportLibrary>)
-  public
+    // Add existing library.
+    // Libraries are sorted by name (case insensitive).
+    procedure Add(Lib: TPEImportLibrary);
+
     // Find library by name (first occurrence). Result is nil if not found.
     function FindLib(const LibName: AnsiString): TPEImportLibrary;
 
     // Add new import function.
     procedure AddNew(RVA: TRVA; const LibName, FuncName: AnsiString; Ordinal: uint16 = 0);
+
+    property LibsByName: TLibTree read FLibsByName;
   end;
 
 implementation
 
-{ TImportFunction }
-
-procedure TPEImportFunction.Clear;
-begin
-  Ordinal := 0;
-  Name := '';
-  RVA := 0;
-end;
-
-{ TImportLibrary }
-
-constructor TPEImportLibrary.Create(const AName: AnsiString; Bound: Boolean);
-begin
-  inherited Create;
-  FFunctions := TPEImportFunctions.Create;
-  FFunctions.OnNotify := ImportFunctionNotify;
-  FName := AName;
-  FBound := Bound;
-end;
-
-destructor TPEImportLibrary.Destroy;
-begin
-  FFunctions.Free;
-  inherited;
-end;
-
-function TPEImportLibrary.FindFunc(const AName: AnsiString): TPEImportFunction;
-var
-  verify: AnsiString;
-  tmp: TPEImportFunction;
-begin
 {$WARN IMPLICIT_STRING_CAST OFF}
 {$WARN IMPLICIT_STRING_CAST_LOSS OFF}
-  verify := LowerCase(AName);
-  for tmp in FFunctions do
-    if LowerCase(tmp.Name) = verify then
-      exit(tmp);
-  exit(nil);
-{$WARN IMPLICIT_STRING_CAST ON}
-{$WARN IMPLICIT_STRING_CAST_LOSS ON}
-end;
-
-procedure TPEImportLibrary.ImportFunctionNotify(Sender: TObject;
-  const Item: TPEImportFunction; Action: TCollectionNotification);
-begin
-  if Action = cnRemoved then
-    Item.Free;
-end;
-
-constructor TPEImportFunction.Create(RVA: TRVA; const Name: AnsiString;
-  Ordinal: uint16);
-begin
-  self.RVA := RVA;
-  self.Name := Name;
-  self.Ordinal := Ordinal;
-end;
-
-constructor TPEImportFunction.CreateEmpty;
-begin
-end;
 
 { TPEImports }
+
+procedure TPEImports.Add(Lib: TPEImportLibrary);
+begin
+  FLibsByName.Add(Lib);
+end;
 
 procedure TPEImports.AddNew(RVA: TRVA; const LibName, FuncName: AnsiString;
   Ordinal: uint16);
@@ -140,20 +67,54 @@ begin
   Lib.Functions.Add(Func);
 end;
 
+procedure TPEImports.Clear;
+begin
+  FLibsByName.Clear;
+end;
+
+function TPEImports.Count: integer;
+begin
+  Result := FLibsByName.Count;
+end;
+
+constructor TPEImports.Create;
+begin
+  inherited Create;
+  FLibsByName := TLibTree.Create(
+    function(const A, B: TPEImportLibrary): Boolean
+    begin
+      Result := LowerCase(A.Name) < LowerCase(B.Name);
+    end);
+  FLibsByName.OnNotify := LibTreeItemNotify;
+end;
+
+destructor TPEImports.Destroy;
+begin
+  FLibsByName.Free;
+  inherited;
+end;
+
 function TPEImports.FindLib(const LibName: AnsiString): TPEImportLibrary;
 var
-  tmp: TPEImportLibrary;
-  verify: AnsiString;
+  key: TPEImportLibrary;
+  ptr: TLibTree.TRBNodePtr;
 begin
-{$WARN IMPLICIT_STRING_CAST OFF}
-{$WARN IMPLICIT_STRING_CAST_LOSS OFF}
-  verify := LowerCase(LibName);
-  for tmp in self do
-    if LowerCase(tmp.Name) = verify then
-      exit(tmp);
-  exit(nil);
-{$WARN IMPLICIT_STRING_CAST ON}
-{$WARN IMPLICIT_STRING_CAST_LOSS ON}
+  key := TPEImportLibrary.Create(LibName);
+  try
+    ptr := FLibsByName.Find(key);
+    if ptr = nil then
+      exit(nil);
+    Result := ptr^.K;
+  finally
+    key.Free;
+  end;
+end;
+
+procedure TPEImports.LibTreeItemNotify(Sender: TObject;
+const Item: TPEImportLibrary; Action: TCollectionNotification);
+begin
+  if Action = cnRemoved then
+    Item.Free;
 end;
 
 end.

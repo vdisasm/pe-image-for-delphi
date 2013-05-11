@@ -89,9 +89,6 @@ type
     FDataDirectories: TDataDirectories;
 
     { Notifiers }
-    // todo: move to imports unit.
-    procedure DoNotifyImports(Sender: TObject; const Item: TPEImportLibrary;
-      Action: TCollectionNotification);
     procedure DoReadError;
 
     { Parsers }
@@ -475,7 +472,6 @@ begin
   FRelocs := TRelocs.Create;
 
   FImports := TPEImports.Create;
-  FImports.OnNotify := DoNotifyImports;
 
   FExports := TPEExportSyms.Create;
 
@@ -520,14 +516,6 @@ begin
   FDataDirectories.Free;
   FCOFF.Free;
   inherited Destroy;
-end;
-
-procedure TPEImage.DoNotifyImports(Sender: TObject;
-  const Item: TPEImportLibrary; Action: TCollectionNotification);
-begin
-  if Assigned(Item) then
-    if Action = cnRemoved then
-      Item.Free;
 end;
 
 procedure TPEImage.DoReadError;
@@ -797,8 +785,8 @@ begin
       Result := 32;
     PE_MAGIC_PE32PLUS:
       Result := 64;
-    else
-      Result := 0;
+  else
+    Result := 0;
   end;
 end;
 
@@ -814,11 +802,11 @@ begin
       FOptionalHeader.Magic := PE_MAGIC_PE32;
     64:
       FOptionalHeader.Magic := PE_MAGIC_PE32PLUS;
-    else
-      begin
-        FOptionalHeader.Magic := 0;
-        raise Exception.Create('Value unsupported.');
-      end;
+  else
+    begin
+      FOptionalHeader.Magic := 0;
+      raise Exception.Create('Value unsupported.');
+    end;
   end;
 end;
 
@@ -991,11 +979,11 @@ begin
       Result := ReadEx(OutData, 4);
     64:
       Result := ReadEx(OutData, 8);
-    else
-      begin
-        DoReadError;
-        Result := false; // compiler friendly
-      end;
+  else
+    begin
+      DoReadError;
+      Result := false; // compiler friendly
+    end;
   end;
 end;
 
@@ -1218,22 +1206,25 @@ begin
   LoadSectionData(AStream);
 
   // Execute parsers.
-  for Stage in AParseStages do
-    if Assigned(FParsers[Stage]) then
-    begin
-      Parser := FParsers[Stage].Create(self);
-      try
-        case Parser.Parse of
-          PR_ERROR:
-            Msg.Write('[%s] Parser returned error.', [Parser.ToString]);
-          PR_SUSPICIOUS:
-            Msg.Write('[%s] Parser returned status SUSPICIOUS.',
-              [Parser.ToString]);
+  if AParseStages <> [] then
+  begin
+    for Stage in AParseStages do
+      if Assigned(FParsers[Stage]) then
+      begin
+        Parser := FParsers[Stage].Create(self);
+        try
+          case Parser.Parse of
+            PR_ERROR:
+              Msg.Write('[%s] Parser returned error.', [Parser.ToString]);
+            PR_SUSPICIOUS:
+              Msg.Write('[%s] Parser returned status SUSPICIOUS.',
+                [Parser.ToString]);
+          end;
+        finally
+          Parser.Free;
         end;
-      finally
-        Parser.Free;
       end;
-    end;
+  end;
 end;
 
 function TPEImage.SaveToStream(AStream: TStream): boolean;

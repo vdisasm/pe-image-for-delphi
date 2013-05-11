@@ -9,6 +9,8 @@ uses
   PE.Types.Imports,
   PE.Types.FileHeader,
   PE.Imports,
+  PE.Imports.Func,
+  PE.Imports.Lib,
   PE.Utils;
 
 type
