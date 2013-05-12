@@ -54,7 +54,7 @@ var
   ImpFn: TPEImportFunction;
   Lib: TPEImportLibrary;
   PE: TPEImage;
-  DllName: RawByteString;
+  LibraryName: RawByteString;
 begin
   PE := TPEImage(FPE);
 
@@ -93,18 +93,23 @@ begin
       IDir := IDirs[i];
       ILTs.Clear;
 
-      // read dll name
-      if not PE.SeekRVA(IDir.NameRVA) then
+      // Read library name.
+      if (not PE.SeekRVA(IDir.NameRVA)) or
+        (PE.ReadANSIString(LibraryName) = '') then
       begin
         PE.Msg.Write('Import library has NULL name.');
         Continue;
       end;
 
-      // Read DLL name.
-      DllName := PE.ReadANSIString;
-
-      // Create library.
-      Lib := TPEImportLibrary.Create(DllName, IDir.IsBound);
+      // Try to find existing library. If there are few libraries with same
+      // name, the libs are merged.
+      Lib := PE.Imports.FindLib(LibraryName);
+      // if not found, create new.
+      if Lib = nil then
+      begin
+        Lib := TPEImportLibrary.Create(LibraryName, IDir.IsBound);
+        PE.Imports.Add(Lib);
+      end;
 
       Lib.TimeDateStamp := IDir.TimeDateStamp;
 
@@ -161,9 +166,6 @@ begin
         inc(PATCHRVA, sizet);
 
       end;
-
-      // add created import record
-      PE.Imports.Add(Lib);
 
     end;
 

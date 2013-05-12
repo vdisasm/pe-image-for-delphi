@@ -178,7 +178,8 @@ type
     procedure Skip(Count: integer);
 
     // Read 1-byte 0-terminated string.
-    function ReadANSIString: RawByteString;
+    function ReadANSIString: RawByteString; overload;
+    function ReadANSIString(out Value: RawByteString): RawByteString; overload;
 
     // Read 2-byte UTF-16 string with length prefix (2 bytes).
     function ReadUnicodeString: UnicodeString;
@@ -918,6 +919,13 @@ begin
   while ReadEx(@B, 1) and (B <> 0) do
     Result := Result + AnsiChar(B);
 end;
+
+function TPEImage.ReadANSIString(out Value: RawByteString): RawByteString;
+begin
+  Value := ReadANSIString;
+  Result := Value;
+end;
+
 
 function TPEImage.ReadUInt8: UInt8;
 begin
