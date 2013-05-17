@@ -242,7 +242,7 @@ type
     function CalcHeadersSizeNotAligned: uint32; inline;
 
     // Calculate valid aligned size of image.
-    function CalcSizeOfImage: UInt64; inline;
+    function CalcVirtualSizeOfImage: UInt64; inline;
 
     // Calc raw size of image (w/o overlay), or 0 if failed.
     // Can be used if image loaded from stream and exact image size is unknown.
@@ -305,6 +305,11 @@ type
 
     // Remove overlay from current image file.
     function RemoveOverlay: boolean;
+
+    // Set overlay for current image file from file data of AFileName file.
+    // If Offset and Size are 0, then whole file is appended.
+    function LoadOverlayFromFile(const AFileName: string;
+      Offset: UInt64 = 0; Size: UInt64 = 0): boolean; overload;
 
     { Writing to external stream }
 
@@ -594,7 +599,7 @@ begin
     AlignUp(CalcHeadersSizeNotAligned, FileAlignment);
 end;
 
-function TPEImage.CalcSizeOfImage: UInt64;
+function TPEImage.CalcVirtualSizeOfImage: UInt64;
 begin
   with FSections do
   begin
@@ -618,7 +623,7 @@ end;
 
 procedure TPEImage.FixSizeOfImage;
 begin
-  SizeOfImage := CalcSizeOfImage;
+  SizeOfImage := CalcVirtualSizeOfImage;
 end;
 
 function TPEImage.CalcSecHdrOfs: TFileOffset;
@@ -925,7 +930,6 @@ begin
   Value := ReadANSIString;
   Result := Value;
 end;
-
 
 function TPEImage.ReadUInt8: UInt8;
 begin
@@ -1358,6 +1362,55 @@ begin
       end;
     except
     end;
+  end;
+end;
+
+function TPEImage.LoadOverlayFromFile(const AFileName: string; Offset,
+  Size: UInt64): boolean;
+var
+  ovr: POverlay;
+  fs: TFileStream;
+  src: TStream;
+  newImgSize: uint32;
+begin
+  Result := false;
+
+  if FImageKind = PEIMAGE_KIND_MEMORY then
+  begin
+    FMsg.Write('Can''t append overlay to mapped image.');
+    exit;
+  end;
+
+  fs := TFileStream.Create(FFileName, fmOpenWrite or fmShareDenyWrite);
+  src := TFileStream.Create(AFileName, fmOpenRead or fmShareDenyWrite);
+  try
+    if (Offset = 0) and (Size = 0) then
+      Size := src.Size;
+    if Size <> 0 then
+    begin
+      if (Offset + Size) > src.Size then
+        exit(False);
+      src.Position := Offset;
+
+      ovr := GetOverlay;
+      if (ovr <> nil) and (ovr^.Size <> 0) then
+        fs.Size := fs.Size - ovr^.Size // Trim file.
+      else
+      begin
+        newImgSize := CalcRawSizeOfImage();
+        fs.Size := newImgSize;
+      end;
+
+      fs.Position := fs.Size;
+
+      fs.CopyFrom(src, Size);
+
+      self.FFileSize := fs.Size; // Update filesize.
+    end;
+    Result := True;
+  finally
+    src.Free;
+    fs.Free;
   end;
 end;
 
