@@ -48,9 +48,6 @@ Type
       function MoveNext: Boolean;
     end;
 
-  strict private
-    function Find(const Key: T; ComapareFunc: TCompareLessFunc): TRBNodePtr; overload;
-
   private
   var
     // Cache (1 item).
@@ -90,7 +87,7 @@ Type
 
     function Exists(const Key: T): Boolean; inline;
 
-    function Find(const Key: T): TRBNodePtr; overload; // inline;
+    function Find(const Key: T): TRBNodePtr;
 
     // Find first item lesser than Key (or nil if none).
     function FindLesser(const Key: T): TRBNodePtr;
@@ -232,38 +229,24 @@ end;
 
 function TRBTree<T>.Find(const Key: T): TRBNodePtr;
 begin
-  Result := Find(Key, FCompare);
-end;
+  // Try cache.
+  if FindInCache(Key, Result) then
+    Exit;
 
-function TRBTree<T>.Find(const Key: T; ComapareFunc: TCompareLessFunc): TRBNodePtr;
-var
-  tmpCompare: TCompareLessFunc;
-begin
-  tmpCompare := self.FCompare;
-  self.FCompare := ComapareFunc;
-
-  try
-    // Try cache.
-    if FindInCache(Key, Result) then
-      Exit;
-
-    // Normal search.
-    Result := FRoot;
-    while Result <> nil do
+  // Normal search.
+  Result := FRoot;
+  while Result <> nil do
+  begin
+    if DoCompareLess(Result^.K, Key) then
+      Result := Result^.Right
+    else if DoCompareLess(Key, Result^.K) then
+      Result := Result^.Left
+    else
     begin
-      if DoCompareLess(Result^.K, Key) then
-        Result := Result^.Right
-      else if DoCompareLess(Key, Result^.K) then
-        Result := Result^.Left
-      else
-      begin
-        // If item found, update cache.
-        UpdateCache(Key, Result);
-        break;
-      end;
+      // If item found, update cache.
+      UpdateCache(Key, Result);
+      break;
     end;
-  finally
-    self.FCompare := tmpCompare;
   end;
 end;
 
@@ -576,8 +559,8 @@ begin
   if SendNotification then
     OldKey := z^.K; // store it for notification in the end
 
-  z^.K := Default(T); // finalize key
-  {$region 'delete'}
+  z^.K := Default (T); // finalize key
+{$REGION 'delete'}
   y := z;
   x := nil;
   x_parent := nil;
@@ -653,8 +636,8 @@ begin
         FLast := Maximum(x);
     end;
   end;
-  {$endregion 'delete'}
-  {$region 'rebalance'}
+{$ENDREGION 'delete'}
+{$REGION 'rebalance'}
   // Rebalance tree
   if (y^.Kind = NODE_BLACK) then
   begin
@@ -736,7 +719,7 @@ begin
     if (x <> nil) then
       x^.Kind := NODE_BLACK;
   end;
-  {$endregion 'rebalance'}
+{$ENDREGION 'rebalance'}
   dec(FCount);
 
   if SendNotification then
