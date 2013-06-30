@@ -170,7 +170,7 @@ var
 begin
   Result := msMapSectionsError;
 
-  FSizeOfImage := FPE.CalcSizeOfImage;
+  FSizeOfImage := FPE.CalcVirtualSizeOfImage;
 
   if FSizeOfImage = 0 then
     exit(msImageSizeError);
