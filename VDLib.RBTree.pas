@@ -2,7 +2,7 @@
   Generic Red-Black Tree
 }
 
-unit VDLib.RBTRee;
+unit VDLib.RBTree;
 
 interface
 
@@ -81,9 +81,7 @@ Type
     constructor Create(Less: TCompareLessFunc);
     destructor Destroy(); override;
 
-    // Quick first frees all records then updates count and root.
-    // Not Quick does deletion of items one by one.
-    procedure Clear(Quick: Boolean = True); virtual;
+    procedure Clear; virtual;
 
     function Exists(const Key: T): Boolean; inline;
 
@@ -188,12 +186,9 @@ begin
   FreeMem(x);
 end;
 
-procedure TRBTree<T>.Clear(Quick: Boolean);
+procedure TRBTree<T>.Clear;
 begin
   InvalidateCache;
-  // if Quick then
-  // ClearQuick
-  // else
   ClearFull;
 end;
 
