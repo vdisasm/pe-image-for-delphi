@@ -68,7 +68,7 @@ end;
 
 function StreamSeek(AStream: TStream; Offset: TFileOffset): boolean;
 begin
-  Result := AStream.Seek(Offset, soFromBeginning) = Offset;
+  Result := AStream.Seek(Offset, TSeekOrigin.soBeginning) = Offset;
 end;
 
 procedure StreamSeekWithPadding(AStream: TStream; Offset: TFileOffset);
@@ -78,11 +78,11 @@ var
 begin
   if Offset <= AStream.Size then
   begin
-    AStream.Seek(Offset, soFromBeginning);
+    AStream.Seek(Offset, TSeekOrigin.soBeginning);
     exit;
   end;
   // Insert padding.
-  AStream.Seek(AStream.Size, soFromBeginning);
+  AStream.Seek(AStream.Size, TSeekOrigin.soBeginning);
   d := Offset - AStream.Size; // delta
   p := AllocMem(d);
   try

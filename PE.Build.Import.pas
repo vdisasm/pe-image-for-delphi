@@ -65,7 +65,7 @@ begin
   // write
   for lib in FPE.Imports.LibsByName do
   begin
-    Stream.Seek(ofsDIR, 0);
+    Stream.Seek(ofsDIR, TSeekOrigin.soBeginning);
     IDir.ImportLookupTableRVA := DirRVA + ofsILT;
     IDir.TimeDateStamp := 0;
     IDir.ForwarderChain := 0;
@@ -78,7 +78,7 @@ begin
     inc(ofsDIR, sizeof(TImportDirectoryTable));
 
     // write dll name
-    Stream.Seek(sOfs, 0);
+    Stream.Seek(sOfs, TSeekOrigin.soBeginning);
     strA := lib.Name + #0;
     if Length(strA) mod 2 <> 0 then
       strA := strA + #0;
@@ -88,7 +88,7 @@ begin
     // write import names/ords
     for fn in lib.Functions.FunctionsByRVA do
     begin
-      Stream.Seek(ofsILT, 0);
+      Stream.Seek(ofsILT, TSeekOrigin.soBeginning);
       if fn.Name <> '' then
       begin
         // by name
@@ -96,7 +96,7 @@ begin
         dq := DirRVA + sOfs;
         Stream.Write(dq, NameOrdSize);
         // hint/name
-        Stream.Seek(sOfs, 0);
+        Stream.Seek(sOfs, TSeekOrigin.soBeginning);
         // hint
         hint := 0;
         Stream.Write(hint, 2);
@@ -121,13 +121,13 @@ begin
     end;
     // write empty name/ord
     dq := 0;
-    Stream.Seek(ofsILT, 0);
+    Stream.Seek(ofsILT, TSeekOrigin.soBeginning);
     Stream.Write(dq, NameOrdSize);
     inc(ofsILT, NameOrdSize);
   end;
 
   // last empty descriptor
-  Stream.Seek(ofsDIR, 0);
+  Stream.Seek(ofsDIR, TSeekOrigin.soBeginning);
   IDir.Clear;
   Stream.Write(IDir, sizeof(TImportDirectoryTable));
 end;
