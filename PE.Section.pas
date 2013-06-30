@@ -112,7 +112,7 @@ begin
   try
     fs := TFileStream.Create(FileName, fmCreate or fmShareDenyWrite);
     try
-      fs.Write(Self.Mem^, Self.FRawSize);
+      fs.Write(Self.Mem^, Self.FVSize);
       Result := True;
     finally
       FreeAndNil(fs);
