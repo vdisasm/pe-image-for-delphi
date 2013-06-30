@@ -36,7 +36,7 @@ var
   ofsILT: uint32;
   ofsDIR: uint32;
   NameOrdSize: byte;
-  lib: TPEImportLibrary;
+  Lib: TPEImportLibrary;
   fn: TPEImportFunction;
   strA: AnsiString;
   dq: UInt64;
@@ -56,22 +56,25 @@ begin
   ofsDIR := 0;
 
   // calc size for import names|ordinals
-  for lib in FPE.Imports.LibsByName do
-    for fn in lib.Functions.FunctionsByRVA do
+  for Lib in FPE.Imports.LibsByName do
+    for fn in Lib.Functions.FunctionsByRVA do
       inc(sOfs, NameOrdSize);
+  // one last (empty) item
+  inc(sOfs, NameOrdSize);
 
   Stream.Size := sOfs;
 
   // write
-  for lib in FPE.Imports.LibsByName do
+  for Lib in FPE.Imports.LibsByName do
   begin
+    // write IDT
     Stream.Seek(ofsDIR, TSeekOrigin.soBeginning);
     IDir.ImportLookupTableRVA := DirRVA + ofsILT;
     IDir.TimeDateStamp := 0;
     IDir.ForwarderChain := 0;
     IDir.NameRVA := DirRVA + sOfs;
-    if lib.Functions.Count > 0 then
-      IDir.ImportAddressTable := lib.Functions.FunctionsByRVA.First.K.RVA
+    if Lib.Functions.Count > 0 then
+      IDir.ImportAddressTable := Lib.Functions.FunctionsByRVA.First.K.RVA
     else
       IDir.ImportAddressTable := 0;
     Stream.Write(IDir, sizeof(TImportDirectoryTable));
@@ -79,14 +82,14 @@ begin
 
     // write dll name
     Stream.Seek(sOfs, TSeekOrigin.soBeginning);
-    strA := lib.Name + #0;
+    strA := Lib.Name + #0;
     if Length(strA) mod 2 <> 0 then
       strA := strA + #0;
     Stream.Write(strA[1], Length(strA));
     inc(sOfs, Length(strA));
 
     // write import names/ords
-    for fn in lib.Functions.FunctionsByRVA do
+    for fn in Lib.Functions.FunctionsByRVA do
     begin
       Stream.Seek(ofsILT, TSeekOrigin.soBeginning);
       if fn.Name <> '' then
@@ -105,7 +108,7 @@ begin
         if Length(strA) mod 2 <> 0 then
           strA := strA + #0;
         Stream.Write(strA[1], Length(strA));
-        inc(sOfs, 2 + Length(strA));
+        inc(sOfs, sizeof(hint) + Length(strA));
       end
       else
       begin
@@ -144,7 +147,7 @@ end;
 
 class function TImportBuilder.NeedRebuildingIfRVAChanged: Boolean;
 begin
-  Result := True;
+  result := True;
 end;
 
 end.
