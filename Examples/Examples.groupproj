@@ -18,6 +18,9 @@
         <Projects Include="03 Resources\ResourceBuild.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="03 Resources\ResourceStats.dproj">
+            <Dependencies/>
+        </Projects>
         <Projects Include="05 FillMem\FillMem.dproj">
             <Dependencies/>
         </Projects>
@@ -80,6 +83,15 @@
     <Target Name="ResourceBuild:Make">
         <MSBuild Projects="03 Resources\ResourceBuild.dproj" Targets="Make"/>
     </Target>
+    <Target Name="ResourceStats">
+        <MSBuild Projects="03 Resources\ResourceStats.dproj"/>
+    </Target>
+    <Target Name="ResourceStats:Clean">
+        <MSBuild Projects="03 Resources\ResourceStats.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ResourceStats:Make">
+        <MSBuild Projects="03 Resources\ResourceStats.dproj" Targets="Make"/>
+    </Target>
     <Target Name="FillMem">
         <MSBuild Projects="05 FillMem\FillMem.dproj"/>
     </Target>
@@ -108,13 +120,13 @@
         <MSBuild Projects="04 Module Loader\ModuleLoader.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="SampleLib;ExportsAdd;ImportsAdd;ResourceExtract;ResourceBuild;FillMem;BuildRelocs;ModuleLoader"/>
+        <CallTarget Targets="SampleLib;ExportsAdd;ImportsAdd;ResourceExtract;ResourceBuild;ResourceStats;FillMem;BuildRelocs;ModuleLoader"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="SampleLib:Clean;ExportsAdd:Clean;ImportsAdd:Clean;ResourceExtract:Clean;ResourceBuild:Clean;FillMem:Clean;BuildRelocs:Clean;ModuleLoader:Clean"/>
+        <CallTarget Targets="SampleLib:Clean;ExportsAdd:Clean;ImportsAdd:Clean;ResourceExtract:Clean;ResourceBuild:Clean;ResourceStats:Clean;FillMem:Clean;BuildRelocs:Clean;ModuleLoader:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="SampleLib:Make;ExportsAdd:Make;ImportsAdd:Make;ResourceExtract:Make;ResourceBuild:Make;FillMem:Make;BuildRelocs:Make;ModuleLoader:Make"/>
+        <CallTarget Targets="SampleLib:Make;ExportsAdd:Make;ImportsAdd:Make;ResourceExtract:Make;ResourceBuild:Make;ResourceStats:Make;FillMem:Make;BuildRelocs:Make;ModuleLoader:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>
