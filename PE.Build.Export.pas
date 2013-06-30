@@ -114,7 +114,7 @@ begin
     nSyms.Sort(TComparer<TSym>.Construct(
       function(const a, b: TSym): integer
       begin
-        Result := StrComp(PAnsiChar(a.sym.Name), PAnsiChar(b.sym.Name))
+        Result := CompareStr(a.sym.Name, b.sym.Name)
       end
       ));
 
