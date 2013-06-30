@@ -10,6 +10,7 @@ uses
   PE.Common,
   PE.Headers,
   PE.DataDirectories,
+  PE.Regions,
 
   PE.Msg,
   PE.Utils,
@@ -56,6 +57,7 @@ type
   TPEImage = class
   private
     FImageKind: TPEImageKind;
+    FParseStages: TParserFlags;
 
     // Used only for loading from mapped image. Nil for disk images.
     FPEMemoryStream: TPEMemoryStream;
@@ -135,6 +137,11 @@ type
     // If it's memory mapped, nothing happens.
     procedure SourceStreamFree(Stream: TStream);
 
+  protected
+
+    // Called on region parsed.
+    procedure DoRegionParsed(RVA: TRVA; Size: integer; Kind: TRegionKind); virtual;
+
   public
 
     // Create without message proc.
@@ -161,6 +168,9 @@ type
     // Get image bitness. 32/64 or 0 if unknown.
     function GetImageBits: UInt16; inline;
     procedure SetImageBits(Value: UInt16);
+
+    // Parsers must call it to declare new regions.
+    procedure RegionParsed(RVA: TRVA; Size: integer; Kind: TRegionKind); inline;
 
     { PE Streaming }
 
@@ -490,6 +500,7 @@ begin
   InitParsers;
 
   FDefaults.SetAll;
+
 end;
 
 procedure TPEImage.Clear;
@@ -527,6 +538,11 @@ end;
 procedure TPEImage.DoReadError;
 begin
   raise Exception.Create('Read Error.');
+end;
+
+procedure TPEImage.DoRegionParsed(RVA: TRVA; Size: integer; Kind: TRegionKind);
+begin
+  // override this
 end;
 
 function TPEImage.DumpRegionToFile(const AFileName: string; RVA: TRVA;
@@ -697,6 +713,8 @@ begin
   begin
     Sec := FSections[i];
 
+    RegionParsed(Sec.RVA, Sec.VirtualSize, RK_SEC_VSIZE);
+
     if FImageKind = PEIMAGE_KIND_DISK then
     begin
       if Sec.LoadDataFromStream(AStream) then
@@ -767,7 +785,7 @@ var
   dos: TImageDOSHeader;
   pe00: uint32;
 begin
-  if AStream.Seek(Ofs, soFromBeginning) <> Ofs then
+  if AStream.Seek(Ofs, TSeekOrigin.soBeginning) <> Ofs then
     exit(false);
 
   if (AStream.Read(dos, SizeOf(dos)) = SizeOf(dos)) then
@@ -776,7 +794,7 @@ begin
       Ofs := Ofs + dos.e_lfanew;
       if Ofs >= AStream.Size then
         exit(false);
-      if AStream.Seek(Ofs, soFromBeginning) = Ofs then
+      if AStream.Seek(Ofs, TSeekOrigin.soBeginning) = Ofs then
         if AStream.Read(pe00, SizeOf(pe00)) = SizeOf(pe00) then
           if pe00 = PE00_SIGNATURE then
             exit(True);
@@ -907,6 +925,12 @@ begin
   SetLength(Result, Len);
   for i := 1 to Len do
     Read(@Result[i], 2);
+end;
+
+procedure TPEImage.RegionParsed(RVA: TRVA; Size: integer; Kind: TRegionKind);
+begin
+  if PF_REGIONS in FParseStages then
+    DoRegionParsed(RVA, Size, Kind);
 end;
 
 procedure TPEImage.RegionRemove(RVA: TRVA; Size: uint32);
@@ -1115,6 +1139,7 @@ begin
 
   FImageKind := ImageKind;
   FFileSize := AStream.Size;
+  FParseStages := AParseStages;
 
   // DOS header.
   if not LoadDosHeader(AStream, FDosHeader) then
@@ -1216,6 +1241,12 @@ begin
 
   // Load section data.
   LoadSectionData(AStream);
+
+  // Now base headers loaded.
+  // Define regions loaded before.
+
+  RegionParsed(0, SizeOf(TImageDOSHeader), RK_DOS_HEADER);
+  RegionParsed(SizeOf(TImageDOSHeader), FDosHeader.e_lfanew - SizeOf(TImageDOSHeader), RK_DOS_BLOCK);
 
   // Execute parsers.
   if AParseStages <> [] then
@@ -1323,7 +1354,7 @@ begin
         dst := TFileStream.Create(AFileName, fmCreate);
 
       try
-        src.Seek(ovr^.Offset, soFromBeginning);
+        src.Seek(ovr^.Offset, TSeekOrigin.soBeginning);
         dst.CopyFrom(src, ovr^.Size);
         Result := True;
       finally
@@ -1389,7 +1420,7 @@ begin
     if Size <> 0 then
     begin
       if (Offset + Size) > src.Size then
-        exit(False);
+        exit(false);
       src.Position := Offset;
 
       ovr := GetOverlay;

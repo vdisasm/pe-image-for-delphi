@@ -2,7 +2,7 @@
   Generic Red-Black Tree
 }
 
-unit VDLib.RBTree;
+unit grbtree;
 
 interface
 

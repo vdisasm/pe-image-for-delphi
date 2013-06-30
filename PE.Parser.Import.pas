@@ -23,7 +23,8 @@ implementation
 
 uses
   PE.Types.Directories,
-  PE.Image;
+  PE.Image,
+  PE.Regions;
 
 { TPEImportParser }
 
@@ -55,6 +56,8 @@ var
   Lib: TPEImportLibrary;
   PE: TPEImage;
   LibraryName: RawByteString;
+var
+  tmpRVA: TRVA;
 begin
   PE := TPEImage(FPE);
 
@@ -80,8 +83,12 @@ begin
     // Read import descriptors.
     while true do
     begin
+      tmpRVA := PE.PositionRVA;
+      // Read IDir.
       if not PE.ReadEx(@IDir, sizeof(IDir)) then
         exit;
+      // Region.
+      PE.RegionParsed(tmpRVA, sizeof(IDir), RK_IDT);
       if IDir.IsEmpty then // it's last dir
         break;
       IDirs.Add(IDir); // add read dir
@@ -94,12 +101,14 @@ begin
       ILTs.Clear;
 
       // Read library name.
+      tmpRVA := PE.PositionRVA;
       if (not PE.SeekRVA(IDir.NameRVA)) or
         (PE.ReadANSIString(LibraryName) = '') then
       begin
         PE.Msg.Write('Import library has NULL name.');
         Continue;
       end;
+      PE.RegionParsed(tmpRVA, Length(LibraryName), RK_STR_1BYTE);
 
       // Try to find existing library. If there are few libraries with same
       // name, the libs are merged.
@@ -164,6 +173,11 @@ begin
         Lib.Functions.Add(ImpFn); // add imported function
         inc(IATRVA, sizet);       // next item
         inc(PATCHRVA, sizet);
+
+        // Regions.
+        PE.RegionParsed(PATCHRVA, sizet, RK_IAT_ITEM_PATCH);
+        if PATCHRVA <> IATRVA then
+          PE.RegionParsed(IATRVA, sizet, RK_IAT_ITEM);
 
       end;
 

@@ -6,7 +6,7 @@ uses
   System.Generics.Collections,
   System.SysUtils,
   PE.Common,
-  VDLib.RBTree;
+  gRBTree;
 
 type
   TPEImportFunction = class

@@ -33,7 +33,8 @@ type
 
   TFileOffset = type UInt64;
 
-  TParserFlag = (PF_EXPORT, PF_IMPORT, PF_RELOCS, PF_TLS, PF_RESOURCES);
+  TParserFlag = (PF_EXPORT, PF_IMPORT, PF_RELOCS, PF_TLS, PF_RESOURCES,
+    PF_REGIONS);
   TParserFlags = set of TParserFlag;
 
   TPEImageObject = TObject; // Meant to cast TObject -> TPEImage

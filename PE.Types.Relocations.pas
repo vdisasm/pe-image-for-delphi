@@ -5,7 +5,7 @@ interface
 uses
   System.Generics.Collections,
   PE.Common,
-  VDLib.RBTree;
+  gRBTree;
 
 {$I 'PE.Types.Relocations.inc'} // Include constants.
 

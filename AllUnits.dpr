@@ -48,8 +48,8 @@ uses
   PE.Types.Sections in 'PE.Types.Sections.pas',
   PE.Types.TLS in 'PE.Types.TLS.pas',
   PE.Utils in 'PE.Utils.pas',
-  VDLib.RBTree in 'VDLib.RBTree.pas',
-  PE.ExecutableLoader in 'PE.ExecutableLoader.pas';
+  PE.ExecutableLoader in 'PE.ExecutableLoader.pas',
+  PE.Regions in 'PE.Regions.pas';
 
 begin
 end.

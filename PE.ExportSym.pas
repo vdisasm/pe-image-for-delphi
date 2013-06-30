@@ -1,3 +1,6 @@
+{
+    PE Exported symbols are case-sensitive.
+}
 unit PE.ExportSym;
 
 interface

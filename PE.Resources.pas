@@ -10,7 +10,7 @@ uses
   System.Generics.Collections,
   System.SysUtils,
 
-  VDLib.RBTree,
+  gRBTree,
 
   PE.Common,
   PE.Types.Resources;

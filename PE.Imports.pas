@@ -8,7 +8,7 @@ uses
   PE.Common,
   PE.Imports.Func,
   PE.Imports.Lib,
-  VDLib.RBTree;
+  gRBTree;
 
 type
   TPEImports = class
