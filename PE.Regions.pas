@@ -17,7 +17,7 @@ type
     RK_STR_1BYTE,     // 1 byte string
     RK_STR_2BYTE,     // 2 byte string
     RK_PE = 100,      //
-    RK_SEC_VSIZE,     //
+    RK_SEC_VSIZE,     // section virtual data
     RK_DOS_HEADER,    //
     RK_DOS_BLOCK,     //
     RK_IDT,           // Import Directory Table
