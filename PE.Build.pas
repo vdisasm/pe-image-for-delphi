@@ -59,6 +59,7 @@ var
   sec: TPESection;
   dir: TImageDataDirectory;
   prognoseRVA, destRVA: TRVA;
+  destMem: Pointer;
   destSize: uint32;
 begin
   Result := nil;
@@ -129,8 +130,11 @@ begin
           builder.Build(destRVA, stream);
         end;
 
+      // Get address where data of built directory should reside.
+      destMem := img.RVAToMem(destRVA);
+
       // Move built data to section.
-      Move(stream.Memory^, sec.Mem^, stream.Size);
+      Move(stream.Memory^, destMem^, stream.Size);
     end
     else
     begin
