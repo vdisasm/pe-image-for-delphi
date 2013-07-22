@@ -127,7 +127,7 @@ begin
   for s in PE.Sections do
   begin
     StreamSeekWithPadding(AStream, s.RawOffset);
-    AStream.Write(s.Mem^, s.RawSize);
+    AStream.Write(s.Mem^, Min(s.RawSize, s.VirtualSize));
   end;
 end;
 
