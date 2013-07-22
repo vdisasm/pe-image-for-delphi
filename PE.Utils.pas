@@ -13,6 +13,9 @@ function StreamWrite(AStream: TStream; const Buf; Count: longint): boolean; inli
 // Read 0-terminated 1-byte string.
 function StreamReadStringA(AStream: TStream; var S: RawByteString): boolean;
 
+// Write Count of zero bytes to stream.
+procedure WritePadding(AStream: TStream; Count: uint32);
+
 function StreamSeek(AStream: TStream; Offset: TFileOffset): boolean; inline;
 
 // Try to seek Offset and insert padding if Offset < stream Size.
@@ -66,30 +69,36 @@ begin
   exit(False);
 end;
 
+procedure WritePadding(AStream: TStream; Count: uint32);
+var
+  p: pointer;
+begin
+  if Count <> 0 then
+  begin
+    p := AllocMem(Count);
+    try
+      AStream.Write(p^, Count);
+    finally
+      FreeMem(p);
+    end;
+  end;
+end;
+
 function StreamSeek(AStream: TStream; Offset: TFileOffset): boolean;
 begin
   Result := AStream.Seek(Offset, TSeekOrigin.soBeginning) = Offset;
 end;
 
 procedure StreamSeekWithPadding(AStream: TStream; Offset: TFileOffset);
-var
-  d: Integer;
-  p: pointer;
 begin
   if Offset <= AStream.Size then
   begin
     AStream.Seek(Offset, TSeekOrigin.soBeginning);
     exit;
   end;
-  // Insert padding.
+  // Insert padding if need.
   AStream.Seek(AStream.Size, TSeekOrigin.soBeginning);
-  d := Offset - AStream.Size; // delta
-  p := AllocMem(d);
-  try
-    AStream.Write(p^, d);
-  finally
-    FreeMem(p);
-  end;
+  WritePadding(AStream, Offset - AStream.Size);
 end;
 
 { Min / Max }
