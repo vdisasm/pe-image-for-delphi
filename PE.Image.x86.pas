@@ -19,11 +19,21 @@ type
     // Find relative jump or call in section, e.g e8,x,x,x,x or e9,x,x,x,x.
     // List must be created before passing it to the function.
     // Found VAs will be appended to list.
-    function FindRelativeJumpInternal(Sec: TPESection; ByteOpcode: Byte;
-      TargetVA: TVA; List: TList<TVA>): Boolean;
+    function FindRelativeJumpInternal(
+      const Sec: TPESection;
+      ByteOpcode: Byte;
+      TargetVA: TVA;
+      const List: TList<TVA>): Boolean;
   public
-    function FindRelativeJump(Sec: TPESection; TargetVA: TVA; List: TList<TVA>): Boolean;
-    function FindRelativeCall(Sec: TPESection; TargetVA: TVA; List: TList<TVA>): Boolean;
+    function FindRelativeJump(
+      const Sec: TPESection;
+      TargetVA: TVA;
+      const List: TList<TVA>): Boolean;
+
+    function FindRelativeCall(
+      const Sec: TPESection;
+      TargetVA: TVA;
+      const List: TList<TVA>): Boolean;
 
     // Fill Count bytes at VA with nops (0x90).
     // Result is number of nops written.
@@ -42,20 +52,27 @@ const
 
   { TPEImageX86 }
 
-function TPEImageX86.FindRelativeCall(Sec: TPESection; TargetVA: TVA;
-  List: TList<TVA>): Boolean;
+function TPEImageX86.FindRelativeCall(
+  const Sec: TPESection;
+  TargetVA: TVA;
+  const List: TList<TVA>): Boolean;
 begin
   Result := FindRelativeJumpInternal(Sec, OPCODE_CALL_REL, TargetVA, List);
 end;
 
-function TPEImageX86.FindRelativeJump(Sec: TPESection; TargetVA: TVA;
-  List: TList<TVA>): Boolean;
+function TPEImageX86.FindRelativeJump(
+  const Sec: TPESection;
+  TargetVA: TVA;
+  const List: TList<TVA>): Boolean;
 begin
   Result := FindRelativeJumpInternal(Sec, OPCODE_JUMP_REL, TargetVA, List);
 end;
 
-function TPEImageX86.FindRelativeJumpInternal(Sec: TPESection; ByteOpcode: Byte;
-  TargetVA: TVA; List: TList<TVA>): Boolean;
+function TPEImageX86.FindRelativeJumpInternal(
+  const Sec: TPESection;
+  ByteOpcode: Byte;
+  TargetVA: TVA;
+  const List: TList<TVA>): Boolean;
 var
   curVa, va0, va1, tstVa: TVA;
   delta: int32;
