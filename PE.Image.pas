@@ -1126,6 +1126,8 @@ end;
 
 function TPEImage.LoadFromStream(AStream: TStream; AParseStages: TParserFlags;
   ImageKind: TPEImageKind): boolean;
+const
+  PE_HEADER_ALIGN = 4;
 var
   OptHdrOfs, SecHdrOfs, SecHdrEndOfs, SecDataOfs: TFileOffset;
   SecHdrGapSize: integer;
@@ -1145,9 +1147,9 @@ begin
   if not LoadDosHeader(AStream, FDosHeader) then
     exit; // dos header failed
 
-  if (FDosHeader.e_lfanew mod 8) <> 0 then
+  if (FDosHeader.e_lfanew mod PE_HEADER_ALIGN) <> 0 then
   begin
-    Msg.Write('PE header is not 8-byte aligned.');
+    Msg.Write('PE header is not properly aligned.');
     exit;
   end;
 
