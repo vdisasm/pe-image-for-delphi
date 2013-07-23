@@ -2,6 +2,10 @@ unit PE.Utils;
 
 interface
 
+// When writing padding use PADDINGX string instead of zeros.
+{$DEFINE WRITE_PADDING_STRING}
+
+
 uses
   System.Classes,
   PE.Common;
@@ -70,12 +74,24 @@ begin
 end;
 
 procedure WritePadding(AStream: TStream; Count: uint32);
+{$IFDEF WRITE_PADDING_STRING}
+const
+  sPadding: array [0 .. 7] of char = ('P', 'A', 'D', 'D', 'I', 'N', 'G', 'X');
 var
-  p: pointer;
+  i: Integer;
+{$ENDIF}
+var
+  p: pbyte;
 begin
   if Count <> 0 then
   begin
+{$IFDEF WRITE_PADDING_STRING}
+    GetMem(p, Count);
+    for i := 0 to Count - 1 do
+      p[i] := byte(sPadding[i mod Length(sPadding)]);
+{$ELSE}
     p := AllocMem(Count);
+{$ENDIF}
     try
       AStream.Write(p^, Count);
     finally
