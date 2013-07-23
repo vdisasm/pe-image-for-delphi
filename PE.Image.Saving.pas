@@ -123,11 +123,26 @@ end;
 procedure DoSecData(PE: TPEImage; AStream: TStream);
 var
   s: TPESection;
+  SizeToWrite: uint32;
+  PaddingSize: uint32;
 begin
   for s in PE.Sections do
   begin
     StreamSeekWithPadding(AStream, s.RawOffset);
-    AStream.Write(s.Mem^, Min(s.RawSize, s.VirtualSize));
+
+    if s.RawSize > s.VirtualSize then
+    begin
+      SizeToWrite := s.VirtualSize;
+      PaddingSize := s.RawSize - s.VirtualSize;
+    end
+    else
+    begin
+      SizeToWrite := s.RawSize;
+      PaddingSize := 0;
+    end;
+
+    AStream.Write(s.Mem^, SizeToWrite);
+    WritePadding(AStream, PaddingSize);
   end;
 end;
 
