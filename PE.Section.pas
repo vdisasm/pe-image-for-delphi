@@ -34,7 +34,7 @@ type
 
     destructor Destroy; override;
 
-    function GetAllocatedSize: uint32;
+    function GetAllocatedSize: uint32; inline;
 
     // Set section values from Section Header.
     // Allocate memory for section data.
@@ -79,6 +79,7 @@ type
     property Flags: uint32 read FFlags write FFlags;
     property Mem: PByte read GetMemPtr;
     property ImageSectionHeader: TImageSectionHeader read GetImageSectionHeader;
+    property AllocatedSize: UInt32 read GetAllocatedSize;
   end;
 
   PPESection = ^TPESection;
