@@ -60,12 +60,11 @@ type
 implementation
 
 uses
-  // Expand
+  System.SysUtils,
+
   PE.Types.FileHeader,
   PE.Utils,
   PE.Sections,
-
-  System.SysUtils,
 
   PE.Imports,
   PE.Imports.Func,
@@ -129,7 +128,7 @@ begin
     Result := d2;
 end;
 
-{ TDLL }
+{ TExecutableModule }
 
 function TExecutableModule.Check(const Desc: string; var rslt: TMapStatus;
   ms: TMapStatus): boolean;
