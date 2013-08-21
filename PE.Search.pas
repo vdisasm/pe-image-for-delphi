@@ -14,6 +14,9 @@ uses
   * Each byte of AMask is AND'ed with source byte and compared to pattern.
   * AMask can be smaller than APattern (or empty), but cannot be bigger.
   *
+  * ADirection can be negative or positive to choose search direction.
+  * If it is 0 the only match checked.
+  *
   * Example:
   *
   *              AA ?? BB should be represented like:
@@ -29,7 +32,8 @@ function SearchBytes(
   const ASection: TPESection;
   const APattern: array of byte;
   const AMask: array of byte;
-  var AOffset: UInt32
+  var AOffset: UInt32;
+  ADirection: Integer
   ): boolean;
 
 implementation
@@ -39,14 +43,19 @@ var
   pSrc: PByte;
   Mask: byte;
   LastOffset: UInt32;
-  i: integer;
-  MaskLeft: integer;
+  i: Integer;
+  MaskLeft: Integer;
 begin
   if Length(APattern) = 0 then
     Exit(False);
 
   if (AOffset + Length(APattern)) > ASection.AllocatedSize then
     Exit(False);
+
+  if ADirection < 0 then
+    ADirection := -1
+  else if ADirection > 0 then
+    ADirection := 1;
 
   pSrc := @ASection.Mem[AOffset];
   LastOffset := ASection.AllocatedSize - Length(APattern);
@@ -72,11 +81,13 @@ begin
         dec(MaskLeft);
     end;
 
-    if Result then
+    // Break if: found/no direction/at lower bound.
+    if (Result) or (ADirection = 0) or ((ADirection < 0) and (AOffset = 0)) then
       break;
 
-    inc(AOffset);
-    inc(pSrc);
+    // Next address/offset.
+    inc(AOffset, ADirection);
+    inc(pSrc, ADirection);
   end;
 end;
 
