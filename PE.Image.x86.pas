@@ -39,8 +39,18 @@ type
     // Result is number of nops written.
     function Nop(VA: TVA; Count: integer = 1): UInt32;
 
+    // Nop range.
+    // BeginVA: inclusive
+    // EndVA: exclusive
+    function NopRange(BeginVA, EndVA: TVA): UInt32; inline;
+
     // Nop Call or Jump.
     function NopCallOrJump(VA: TVA): Boolean;
+
+    // Write call or jump, like:
+    // E8/E9 xx xx xx xx
+    // IsCall: True - call, False - jump.
+    function WriteRelCallOrJump(SrcVA, DstVA: TVA; IsCall: Boolean): Boolean;
   end;
 
 implementation
@@ -117,9 +127,36 @@ begin
   Result := Sections.FillMemory(VAToRVA(VA), Count, OPCODE_NOP);
 end;
 
+function TPEImageX86.NopRange(BeginVA, EndVA: TVA): UInt32;
+begin
+  if EndVA > BeginVA then
+    Result := Nop(BeginVA, EndVA - BeginVA)
+  else
+    Result := 0;
+end;
+
 function TPEImageX86.NopCallOrJump(VA: TVA): Boolean;
 begin
   Result := Sections.FillMemoryEx(VAToRVA(VA), 5, True, OPCODE_NOP) = 5;
+end;
+
+function TPEImageX86.WriteRelCallOrJump(SrcVA, DstVA: TVA; IsCall: Boolean): Boolean;
+type
+  TJump = packed record
+    Opcode: Byte;
+    delta: integer;
+  end;
+var
+  jmp: TJump;
+
+begin
+  if IsCall then
+    jmp.Opcode := OPCODE_CALL_REL
+  else
+    jmp.Opcode := OPCODE_JUMP_REL;
+  jmp.delta := DstVA - (SrcVA + SizeOf(TJump));
+  self.PositionVA := SrcVA;
+  Result := self.WriteEx(@jmp, SizeOf(TJump));
 end;
 
 end.
