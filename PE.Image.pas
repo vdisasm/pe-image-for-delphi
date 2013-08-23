@@ -210,6 +210,7 @@ type
 
     // Write Count bytes from Buffer to current position.
     function Write(Buffer: Pointer; Count: cardinal): uint32; overload;
+    function WriteEx(Buffer: Pointer; Count: cardinal): boolean; overload; inline;
 
     { Address conversions }
 
@@ -1036,6 +1037,11 @@ begin
     exit(Count);
   end;
   exit(0);
+end;
+
+function TPEImage.WriteEx(Buffer: Pointer; Count: cardinal): boolean;
+begin
+  Result := Write(Buffer, Count) = Count;
 end;
 
 function TPEImage.RVAToMem(RVA: TRVA): Pointer;
