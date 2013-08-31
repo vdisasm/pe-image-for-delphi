@@ -1,7 +1,7 @@
 {
   Unified Optional Header.
   Represents both 32 and 64 bit.
-  Directories not includes.
+  Directories not included.
 }
 
 unit PE.Headers;
@@ -250,7 +250,7 @@ function TPEOptionalHeader.ReadFromStream;
 var
   ctx: TPECtx;
 begin
-  // Not all fields can be read, so must clear all structure.
+  // Not all fields can be read, so must clear whole structure.
   FillChar(Self, SizeOf(Self), 0);
 
   ctx.ImageBits := ImageBits;
