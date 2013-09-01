@@ -26,6 +26,15 @@ type
     msEntryPointFailure
     );
 
+  TExecutableLoadingOption = (
+    elo_CallEntryPoint
+    );
+
+  TExecutableLoadingOptions = set of TExecutableLoadingOption;
+
+const
+  DEFAULT_OPTIONS = [elo_CallEntryPoint];
+
 type
   TEXEEntry = procedure(); stdcall;
   TDLLEntry = function(hInstDLL: HINST; fdwReason: DWORD; lpvReserved: LPVOID): BOOL; stdcall;
@@ -35,6 +44,7 @@ type
   TExecutableModule = class
   private
     FPE: TPEImage;
+    FOptions: TExecutableLoadingOptions;
     FInstance: NativeUInt;
     FEntry: Pointer;
     FSizeOfImage: UInt32;
@@ -53,7 +63,10 @@ type
 
     function IsImageMapped: boolean; inline;
 
-    function Load(PrefferedVa: UInt64 = 0): TMapStatus;
+    function Load(
+      PrefferedVa: UInt64 = 0;
+      Options: TExecutableLoadingOptions = DEFAULT_OPTIONS): TMapStatus;
+
     function Unload: boolean;
   end;
 
@@ -323,14 +336,16 @@ begin
           pDst := PCardinal(FInstance + Reloc.RVA);
           inc(pDst^, Delta);
         end;
-      else
-        raise Exception.CreateFmt('Unsupported relocation type: %d', [Reloc.&Type]);
+    else
+      raise Exception.CreateFmt('Unsupported relocation type: %d', [Reloc.&Type]);
     end;
   end;
   Result := msOK;
 end;
 
-function TExecutableModule.Load(PrefferedVa: UInt64): TMapStatus;
+function TExecutableModule.Load(
+  PrefferedVa: UInt64;
+  Options: TExecutableLoadingOptions): TMapStatus;
 var
   EntryOK: boolean;
 begin
@@ -339,16 +354,24 @@ begin
 
   Result := msError;
 
+  FOptions := Options;
+
   if
     Check('Map Sections', Result, MapSections(PrefferedVa)) and
     Check('Fix Relocation', Result, Relocate()) and
     Check('Fix Imports', Result, LoadImports) and
     Check('Protect Sections', Result, ProtectSections()) then
   begin
-    FEntry := Pointer(FInstance + FPE.EntryPointRVA);
+    if FPE.EntryPointRVA = 0 then
+      FEntry := nil
+    else
+      FEntry := Pointer(FInstance + FPE.EntryPointRVA);
 
-    // Call Entry Point.
-    if FPE.IsDLL then
+    // If don't need to call entry or there is no entry just skip this part
+    if (not Assigned(FEntry)) or (not(elo_CallEntryPoint in FOptions)) then
+      EntryOK := True
+      // Call Entry Point.
+    else if FPE.IsDLL then
     begin
       FPE.Msg.Write('Calling DLL Entry with DLL_PROCESS_ATTACH.');
       EntryOK := TDLLEntry(FEntry)(FInstance, DLL_PROCESS_ATTACH, nil);
@@ -377,13 +400,15 @@ begin
   if not IsImageMapped then
     exit(True);
 
-  // DLL finalization.
-  if @FEntry <> nil then
+  if (elo_CallEntryPoint in FOptions) and Assigned(FEntry) then
+  begin
+    // DLL finalization.
     if FPE.IsDLL then
     begin
       FPE.Msg.Write('Calling DLL Entry with DLL_PROCESS_DETACH.');
       TDLLEntry(FEntry)(FInstance, DLL_PROCESS_DETACH, nil);
     end;
+  end;
 
   // Unload imported libraries.
   UnloadImports;
