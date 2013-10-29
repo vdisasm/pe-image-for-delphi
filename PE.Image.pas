@@ -1153,10 +1153,21 @@ begin
   if not LoadDosHeader(AStream, FDosHeader) then
     exit; // dos header failed
 
+  if (FDosHeader.e_lfanew = 0) then
+  begin
+    Msg.Write('This is probably 16-bit executable.');
+    exit;
+  end;
+
   if (FDosHeader.e_lfanew mod PE_HEADER_ALIGN) <> 0 then
   begin
     Msg.Write('PE header is not properly aligned.');
     exit;
+  end;
+
+  if (FDosHeader.e_lfanew < SizeOf(TImageDOSHeader)) then
+  begin
+    Msg.Write('DOS header e_lfanew points into itself.');
   end;
 
   // Check if e_lfanew is ok
