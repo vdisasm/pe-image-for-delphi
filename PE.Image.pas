@@ -46,7 +46,8 @@ uses
   PE.COFF,
   PE.COFF.Types,
 
-  PE.MemoryStream;
+  PE.MemoryStream,
+  PE.ProcessModuleStream;
 
 type
 
@@ -286,9 +287,13 @@ type
     function LoadFromFile(const AFileName: string;
       AParseStages: TParserFlags = DEFAULT_PARSER_FLAGS): boolean;
 
-    // Load image from image in memory. Won't help if image in memory has
-    // spoiled headers.
+    // Load PE image from image in memory of current process.
+    // Won't help if image in memory has spoiled headers.
     function LoadFromMappedImage(const AFileName: string;
+      AParseStages: TParserFlags = DEFAULT_PARSER_FLAGS): boolean;
+
+    // Load PE image from running process.
+    function LoadFromProcessImage(ProcessId: DWORD; ModuleBase: NativeUInt;
       AParseStages: TParserFlags = DEFAULT_PARSER_FLAGS): boolean;
 
     { Saving }
@@ -1128,6 +1133,19 @@ function TPEImage.LoadFromMappedImage(const AFileName: string;
 begin
   FPEMemoryStream := TPEMemoryStream.Create(AFileName);
   Result := LoadFromStream(FPEMemoryStream, AParseStages, PEIMAGE_KIND_MEMORY);
+end;
+
+function TPEImage.LoadFromProcessImage(ProcessId: DWORD; ModuleBase: NativeUInt;
+  AParseStages: TParserFlags): boolean;
+var
+  Stream: TProcessModuleStream;
+begin
+  Stream := TProcessModuleStream.Create(ProcessId, ModuleBase);
+  try
+    Result := LoadFromStream(Stream, AParseStages, PEIMAGE_KIND_MEMORY);
+  finally
+    Stream.Free;
+  end;
 end;
 
 function TPEImage.LoadFromStream(AStream: TStream; AParseStages: TParserFlags;
