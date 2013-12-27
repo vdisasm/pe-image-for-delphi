@@ -50,17 +50,26 @@ begin
   else
     NameOrdSize := 8;
 
-  // reserve space for import descriptors
-  sOfs := sizeof(TImportDirectoryTable) * (FPE.Imports.Count + 1);
-  ofsILT := sOfs;
+  // calc import layout:
   ofsDIR := 0;
+  ofsILT := 0;
+  sOfs := 0;
 
-  // calc size for import names|ordinals
   for Lib in FPE.Imports.LibsByName do
+  begin
+    inc(ofsDIR, sizeof(TImportDirectoryTable));
     for fn in Lib.Functions.FunctionsByRVA do
-      inc(sOfs, NameOrdSize);
-  // one last (empty) item
-  inc(sOfs, NameOrdSize);
+      inc(ofsILT, NameOrdSize);
+    // one last (empty) item
+    inc(ofsILT, NameOrdSize);
+  end;
+
+  inc(ofsDIR, sizeof(TImportDirectoryTable));
+
+  // set base values
+  sOfs := ofsDIR + ofsILT;
+  ofsILT := ofsDIR;
+  ofsDIR := 0;
 
   Stream.Size := sOfs;
 
