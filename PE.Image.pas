@@ -10,7 +10,6 @@ uses
   PE.Common,
   PE.Headers,
   PE.DataDirectories,
-  PE.Regions,
 
   PE.Msg,
   PE.Utils,
@@ -47,7 +46,9 @@ uses
   PE.COFF.Types,
 
   PE.MemoryStream,
-  PE.ProcessModuleStream;
+  PE.ProcessModuleStream,
+
+  PE.ParserCallbacks;
 
 type
 
@@ -59,6 +60,7 @@ type
   private
     FImageKind: TPEImageKind;
     FParseStages: TParserFlags;
+    FParseCallbacks: IPEParserCallbacks;
 
     // Used only for loading from mapped image. Nil for disk images.
     FPEMemoryStream: TPEMemoryStream;
@@ -138,11 +140,6 @@ type
     // If it's memory mapped, nothing happens.
     procedure SourceStreamFree(Stream: TStream);
 
-  protected
-
-    // Called on region parsed.
-    procedure DoRegionParsed(RVA: TRVA; Size: integer; Kind: TRegionKind); virtual;
-
   public
 
     // Create without message proc.
@@ -169,9 +166,6 @@ type
     // Get image bitness. 32/64 or 0 if unknown.
     function GetImageBits: UInt16; inline;
     procedure SetImageBits(Value: UInt16);
-
-    // Parsers must call it to declare new regions.
-    procedure RegionParsed(RVA: TRVA; Size: integer; Kind: TRegionKind); inline;
 
     { PE Streaming }
 
@@ -355,6 +349,8 @@ type
     property Msg: TMsgMgr read FMsg;
 
     property Defaults: TPEDefaults read FDefaults;
+
+    property ParseCallbacks: IPEParserCallbacks read FParseCallbacks write FParseCallbacks;
 
     // Current read/write position.
     property PositionRVA: TRVA read FPositionRVA write SetPositionRVA;
@@ -546,11 +542,6 @@ begin
   raise Exception.Create('Read Error.');
 end;
 
-procedure TPEImage.DoRegionParsed(RVA: TRVA; Size: integer; Kind: TRegionKind);
-begin
-  // override this
-end;
-
 function TPEImage.DumpRegionToFile(const AFileName: string; RVA: TRVA;
   Size: uint32): uint32;
 var
@@ -718,8 +709,6 @@ begin
   for i := 0 to FSections.Count - 1 do
   begin
     Sec := FSections[i];
-
-    RegionParsed(Sec.RVA, Sec.VirtualSize, RK_SEC_VSIZE);
 
     if FImageKind = PEIMAGE_KIND_DISK then
     begin
@@ -931,12 +920,6 @@ begin
   SetLength(Result, Len);
   for i := 1 to Len do
     Read(@Result[i], 2);
-end;
-
-procedure TPEImage.RegionParsed(RVA: TRVA; Size: integer; Kind: TRegionKind);
-begin
-  if PF_REGIONS in FParseStages then
-    DoRegionParsed(RVA, Size, Kind);
 end;
 
 procedure TPEImage.RegionRemove(RVA: TRVA; Size: uint32);
@@ -1281,9 +1264,6 @@ begin
 
   // Now base headers loaded.
   // Define regions loaded before.
-
-  RegionParsed(0, SizeOf(TImageDOSHeader), RK_DOS_HEADER);
-  RegionParsed(SizeOf(TImageDOSHeader), FDosHeader.e_lfanew - SizeOf(TImageDOSHeader), RK_DOS_BLOCK);
 
   // Execute parsers.
   if AParseStages <> [] then

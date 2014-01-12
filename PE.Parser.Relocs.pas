@@ -32,6 +32,8 @@ var
   Ofs: dword;
   reloc: TReloc;
   PE: TPEImage;
+var
+  tmpRVA: TRVA;
 begin
   PE := TPEImage(FPE);
   PE.Relocs.Clear;
@@ -44,15 +46,26 @@ begin
     exit(PR_ERROR);
 
   Ofs := 0;
-  while (Ofs < rlDir.Size) and (PE.ReadEx(@block, sizeof(block))) and (not block.IsEmpty) do
+  while (Ofs < rlDir.Size) do
   begin
-    inc(Ofs, sizeof(block));
-    blCnt := block.BlocksCount;
+    tmpRVA := PE.PositionRVA;
+
+    if (not PE.ReadEx(@block, SizeOf(block))) then
+      break;
+
+    if Assigned(PE.ParseCallbacks) then
+      PE.ParseCallbacks.ParsedRelocationBlockHeader(tmpRVA, block);
+
+    if block.IsEmpty then
+      break;
+
+    inc(Ofs, SizeOf(block));
+    blCnt := block.Count;
     for iBlock := 0 to blCnt - 1 do
     begin
-      if not PE.ReadEx(@entry, sizeof(entry)) then
+      if not PE.ReadEx(@entry, SizeOf(entry)) then
         exit(PR_ERROR);
-      inc(Ofs, sizeof(entry));
+      inc(Ofs, SizeOf(entry));
       r_type := entry.GetType;
       r_ofs := entry.GetOffset;
       r_rva := r_ofs + block.PageRVA;

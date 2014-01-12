@@ -49,7 +49,7 @@ uses
   PE.Types.TLS in 'PE.Types.TLS.pas',
   PE.Utils in 'PE.Utils.pas',
   PE.ExecutableLoader in 'PE.ExecutableLoader.pas',
-  PE.Regions in 'PE.Regions.pas';
+  PE.ParserCallbacks in 'PE.ParserCallbacks.pas';
 
 begin
 end.

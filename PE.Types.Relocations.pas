@@ -22,7 +22,10 @@ type
     // Page RVA and Block Size fields and the Type/Offset fields that follow.
     BlockSize: UInt32;
 
-    function BlocksCount: integer; inline;
+    // Get count of relocation elements (entries).
+    function Count: integer; inline;
+
+    // Check if this block's size:0 or rva:0.
     function IsEmpty: Boolean; inline;
   end;
 
@@ -64,7 +67,7 @@ type
 
     // Add non-existing item, or update existing item.
     procedure Put(const Value: TReloc); overload;
-    procedure Put(RVA: TRVA; &Type: Integer); overload;
+    procedure Put(RVA: TRVA; &Type: integer); overload;
 
     // Result is True if reloc was found and removed.
     function Remove(RVA: TRVA): Boolean;
@@ -79,10 +82,9 @@ uses
 
 { TBaseRelocationBlock }
 
-function TBaseRelocationBlock.BlocksCount: integer;
+function TBaseRelocationBlock.Count: integer;
 begin
-  result := (BlockSize - SizeOf(TBaseRelocationBlock))
-    div SizeOf(TBaseRelocationEntry);
+  result := (BlockSize - SizeOf(TBaseRelocationBlock)) div SizeOf(TBaseRelocationEntry);
 end;
 
 function TBaseRelocationBlock.IsEmpty: Boolean;
@@ -141,7 +143,7 @@ end;
 constructor TRelocs.Create;
 begin
   FItems := TRelocTree.Create(
-    function(const A, B: TReloc): boolean
+    function(const A, B: TReloc): Boolean
     begin
       result := A.RVA < B.RVA;
     end);
@@ -180,7 +182,7 @@ begin
   Exit(@p^.K);
 end;
 
-procedure TRelocs.Put(RVA: TRVA; &Type: Integer);
+procedure TRelocs.Put(RVA: TRVA; &Type: integer);
 var
   r: TReloc;
 begin
