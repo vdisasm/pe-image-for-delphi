@@ -25,12 +25,12 @@ function delayed_02: integer; external 'samplelib' delayed index 120 name 'delay
 var
   img: TPEImage;
   Lib: TPEImportLibrary;
-  pair: TPair<TRVA, TPEImportFunction>;
+  fn: TPEImportFunction;
 
 begin
   ReportMemoryLeaksOnShutdown := True;
 
-  // Force delay loaded imports.
+  // Force linking of delay loaded imports into this exe.
   delayed_01;
   delayed_02;
 
@@ -41,9 +41,9 @@ begin
     for Lib in img.ImportsDelayed.LibsByName do
     begin
       writeln(Lib.Name);
-      for pair in Lib.Functions.FunctionsByRVA do
+      for fn in Lib.Functions.FunctionsByRVA.Values do
         writeln(format('  va: 0x%x "%s" ordinal %d', [
-          img.RVAToVA(pair.Value.RVA), pair.Value.Name, pair.Value.Ordinal]));
+          img.RVAToVA(fn.RVA), fn.Name, fn.Ordinal]));
     end;
 
     readln;
