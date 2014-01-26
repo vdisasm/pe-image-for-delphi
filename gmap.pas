@@ -38,11 +38,53 @@ type
       constructor Create(const Map: TMap<TKey, TValue>);
     end;
 
+    TKeyEnumerator = class(TEnumerator<TKey>)
+    private
+      FPairEnum: TPairEnumerator;
+    protected
+      function DoGetCurrent: TKey; override;
+      function DoMoveNext: boolean; override;
+    public
+      constructor Create(const Map: TMap<TKey, TValue>);
+      destructor Destroy; override;
+    end;
+
+    TValueEnumerator = class(TEnumerator<TValue>)
+    private
+      FPairEnum: TPairEnumerator;
+    protected
+      function DoGetCurrent: TValue; override;
+      function DoMoveNext: boolean; override;
+    public
+      constructor Create(const Map: TMap<TKey, TValue>);
+      destructor Destroy; override;
+    end;
+
+    TKeyCollection = class(TEnumerable<TKey>)
+    private
+      FMap: TMap<TKey, TValue>;
+    protected
+      function DoGetEnumerator: TEnumerator<TKey>; override;
+    public
+      constructor Create(Map: TMap<TKey, TValue>);
+    end;
+
+    TValueCollection = class(TEnumerable<TValue>)
+    private
+      FMap: TMap<TKey, TValue>;
+    protected
+      function DoGetEnumerator: TEnumerator<TValue>; override;
+    public
+      constructor Create(Map: TMap<TKey, TValue>);
+    end;
+
   private
     FKeyComparer: TCompareLess;
     FItems: TItemTree;
     FOnKeyNotify: TCollectionNotifyEvent<TKey>;
     FOnValueNotify: TCollectionNotifyEvent<TValue>;
+    FKeyCollection: TKeyCollection;
+    FValueCollection: TValueCollection;
     class function CompareItem(const A, B: TItem): boolean; static; inline;
 
     // Add new Key-Value pair or update existing Key with Value.
@@ -58,6 +100,9 @@ type
 
     procedure ItemTreeNotify(Sender: TObject; const Item: TItem;
       Action: TCollectionNotification);
+
+    function GetKeys: TKeyCollection;
+    function GetValues: TValueCollection;
   protected
     function DoGetEnumerator: TEnumerator<TPair<TKey, TValue>>; override;
   public
@@ -78,6 +123,8 @@ type
     function LastValue: TValue; inline;
 
     property Items[const Key: TKey]: TValue read Get write &Set; default;
+    property Keys: TKeyCollection read GetKeys;
+    property Values: TValueCollection read GetValues;
     property Count: integer read GetCount;
     property OnKeyNotify: TCollectionNotifyEvent<TKey> read FOnKeyNotify write FOnKeyNotify;
     property OnValueNotify: TCollectionNotifyEvent<TValue> read FOnValueNotify write FOnValueNotify;
@@ -112,6 +159,8 @@ end;
 
 destructor TMap<TKey, TValue>.Destroy;
 begin
+  FKeyCollection.Free;
+  FValueCollection.Free;
   FItems.Free;
   inherited;
 end;
@@ -160,6 +209,20 @@ end;
 function TMap<TKey, TValue>.GetCount: integer;
 begin
   Result := FItems.Count;
+end;
+
+function TMap<TKey, TValue>.GetKeys: TKeyCollection;
+begin
+  if FKeyCollection = nil then
+    FKeyCollection := TKeyCollection.Create(self);
+  Result := FKeyCollection;
+end;
+
+function TMap<TKey, TValue>.GetValues: TValueCollection;
+begin
+  if FValueCollection = nil then
+    FValueCollection := TValueCollection.Create(self);
+  Result := FValueCollection;
 end;
 
 procedure TMap<TKey, TValue>.ItemTreeNotify(Sender: TObject; const Item: TItem;
@@ -241,6 +304,77 @@ begin
     Exit(True);
   end;
   Result := FMap.FItems.Next(FNode);
+end;
+
+{ TMap<TKey, TValue>.TKeyCollection }
+
+constructor TMap<TKey, TValue>.TKeyCollection.Create(Map: TMap<TKey, TValue>);
+begin
+  FMap := Map;
+end;
+
+function TMap<TKey, TValue>.TKeyCollection.DoGetEnumerator: TEnumerator<TKey>;
+begin
+  Result := TKeyEnumerator.Create(FMap);
+end;
+
+{ TMap<TKey, TValue>.TValueCollection }
+
+constructor TMap<TKey, TValue>.TValueCollection.Create(Map: TMap<TKey, TValue>);
+begin
+  FMap := Map;
+end;
+
+function TMap<TKey, TValue>.TValueCollection.DoGetEnumerator: TEnumerator<TValue>;
+begin
+  Result := TValueEnumerator.Create(FMap);
+end;
+
+{ TMap<TKey, TValue>.TKeyEnumerator }
+
+constructor TMap<TKey, TValue>.TKeyEnumerator.Create(
+  const Map: TMap<TKey, TValue>);
+begin
+  FPairEnum := TPairEnumerator.Create(Map);
+end;
+
+destructor TMap<TKey, TValue>.TKeyEnumerator.Destroy;
+begin
+  FPairEnum.Free;
+  inherited;
+end;
+
+function TMap<TKey, TValue>.TKeyEnumerator.DoGetCurrent: TKey;
+begin
+  Result := FPairEnum.DoGetCurrent.Key;
+end;
+
+function TMap<TKey, TValue>.TKeyEnumerator.DoMoveNext: boolean;
+begin
+  Result := FPairEnum.DoMoveNext;
+end;
+
+{ TMap<TKey, TValue>.TValueEnumerator }
+
+constructor TMap<TKey, TValue>.TValueEnumerator.Create(const Map: TMap<TKey, TValue>);
+begin
+  FPairEnum := TPairEnumerator.Create(Map);
+end;
+
+destructor TMap<TKey, TValue>.TValueEnumerator.Destroy;
+begin
+  FPairEnum.Free;
+  inherited;
+end;
+
+function TMap<TKey, TValue>.TValueEnumerator.DoGetCurrent: TValue;
+begin
+  Result := FPairEnum.DoGetCurrent.Value;
+end;
+
+function TMap<TKey, TValue>.TValueEnumerator.DoMoveNext: boolean;
+begin
+  Result := FPairEnum.DoMoveNext;
 end;
 
 end.
