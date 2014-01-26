@@ -33,8 +33,11 @@ type
     // Find library by name (first occurrence). Result is nil if not found.
     function FindLib(const LibName: AnsiString): TPEImportLibrary;
 
-    // Add new import function.
-    procedure AddNew(RVA: TRVA; const LibName, FuncName: AnsiString; Ordinal: uint16 = 0);
+    // Add new import function (by IAT RVA).
+    procedure AddNew(RVA: TRVA;
+      const LibName: AnsiString; Fn: TPEImportFunction); overload;
+    procedure AddNew(RVA: TRVA;
+      const LibName, FuncName: AnsiString; Ordinal: uint16 = 0); overload; inline;
 
     property LibsByName: TLibTree read FLibsByName;
   end;
@@ -51,11 +54,10 @@ begin
   FLibsByName.Add(Lib);
 end;
 
-procedure TPEImports.AddNew(RVA: TRVA; const LibName, FuncName: AnsiString;
-  Ordinal: uint16);
+procedure TPEImports.AddNew(RVA: TRVA; const LibName: AnsiString;
+  Fn: TPEImportFunction);
 var
   Lib: TPEImportLibrary;
-  Func: TPEImportFunction;
 begin
   Lib := FindLib(LibName);
   if Lib = nil then
@@ -63,8 +65,13 @@ begin
     Lib := TPEImportLibrary.Create(LibName);
     Add(Lib);
   end;
-  Func := TPEImportFunction.Create(RVA, FuncName, Ordinal);
-  Lib.Functions.Add(Func);
+  Lib.Functions.Add(Fn);
+end;
+
+procedure TPEImports.AddNew(RVA: TRVA; const LibName, FuncName: AnsiString;
+  Ordinal: uint16);
+begin
+  AddNew(RVA, LibName, TPEImportFunction.Create(RVA, FuncName, Ordinal));
 end;
 
 procedure TPEImports.Clear;

@@ -9,6 +9,7 @@ interface
 uses
   System.Generics.Collections,
   WinApi.Windows,
+  PE.Common,
   PE.Image;
 
 type
@@ -216,7 +217,7 @@ end;
 function TExecutableModule.LoadImports: TMapStatus;
 var
   ImpLib: TPEImportLibrary;
-  ImpFn: TPEImportFunction;
+  ImpFnPair: TPair<TRVA, TPEImportFunction>;
   ImpLibName, ImpFnName: AnsiString;
   s: string;
   hmod: HMODULE;
@@ -256,14 +257,14 @@ begin
       FLoadedImports.Add(ImpLibName, hmod);
 
     // Process import functions.
-    for ImpFn in ImpLib.Functions.FunctionsByRVA do
+    for ImpFnPair in ImpLib.Functions.FunctionsByRVA do
     begin
       // Find imported function.
 
       // By Name.
-      if ImpFn.Name <> '' then
+      if ImpFnPair.Value.Name <> '' then
       begin
-        ImpFnName := ImpFn.Name;
+        ImpFnName := ImpFnPair.Value.Name;
         proc := GetProcAddress(hmod, PAnsiChar(ImpFnName));
         if proc = nil then
         begin
@@ -274,16 +275,16 @@ begin
       else
       // By Ordinal.
       begin
-        proc := GetProcAddress(hmod, PAnsiChar(ImpFn.Ordinal));
+        proc := GetProcAddress(hmod, PAnsiChar(ImpFnPair.Value.Ordinal));
         if proc = nil then
         begin
-          FPE.Msg.Write('Imported ordinal "%d" not found.', [ImpFn.Ordinal]);
+          FPE.Msg.Write('Imported ordinal "%d" not found.', [ImpFnPair.Value.Ordinal]);
           exit(msImportOrdinalNotFound);
         end;
       end;
 
       // Patch.
-      va := FInstance + ImpFn.RVA;
+      va := FInstance + ImpFnPair.Value.RVA;
       if FPE.Is32bit then
         PUINT(va)^ := UInt32(proc)
       else if FPE.Is64bit then

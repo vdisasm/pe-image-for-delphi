@@ -38,6 +38,7 @@ uses
   PE.Parser.Headers,
   PE.Parser.Export,
   PE.Parser.Import,
+  PE.Parser.ImportDelayed,
   PE.Parser.Relocs,
   PE.Parser.TLS,
   PE.Parser.Resources,
@@ -68,6 +69,8 @@ type
     FFileName: string;
     FFileSize: UInt64;
     FDefaults: TPEDefaults;
+    FImageBitSize: byte;  // 32/64
+    FImageWordSize: byte; // 4/8
 
     FCOFF: TCOFF;
 
@@ -81,7 +84,8 @@ type
 
     FSections: TPESections;
     FRelocs: TRelocs;
-    FImports: TPEImports;
+    FImports: TPEImports;        // of TPEImportFunction
+    FImportsDelayed: TPEImports; // of TPEImportFunctionDelayed
     FExports: TPEExportSyms;
     FExportedName: AnsiString;
     FTLS: TTLS;
@@ -175,9 +179,15 @@ type
 
     // Read Count bytes to Buffer and return number of bytes read.
     function Read(Buffer: Pointer; Count: cardinal): uint32; overload;
+    function Read(var Buffer; Size: cardinal): uint32; overload; inline;
 
     // Read Count bytes to Buffer and return True if all bytes were read.
     function ReadEx(Buffer: Pointer; Count: cardinal): boolean; overload; inline;
+    function ReadEx(var Buffer; Size: cardinal): boolean; overload; inline;
+
+    // Read 1/2/4/8-sized word.
+    // If WordSize is 0 size native to image is used (4 for PE32, 8 for PE64).
+    function ReadWord(WordSize: byte = 0): UInt64;
 
     // Skip Count bytes.
     procedure Skip(Count: integer);
@@ -350,6 +360,9 @@ type
 
     property Defaults: TPEDefaults read FDefaults;
 
+    property ImageBitSize: byte read FImageBitSize;
+    property ImageWordSize: byte read FImageWordSize;
+
     property ParseCallbacks: IPEParserCallbacks read FParseCallbacks write FParseCallbacks;
 
     // Current read/write position.
@@ -380,6 +393,7 @@ type
 
     // Import items.
     property Imports: TPEImports read FImports;
+    property ImportsDelayed: TPEImports read FImportsDelayed;
 
     // Export items.
     property ExportSyms: TPEExportSyms read FExports;
@@ -490,6 +504,7 @@ begin
   FRelocs := TRelocs.Create;
 
   FImports := TPEImports.Create;
+  FImportsDelayed := TPEImports.Create;
 
   FExports := TPEExportSyms.Create;
 
@@ -518,6 +533,7 @@ begin
   FDataDirectories.Clear;
   FSections.Clear;
   FImports.Clear;
+  FImportsDelayed.Clear;
   FExports.Clear;
   FTLS.Clear;
   FResourceTree.Clear;
@@ -530,6 +546,7 @@ begin
   FTLS.Free;
   FExports.Free;
   FImports.Free;
+  FImportsDelayed.Free;
   FRelocs.Free;
   FSections.Free;
   FDataDirectories.Free;
@@ -596,6 +613,7 @@ procedure TPEImage.InitParsers;
 begin
   FParsers[PF_EXPORT] := TPEExportParser;
   FParsers[PF_IMPORT] := TPEImportParser;
+  FParsers[PF_IMPORT_DELAYED] := TPEImportDelayedParser;
   FParsers[PF_RELOCS] := TPERelocParser;
   FParsers[PF_TLS] := TPETLSParser;
   FParsers[PF_RESOURCES] := TPEResourcesParser;
@@ -799,14 +817,7 @@ end;
 
 function TPEImage.GetImageBits: UInt16;
 begin
-  case FOptionalHeader.Magic of
-    PE_MAGIC_PE32:
-      Result := 32;
-    PE_MAGIC_PE32PLUS:
-      Result := 64;
-  else
-    Result := 0;
-  end;
+  Result := FImageBitSize;
 end;
 
 function TPEImage.GetImageDOSHeader: PImageDOSHeader;
@@ -827,6 +838,8 @@ begin
       raise Exception.Create('Value unsupported.');
     end;
   end;
+  FImageBitSize := Value;
+  FImageWordSize := Value div 8;
 end;
 
 procedure TPEImage.SetPositionRVA(const Value: TRVA);
@@ -922,6 +935,23 @@ begin
     Read(@Result[i], 2);
 end;
 
+function TPEImage.ReadWord(WordSize: byte): UInt64;
+begin
+  case WordSize of
+    0:
+      WordSize := FImageWordSize;
+    1, 2, 4, 8:
+      ; // allowed size
+  else
+    raise Exception.Create('Unsupported word size for ReadWord');
+  end;
+
+  Result := 0;
+
+  if Read(Result, WordSize) <> WordSize then
+    raise Exception.Create('Read error');
+end;
+
 procedure TPEImage.RegionRemove(RVA: TRVA; Size: uint32);
 begin
   // Currently it's just placeholder.
@@ -938,10 +968,20 @@ begin
     Result := Result + AnsiChar(B);
 end;
 
+function TPEImage.Read(var Buffer; Size: cardinal): uint32;
+begin
+  Result := Read(@Buffer, Size);
+end;
+
 function TPEImage.ReadANSIString(out Value: RawByteString): RawByteString;
 begin
   Value := ReadANSIString;
   Result := Value;
+end;
+
+function TPEImage.ReadEx(var Buffer; Size: cardinal): boolean;
+begin
+  Result := ReadEx(@Buffer, Size);
 end;
 
 function TPEImage.ReadUInt8: UInt8;
@@ -1255,6 +1295,22 @@ begin
     // Read data directories from current pos top SecHdrOfs.
     FDataDirectories.LoadFromStream(AStream, Msg, AStream.Position, SecHdrOfs,
       FOptionalHeader.NumberOfRvaAndSizes);
+  end;
+
+  // Set some helper fields.
+  case FOptionalHeader.Magic of
+    PE_MAGIC_PE32:
+      begin
+        FImageBitSize := 32;
+        FImageWordSize := 4;
+      end;
+    PE_MAGIC_PE32PLUS:
+      begin
+        FImageBitSize := 64;
+        FImageWordSize := 8;
+      end
+  else
+    raise Exception.Create('Image type is unknown.');
   end;
 
   Result := True;

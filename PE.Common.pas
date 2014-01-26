@@ -33,7 +33,15 @@ type
 
   TFileOffset = type UInt64;
 
-  TParserFlag = (PF_EXPORT, PF_IMPORT, PF_RELOCS, PF_TLS, PF_RESOURCES);
+  TParserFlag = (
+    PF_EXPORT,
+    PF_IMPORT,
+    PF_IMPORT_DELAYED,
+    PF_RELOCS,
+    PF_TLS,
+    PF_RESOURCES
+    );
+
   TParserFlags = set of TParserFlag;
 
   TPEImageObject = TObject; // Meant to cast TObject -> TPEImage
@@ -43,7 +51,9 @@ const
   DEFAULT_SECTOR_SIZE          = 512;
   DEFAULT_PAGE_SIZE            = 4096;
 
-  ALL_PARSER_FLAGS     = [PF_EXPORT, PF_IMPORT, PF_RELOCS, PF_TLS, PF_RESOURCES];
+  ALL_PARSER_FLAGS = [PF_EXPORT, PF_IMPORT, PF_IMPORT_DELAYED, PF_RELOCS,
+    PF_TLS, PF_RESOURCES];
+
   DEFAULT_PARSER_FLAGS = ALL_PARSER_FLAGS;
 
   // Data directories.

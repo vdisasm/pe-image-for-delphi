@@ -27,11 +27,9 @@ uses
 
 { TPEImportParser }
 
-function ReadGoodILTItem(PE: TPEImage; var dq: uint64): boolean;
+function ReadGoodILTItem(PE: TPEImage; var dq: uint64): boolean; inline;
 begin
-  dq := 0;
-  if not PE.ReadEx(@dq, PE.ImageBits div 8) then
-    exit(false);
+  dq := PE.ReadWord;
   Result := dq <> 0;
 end;
 
@@ -55,8 +53,6 @@ var
   Lib: TPEImportLibrary;
   PE: TPEImage;
   LibraryName: RawByteString;
-var
-  tmpRVA: TRVA;
 begin
   PE := TPEImage(FPE);
 
@@ -82,7 +78,6 @@ begin
     // Read import descriptors.
     while true do
     begin
-      tmpRVA := PE.PositionRVA;
       // Read IDir.
       if not PE.ReadEx(@IDir, sizeof(IDir)) then
         exit;
@@ -98,7 +93,6 @@ begin
       ILTs.Clear;
 
       // Read library name.
-      tmpRVA := PE.PositionRVA;
       if (not PE.SeekRVA(IDir.NameRVA)) or
         (PE.ReadANSIString(LibraryName) = '') then
       begin

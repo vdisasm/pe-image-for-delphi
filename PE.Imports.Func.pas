@@ -6,7 +6,7 @@ uses
   System.Generics.Collections,
   System.SysUtils,
   PE.Common,
-  gRBTree;
+  gmap;
 
 type
   TPEImportFunction = class
@@ -24,17 +24,17 @@ type
     constructor Create(RVA: TRVA; const Name: AnsiString; Ordinal: uint16 = 0);
   end;
 
-  PPEImportFunction = ^TPEImportFunction;
+  TPEImportFunctionDelayed = class(TPEImportFunction)
+  public
+  end;
 
   TPEImportFunctions = class
   private type
-    TFuncTree = TRBTree<TPEImportFunction>;
+    TFuncTree = TMap<TRVA, TPEImportFunction>;
   private
     FFunctionsByRVA: TFuncTree;
-    procedure ImportFunctionNotify(Sender: TObject; const Item: TPEImportFunction;
+    procedure ImportFunctionValueNotify(Sender: TObject; const Item: TPEImportFunction;
       Action: TCollectionNotification);
-    function FindInternal(Tree: TFuncTree; Key: TPEImportFunction):
-      TPEImportFunction; inline;
   public
     constructor Create;
     destructor Destroy; override;
@@ -78,7 +78,7 @@ end;
 
 procedure TPEImportFunctions.Add(const Func: TPEImportFunction);
 begin
-  FFunctionsByRVA.Add(Func);
+  FFunctionsByRVA.Add(Func.RVA, Func);
 end;
 
 function TPEImportFunctions.Count: integer;
@@ -91,11 +91,11 @@ begin
   inherited Create;
 
   FFunctionsByRVA := TFuncTree.Create(
-    function(const A, B: TPEImportFunction): Boolean
+    function(const A, B: TRVA): Boolean
     begin
-      Result := A.RVA < B.RVA;
+      Result := A < B;
     end);
-  FFunctionsByRVA.OnNotify := ImportFunctionNotify;
+  FFunctionsByRVA.OnValueNotify := ImportFunctionValueNotify;
 end;
 
 destructor TPEImportFunctions.Destroy;
@@ -106,25 +106,10 @@ end;
 
 function TPEImportFunctions.FindByRVA(RVA: TRVA): TPEImportFunction;
 begin
-  Result := FindInternal(FFunctionsByRVA, TPEImportFunction.Create(RVA, ''));
+  FFunctionsByRVA.TryGetValue(RVA, Result);
 end;
 
-function TPEImportFunctions.FindInternal(Tree: TFuncTree;
-Key: TPEImportFunction): TPEImportFunction;
-var
-  ptr: TFuncTree.TRBNodePtr;
-begin
-  try
-    ptr := Tree.Find(Key);
-    if ptr = nil then
-      exit(nil);
-    Result := ptr^.K;
-  finally
-    Key.Free;
-  end;
-end;
-
-procedure TPEImportFunctions.ImportFunctionNotify(Sender: TObject;
+procedure TPEImportFunctions.ImportFunctionValueNotify(Sender: TObject;
 const Item: TPEImportFunction; Action: TCollectionNotification);
 begin
   if Action = cnRemoved then

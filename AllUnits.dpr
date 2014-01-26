@@ -49,7 +49,9 @@ uses
   PE.Types.TLS in 'PE.Types.TLS.pas',
   PE.Utils in 'PE.Utils.pas',
   PE.ExecutableLoader in 'PE.ExecutableLoader.pas',
-  PE.ParserCallbacks in 'PE.ParserCallbacks.pas';
+  PE.ParserCallbacks in 'PE.ParserCallbacks.pas',
+  PE.Types.ImportsDelayed in 'PE.Types.ImportsDelayed.pas',
+  PE.Parser.ImportDelayed in 'PE.Parser.ImportDelayed.pas';
 
 begin
 end.

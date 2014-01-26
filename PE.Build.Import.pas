@@ -4,6 +4,8 @@ interface
 
 uses
   System.Classes,
+  System.Generics.Collections,
+
   PE.Common,
   PE.Section,
   PE.Build.Common;
@@ -37,7 +39,7 @@ var
   ofsDIR: uint32;
   NameOrdSize: byte;
   Lib: TPEImportLibrary;
-  fn: TPEImportFunction;
+  fnPair: TPair<TRVA, TPEImportFunction>;
   strA: AnsiString;
   dq: UInt64;
   hint: word;
@@ -45,10 +47,7 @@ begin
   if FPE.Imports.Count = 0 then
     exit;
 
-  if FPE.Is32bit then
-    NameOrdSize := 4
-  else
-    NameOrdSize := 8;
+  NameOrdSize := FPE.ImageWordSize;
 
   // calc import layout:
   ofsDIR := 0;
@@ -58,7 +57,7 @@ begin
   for Lib in FPE.Imports.LibsByName do
   begin
     inc(ofsDIR, sizeof(TImportDirectoryTable));
-    for fn in Lib.Functions.FunctionsByRVA do
+    for fnPair in Lib.Functions.FunctionsByRVA do
       inc(ofsILT, NameOrdSize);
     // one last (empty) item
     inc(ofsILT, NameOrdSize);
@@ -83,7 +82,7 @@ begin
     IDir.ForwarderChain := 0;
     IDir.NameRVA := DirRVA + sOfs;
     if Lib.Functions.Count > 0 then
-      IDir.ImportAddressTable := Lib.Functions.FunctionsByRVA.First.K.RVA
+      IDir.ImportAddressTable := Lib.Functions.FunctionsByRVA.FirstKey
     else
       IDir.ImportAddressTable := 0;
     Stream.Write(IDir, sizeof(TImportDirectoryTable));
@@ -98,10 +97,10 @@ begin
     inc(sOfs, Length(strA));
 
     // write import names/ords
-    for fn in Lib.Functions.FunctionsByRVA do
+    for fnPair in Lib.Functions.FunctionsByRVA do
     begin
       Stream.Seek(ofsILT, TSeekOrigin.soBeginning);
-      if fn.Name <> '' then
+      if fnPair.Value.Name <> '' then
       begin
         // by name
         // ofs of name
@@ -113,7 +112,7 @@ begin
         hint := 0;
         Stream.Write(hint, 2);
         // name
-        strA := fn.Name + #0;
+        strA := fnPair.Value.Name + #0;
         if Length(strA) mod 2 <> 0 then
           strA := strA + #0;
         Stream.Write(strA[1], Length(strA));
@@ -122,7 +121,7 @@ begin
       else
       begin
         // by ordinal
-        dq := fn.Ordinal;
+        dq := fnPair.Value.Ordinal;
         if FPE.Is32bit then
           dq := dq or $80000000
         else

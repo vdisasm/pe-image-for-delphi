@@ -139,6 +139,8 @@
         <DCCReference Include="PE.Utils.pas"/>
         <DCCReference Include="PE.ExecutableLoader.pas"/>
         <DCCReference Include="PE.ParserCallbacks.pas"/>
+        <DCCReference Include="PE.Types.ImportsDelayed.pas"/>
+        <DCCReference Include="PE.Parser.ImportDelayed.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
