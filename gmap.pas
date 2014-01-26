@@ -1,6 +1,7 @@
 {
   Generic Key-Value Map class. Items are ordered by Key.
 }
+
 unit gmap;
 
 interface
@@ -40,6 +41,8 @@ type
   private
     FKeyComparer: TCompareLess;
     FItems: TItemTree;
+    FOnKeyNotify: TCollectionNotifyEvent<TKey>;
+    FOnValueNotify: TCollectionNotifyEvent<TValue>;
     class function CompareItem(const A, B: TItem): boolean; static; inline;
 
     // Add new Key-Value pair or update existing Key with Value.
@@ -52,6 +55,9 @@ type
     function FindNodePtr(const Key: TKey): TItemTree.TRBNodePtr; inline;
 
     function GetCount: integer; inline;
+
+    procedure ItemTreeNotify(Sender: TObject; const Item: TItem;
+      Action: TCollectionNotification);
   protected
     function DoGetEnumerator: TEnumerator<TPair<TKey, TValue>>; override;
   public
@@ -65,8 +71,16 @@ type
     function TryGetValue(const Key: TKey; out Value: TValue): boolean;
     procedure Remove(const Key: TKey);
 
+    function FirstKey: TKey; inline;
+    function FirstValue: TValue; inline;
+
+    function LastKey: TKey; inline;
+    function LastValue: TValue; inline;
+
     property Items[const Key: TKey]: TValue read Get write &Set; default;
     property Count: integer read GetCount;
+    property OnKeyNotify: TCollectionNotifyEvent<TKey> read FOnKeyNotify write FOnKeyNotify;
+    property OnValueNotify: TCollectionNotifyEvent<TValue> read FOnValueNotify write FOnValueNotify;
   end;
 
 implementation
@@ -93,6 +107,7 @@ begin
   inherited Create;
   FKeyComparer := Comparer;
   FItems := TItemTree.Create(CompareItem);
+  FItems.OnNotify := ItemTreeNotify;
 end;
 
 destructor TMap<TKey, TValue>.Destroy;
@@ -111,6 +126,26 @@ begin
   Result := FItems.Find(TItem.Create(Key, Default (TValue), self));
 end;
 
+function TMap<TKey, TValue>.FirstKey: TKey;
+begin
+  Result := FItems.First.K.Pair.Key;
+end;
+
+function TMap<TKey, TValue>.FirstValue: TValue;
+begin
+  Result := FItems.First.K.Pair.Value;
+end;
+
+function TMap<TKey, TValue>.LastKey: TKey;
+begin
+  Result := FItems.Last.K.Pair.Key;
+end;
+
+function TMap<TKey, TValue>.LastValue: TValue;
+begin
+  Result := FItems.Last.K.Pair.Value;
+end;
+
 function TMap<TKey, TValue>.Get(const Key: TKey): TValue;
 var
   Ptr: TItemTree.TRBNodePtr;
@@ -125,6 +160,15 @@ end;
 function TMap<TKey, TValue>.GetCount: integer;
 begin
   Result := FItems.Count;
+end;
+
+procedure TMap<TKey, TValue>.ItemTreeNotify(Sender: TObject; const Item: TItem;
+  Action: TCollectionNotification);
+begin
+  if Assigned(FOnKeyNotify) then
+    FOnKeyNotify(self, Item.Pair.Key, Action);
+  if Assigned(FOnValueNotify) then
+    FOnValueNotify(self, Item.Pair.Value, Action);
 end;
 
 procedure TMap<TKey, TValue>.Remove(const Key: TKey);
