@@ -88,6 +88,7 @@ function TPEImportDelayedParser.Parse: TParserResult;
 var
   PE: TPEImage;
   ddir: TImageDataDirectory;
+  ofs: integer;
   Table: TDelayLoadDirectoryTable;
   Tables: TList<TDelayLoadDirectoryTable>;
   Funcs: TFuncs;
@@ -110,8 +111,18 @@ begin
   try
 
     // Delay-load dir. table.
+    ofs := 0;
     while PE.ReadEx(Table, SizeOf(Table)) and (not Table.IsEmpty) do
+    begin
+      if ofs > ddir.Size then
+      begin
+        // If tables overflow size of whole directory, it must be corrupted
+        // (probably by protector).
+        Exit(PR_ERROR);
+      end;
       Tables.Add(Table);
+      inc(ofs, SizeOf(Table));
+    end;
 
     if Tables.Count = 0 then
       Exit;
