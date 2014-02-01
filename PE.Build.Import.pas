@@ -5,6 +5,7 @@ interface
 uses
   System.Classes,
   System.Generics.Collections,
+  System.SysUtils,
 
   PE.Common,
   PE.Section,
@@ -39,7 +40,7 @@ var
   ofsDIR: uint32;
   NameOrdSize: byte;
   Lib: TPEImportLibrary;
-  fnPair: TPair<TRVA, TPEImportFunction>;
+  fn: TPEImportFunction;
   strA: AnsiString;
   dq: UInt64;
   hint: word;
@@ -57,7 +58,7 @@ begin
   for Lib in FPE.Imports.LibsByName do
   begin
     inc(ofsDIR, sizeof(TImportDirectoryTable));
-    for fnPair in Lib.Functions.FunctionsByRVA do
+    for fn in Lib.Functions.FunctionsByRVA.Values do
       inc(ofsILT, NameOrdSize);
     // one last (empty) item
     inc(ofsILT, NameOrdSize);
@@ -76,7 +77,7 @@ begin
   for Lib in FPE.Imports.LibsByName do
   begin
     // write IDT
-    Stream.Seek(ofsDIR, TSeekOrigin.soBeginning);
+    Stream.Position := ofsDIR;
     IDir.ImportLookupTableRVA := DirRVA + ofsILT;
     IDir.TimeDateStamp := 0;
     IDir.ForwarderChain := 0;
@@ -89,7 +90,7 @@ begin
     inc(ofsDIR, sizeof(TImportDirectoryTable));
 
     // write dll name
-    Stream.Seek(sOfs, TSeekOrigin.soBeginning);
+    Stream.Position := sOfs;
     strA := Lib.Name + #0;
     if Length(strA) mod 2 <> 0 then
       strA := strA + #0;
@@ -97,48 +98,60 @@ begin
     inc(sOfs, Length(strA));
 
     // write import names/ords
-    for fnPair in Lib.Functions.FunctionsByRVA do
+    for fn in Lib.Functions.FunctionsByRVA.Values do
     begin
-      Stream.Seek(ofsILT, TSeekOrigin.soBeginning);
-      if fnPair.Value.Name <> '' then
+      Stream.Position := ofsILT;
+
+      if fn.Name <> '' then
       begin
         // by name
-        // ofs of name
         dq := DirRVA + sOfs;
         Stream.Write(dq, NameOrdSize);
-        // hint/name
-        Stream.Seek(sOfs, TSeekOrigin.soBeginning);
-        // hint
-        hint := 0;
-        Stream.Write(hint, 2);
-        // name
-        strA := fnPair.Value.Name + #0;
-        if Length(strA) mod 2 <> 0 then
-          strA := strA + #0;
-        Stream.Write(strA[1], Length(strA));
-        inc(sOfs, sizeof(hint) + Length(strA));
       end
       else
       begin
         // by ordinal
-        dq := fnPair.Value.Ordinal;
+        dq := fn.Ordinal;
         if FPE.Is32bit then
           dq := dq or $80000000
         else
           dq := dq or $8000000000000000;
         Stream.Write(dq, NameOrdSize);
       end;
+
+      // iat (write same value; Windows loader changes this value with real
+      // address in LdrpSnapModule).
+      if fn.RVA <> 0 then
+      begin
+        FPE.PositionRVA := fn.RVA;
+        if not FPE.WriteEx(dq, NameOrdSize) then
+          raise Exception.Create('Write error.');
+      end;
+
+      if fn.Name <> '' then
+      begin
+        Stream.Position := sOfs;
+        // hint
+        hint := 0;
+        Stream.Write(hint, 2);
+        // name
+        strA := fn.Name + #0;
+        if Length(strA) mod 2 <> 0 then
+          strA := strA + #0;
+        Stream.Write(strA[1], Length(strA));
+        inc(sOfs, sizeof(hint) + Length(strA));
+      end;
       inc(ofsILT, NameOrdSize);
     end;
     // write empty name/ord
     dq := 0;
-    Stream.Seek(ofsILT, TSeekOrigin.soBeginning);
+    Stream.Position := ofsILT;
     Stream.Write(dq, NameOrdSize);
     inc(ofsILT, NameOrdSize);
   end;
 
   // last empty descriptor
-  Stream.Seek(ofsDIR, TSeekOrigin.soBeginning);
+  Stream.Position := ofsDIR;
   IDir.Clear;
   Stream.Write(IDir, sizeof(TImportDirectoryTable));
 end;
