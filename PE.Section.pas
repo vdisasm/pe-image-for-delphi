@@ -68,8 +68,11 @@ type
     function ContainRVA(RVA: TRVA): boolean; inline;
     function GetEndRVA: TRVA; inline;
     function GetEndRawOffset: uint32; inline;
+    function GetLastRVA: TRVA; inline;
 
     function IsNameSafe: boolean;
+
+    function IsCode: boolean; inline;
 
     property Name: AnsiString read FName write FName;
     property VirtualSize: uint32 read FVSize;
@@ -174,6 +177,11 @@ begin
   Result := Self.RVA + Self.VirtualSize;
 end;
 
+function TPESection.GetLastRVA: TRVA;
+begin
+  Result := Self.RVA + Self.VirtualSize - 1;
+end;
+
 function TPESection.GetImageSectionHeader: TImageSectionHeader;
 var
   i: integer;
@@ -201,6 +209,11 @@ end;
 function TPESection.GetEndRawOffset: uint32;
 begin
   Result := Self.FRawOffset + Self.FRawSize;
+end;
+
+function TPESection.IsCode: boolean;
+begin
+  Result := (Flags and IMAGE_SCN_CNT_CODE) <> 0;
 end;
 
 function TPESection.IsNameSafe: boolean;
