@@ -252,6 +252,10 @@ type
     // Convert VA to RVA.
     function VAToRVA(VA: TVA): TRVA; inline;
 
+    // Check if RVA/VA belongs to image.
+    function ContainsRVA(RVA: TRVA): boolean; inline;
+    function ContainsVA(VA: TVA): boolean; inline;
+
     { Image }
 
     // Clear image.
@@ -542,6 +546,18 @@ begin
   FExports.Clear;
   FTLS.Clear;
   FResourceTree.Clear;
+end;
+
+function TPEImage.ContainsRVA(RVA: TRVA): boolean;
+begin
+  if FSections.Count = 0 then
+    raise Exception.Create('Image contains no sections.');
+  Result := (RVA >= FSections.First.RVA) and (RVA < FSections.Last.GetEndRVA);
+end;
+
+function TPEImage.ContainsVA(VA: TVA): boolean;
+begin
+  Result := ContainsRVA(VAToRVA(VA));
 end;
 
 destructor TPEImage.Destroy;
