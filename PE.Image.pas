@@ -297,7 +297,9 @@ type
     // Load PE image from image in memory of current process.
     // Won't help if image in memory has spoiled headers.
     function LoadFromMappedImage(const AFileName: string;
-      AParseStages: TParserFlags = DEFAULT_PARSER_FLAGS): boolean;
+      AParseStages: TParserFlags = DEFAULT_PARSER_FLAGS): boolean; overload;
+    function LoadFromMappedImage(ModuleBase: NativeUInt;
+      AParseStages: TParserFlags = DEFAULT_PARSER_FLAGS): boolean; overload;
 
     // Load PE image from running process.
     function LoadFromProcessImage(ProcessId: DWORD; ModuleBase: NativeUInt;
@@ -1168,6 +1170,13 @@ function TPEImage.LoadFromMappedImage(const AFileName: string;
   AParseStages: TParserFlags): boolean;
 begin
   FPEMemoryStream := TPEMemoryStream.Create(AFileName);
+  Result := LoadFromStream(FPEMemoryStream, AParseStages, PEIMAGE_KIND_MEMORY);
+end;
+
+function TPEImage.LoadFromMappedImage(ModuleBase: NativeUInt;
+  AParseStages: TParserFlags): boolean;
+begin
+  FPEMemoryStream := TPEMemoryStream.Create(ModuleBase);
   Result := LoadFromStream(FPEMemoryStream, AParseStages, PEIMAGE_KIND_MEMORY);
 end;
 

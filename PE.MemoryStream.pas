@@ -17,11 +17,16 @@ type
     FModuleToUnload: HMODULE; // needed if forced module loading.
     FModuleFileName: string;
     FModuleSize: uint32;
+  private
+    procedure CreateFromModulePtr(ModulePtr: Pointer);
   public
     // Create stream from module in current process.
     // If module is not found exception raise.
     // To force loading module set ForceLoadingModule to True.
-    constructor Create(const ModuleName: string; ForceLoadingModule: boolean = False);
+    constructor Create(const ModuleName: string; ForceLoadingModule: boolean = False); overload;
+
+    // Create from moduly by known base address.
+    constructor Create(ModuleBase: NativeUInt); overload;
 
     destructor Destroy; override;
 
@@ -39,30 +44,45 @@ uses
 
 { TDLLStream }
 
+procedure TPEMemoryStream.CreateFromModulePtr(ModulePtr: Pointer);
+begin
+  if ModulePtr = nil then
+    raise Exception.CreateFmt('Module "%s" not found in address space',
+      [FModuleFileName]);
+
+  FModuleSize := TPEMemoryStream.GetModuleImageSize(ModulePtr);
+
+  SetPointer(ModulePtr, FModuleSize);
+end;
+
 constructor TPEMemoryStream.Create(const ModuleName: string;
   ForceLoadingModule: boolean);
 var
-  FModulePtr: pointer;
+  FModulePtr: Pointer;
 begin
   inherited Create;
   FModuleFileName := ModuleName;
 
-  FModulePtr := pointer(GetModuleHandle(PChar(ModuleName)));
+  FModulePtr := Pointer(GetModuleHandle(PChar(ModuleName)));
   FModuleToUnload := 0;
 
   if (FModulePtr = nil) and (ForceLoadingModule) then
   begin
     FModuleToUnload := LoadLibrary(PChar(ModuleName));
-    FModulePtr := pointer(FModuleToUnload);
+    FModulePtr := Pointer(FModuleToUnload);
   end;
 
-  if FModulePtr = nil then
-    raise Exception.CreateFmt('Module "%s" not found in address space',
-      [ModuleName]);
+  CreateFromModulePtr(FModulePtr);
+end;
 
-  FModuleSize := TPEMemoryStream.GetModuleImageSize(FModulePtr);
+constructor TPEMemoryStream.Create(ModuleBase: NativeUInt);
+begin
+  inherited Create;
+  FModuleFileName := GetModuleName(ModuleBase);
 
-  SetPointer(FModulePtr, FModuleSize);
+  FModuleToUnload := 0; // we didn't load it and won't free it
+
+  CreateFromModulePtr(Pointer(ModuleBase));
 end;
 
 destructor TPEMemoryStream.Destroy;

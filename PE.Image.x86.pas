@@ -14,6 +14,10 @@ uses
   PE.Section;
 
 type
+  // Buf points to data which should be matched.
+  // Set MatchedSize to size matched sequence. If nothing matched don't set it.
+  TPatternMatchFunc = reference to procedure(VA: TVA; Buf: PByte; var MatchedSize: integer);
+
   TPEImageX86 = class(TPEImage)
   protected
     // Find relative jump or call in section, e.g e8,x,x,x,x or e9,x,x,x,x.
@@ -23,17 +27,17 @@ type
       const Sec: TPESection;
       ByteOpcode: Byte;
       TargetVA: TVA;
-      const List: TList<TVA>): Boolean;
+      const List: TList<TVA>): boolean;
   public
     function FindRelativeJump(
       const Sec: TPESection;
       TargetVA: TVA;
-      const List: TList<TVA>): Boolean;
+      const List: TList<TVA>): boolean;
 
     function FindRelativeCall(
       const Sec: TPESection;
       TargetVA: TVA;
-      const List: TList<TVA>): Boolean;
+      const List: TList<TVA>): boolean;
 
     // Fill Count bytes at VA with nops (0x90).
     // Result is number of nops written.
@@ -45,12 +49,25 @@ type
     function NopRange(BeginVA, EndVA: TVA): UInt32; inline;
 
     // Nop Call or Jump.
-    function NopCallOrJump(VA: TVA): Boolean;
+    function NopCallOrJump(VA: TVA): boolean;
 
     // Write call or jump, like:
     // E8/E9 xx xx xx xx
     // IsCall: True - call, False - jump.
-    function WriteRelCallOrJump(SrcVA, DstVA: TVA; IsCall: Boolean): Boolean;
+    function WriteRelCallOrJump(SrcVA, DstVA: TVA; IsCall: boolean): boolean;
+
+    // Perform custom pattern matching scan for Sec section.
+    // All found addresses are stored in List (if it is not nil, otherwise
+    // user must handle it manually).
+    // PatternMatchFunc function used to match pattern.
+    // VA0, Size define range (optional). Whole section is scanned by default.
+    function ScanRange(
+      const Sec: TPESection;
+      PatternMatchFunc: TPatternMatchFunc;
+      const List: TList<TVA> = nil;
+      VA: TVA = 0;
+      Size: integer = 0
+      ): boolean;
   end;
 
 implementation
@@ -65,7 +82,7 @@ const
 function TPEImageX86.FindRelativeCall(
   const Sec: TPESection;
   TargetVA: TVA;
-  const List: TList<TVA>): Boolean;
+  const List: TList<TVA>): boolean;
 begin
   Result := FindRelativeJumpInternal(Sec, OPCODE_CALL_REL, TargetVA, List);
 end;
@@ -73,7 +90,7 @@ end;
 function TPEImageX86.FindRelativeJump(
   const Sec: TPESection;
   TargetVA: TVA;
-  const List: TList<TVA>): Boolean;
+  const List: TList<TVA>): boolean;
 begin
   Result := FindRelativeJumpInternal(Sec, OPCODE_JUMP_REL, TargetVA, List);
 end;
@@ -82,21 +99,21 @@ function TPEImageX86.FindRelativeJumpInternal(
   const Sec: TPESection;
   ByteOpcode: Byte;
   TargetVA: TVA;
-  const List: TList<TVA>): Boolean;
+  const List: TList<TVA>): boolean;
 var
-  curVa, va0, va1, tstVa: TVA;
+  curVa, VA0, VA1, tstVa: TVA;
   delta: int32;
   opc: Byte;
 begin
   Result := False;
 
-  va0 := RVAToVA(Sec.RVA);
-  va1 := RVAToVA(Sec.GetEndRVA - SizeOf(ByteOpcode) - SizeOf(delta));
+  VA0 := RVAToVA(Sec.RVA);
+  VA1 := RVAToVA(Sec.GetEndRVA - SizeOf(ByteOpcode) - SizeOf(delta));
 
-  if not SeekVA(va0) then
+  if not SeekVA(VA0) then
     exit(False);
 
-  while self.PositionVA <= va1 do
+  while self.PositionVA <= VA1 do
   begin
     curVa := self.PositionVA;
 
@@ -135,12 +152,53 @@ begin
     Result := 0;
 end;
 
-function TPEImageX86.NopCallOrJump(VA: TVA): Boolean;
+function TPEImageX86.ScanRange(
+  const Sec: TPESection;
+  PatternMatchFunc: TPatternMatchFunc;
+  const List: TList<TVA>;
+  VA: TVA;
+  Size: integer): boolean;
+var
+  Buf: PByte;
+  MatchedSize: integer;
+begin
+  // Define range.
+  if VA = 0 then
+    VA := RVAToVA(Sec.RVA);
+  if Size = 0 then
+    Size := Sec.VirtualSize;
+
+  // Start scan at VA0.
+  Buf := self.VAToMem(VA);
+  if Buf = nil then
+    exit(False); // such address not found
+
+  while Size > 0 do
+  begin
+    MatchedSize := 0;
+    PatternMatchFunc(VA, Buf, MatchedSize);
+    if MatchedSize <> 0 then
+    begin
+      if Assigned(List) then
+        List.Add(VA);
+    end
+    else
+      MatchedSize := 1;
+
+    inc(Buf, MatchedSize);
+    inc(VA, MatchedSize);
+    dec(Size, MatchedSize);
+  end;
+
+  exit(True);
+end;
+
+function TPEImageX86.NopCallOrJump(VA: TVA): boolean;
 begin
   Result := Sections.FillMemoryEx(VAToRVA(VA), 5, True, OPCODE_NOP) = 5;
 end;
 
-function TPEImageX86.WriteRelCallOrJump(SrcVA, DstVA: TVA; IsCall: Boolean): Boolean;
+function TPEImageX86.WriteRelCallOrJump(SrcVA, DstVA: TVA; IsCall: boolean): boolean;
 type
   TJump = packed record
     Opcode: Byte;
