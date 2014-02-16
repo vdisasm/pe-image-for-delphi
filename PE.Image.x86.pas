@@ -15,8 +15,10 @@ uses
 
 type
   // Buf points to data which should be matched.
-  // Set MatchedSize to size matched sequence. If nothing matched don't set it.
-  TPatternMatchFunc = reference to procedure(VA: TVA; Buf: PByte; var MatchedSize: integer);
+  // Set MatchedSize to size of matched sequence. If nothing matched don't set it.
+  // VA is address to be matched.
+  // Size is size left in scanned region you can check starting from VA.
+  TPatternMatchFunc = reference to procedure(VA: TVA; Size: integer; Buf: PByte; var MatchedSize: integer);
 
   TPEImageX86 = class(TPEImage)
   protected
@@ -176,7 +178,7 @@ begin
   while Size > 0 do
   begin
     MatchedSize := 0;
-    PatternMatchFunc(VA, Buf, MatchedSize);
+    PatternMatchFunc(VA, Size, Buf, MatchedSize);
     if MatchedSize <> 0 then
     begin
       if Assigned(List) then
