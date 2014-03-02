@@ -12,6 +12,9 @@
         <Projects Include="02 Imports\ImportsAdd.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="02 Imports\ImportsEnumeration.dproj">
+            <Dependencies/>
+        </Projects>
         <Projects Include="02 Imports\ImportsDelayed.dproj">
             <Dependencies/>
         </Projects>
@@ -67,6 +70,15 @@
     </Target>
     <Target Name="ImportsAdd:Make">
         <MSBuild Projects="02 Imports\ImportsAdd.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="ImportsEnumeration">
+        <MSBuild Projects="02 Imports\ImportsEnumeration.dproj"/>
+    </Target>
+    <Target Name="ImportsEnumeration:Clean">
+        <MSBuild Projects="02 Imports\ImportsEnumeration.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ImportsEnumeration:Make">
+        <MSBuild Projects="02 Imports\ImportsEnumeration.dproj" Targets="Make"/>
     </Target>
     <Target Name="ImportsDelayed">
         <MSBuild Projects="02 Imports\ImportsDelayed.dproj"/>
@@ -132,13 +144,13 @@
         <MSBuild Projects="04 Module Loader\ModuleLoader.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="SampleLib;ExportsAdd;ImportsAdd;ImportsDelayed;ResourceExtract;ResourceBuild;ResourceStats;FillMem;BuildRelocs;ModuleLoader"/>
+        <CallTarget Targets="SampleLib;ExportsAdd;ImportsAdd;ImportsEnumeration;ImportsDelayed;ResourceExtract;ResourceBuild;ResourceStats;FillMem;BuildRelocs;ModuleLoader"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="SampleLib:Clean;ExportsAdd:Clean;ImportsAdd:Clean;ImportsDelayed:Clean;ResourceExtract:Clean;ResourceBuild:Clean;ResourceStats:Clean;FillMem:Clean;BuildRelocs:Clean;ModuleLoader:Clean"/>
+        <CallTarget Targets="SampleLib:Clean;ExportsAdd:Clean;ImportsAdd:Clean;ImportsEnumeration:Clean;ImportsDelayed:Clean;ResourceExtract:Clean;ResourceBuild:Clean;ResourceStats:Clean;FillMem:Clean;BuildRelocs:Clean;ModuleLoader:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="SampleLib:Make;ExportsAdd:Make;ImportsAdd:Make;ImportsDelayed:Make;ResourceExtract:Make;ResourceBuild:Make;ResourceStats:Make;FillMem:Make;BuildRelocs:Make;ModuleLoader:Make"/>
+        <CallTarget Targets="SampleLib:Make;ExportsAdd:Make;ImportsAdd:Make;ImportsEnumeration:Make;ImportsDelayed:Make;ResourceExtract:Make;ResourceBuild:Make;ResourceStats:Make;FillMem:Make;BuildRelocs:Make;ModuleLoader:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>
