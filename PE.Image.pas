@@ -1321,19 +1321,8 @@ begin
 
   // Read opt.hdr. magic to know if image is 32 or 64 bit.
   AStream.Position := OptHdrOfs;
-  if not StreamPeek(AStream, FOptionalHeader.Magic,
-    SizeOf(FOptionalHeader.Magic)) then
+  if not StreamPeek(AStream, FOptionalHeader.Magic, SizeOf(FOptionalHeader.Magic)) then
     exit;
-
-  // Safe read optional header.
-  OptHdrSizeRead := FOptionalHeader.ReadFromStream(AStream, ImageBits, -1);
-
-  if OptHdrSizeRead <> 0 then
-  begin
-    // Read data directories from current pos top SecHdrOfs.
-    FDataDirectories.LoadFromStream(AStream, Msg, AStream.Position, SecHdrOfs,
-      FOptionalHeader.NumberOfRvaAndSizes);
-  end;
 
   // Set some helper fields.
   case FOptionalHeader.Magic of
@@ -1349,6 +1338,19 @@ begin
       end
   else
     raise Exception.Create('Image type is unknown.');
+  end;
+
+  // Safe read optional header.
+  OptHdrSizeRead := FOptionalHeader.ReadFromStream(AStream, ImageBits, -1);
+
+  if OptHdrSizeRead <> 0 then
+  begin
+    // Read data directories from current pos top SecHdrOfs.
+    FDataDirectories.LoadFromStream(AStream, Msg,
+      AStream.Position,
+      SecHdrOfs,
+      FOptionalHeader.NumberOfRvaAndSizes // declared count
+      );
   end;
 
   Result := True;
