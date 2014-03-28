@@ -120,8 +120,7 @@ type
   TPDATAItems = array of TPDATAItem;
 
   // Parses .PDATA section (if exists) and returns count of elements found
-function ParsePDATA(PE: TPEImage; out &Type: TPDATAType;
-  out Items: TPDATAItems): integer;
+function ParsePDATA(PE: TPEImage; out &Type: TPDATAType; out Items: TPDATAItems): integer;
 
 implementation
 
@@ -159,8 +158,7 @@ end;
 
 { ParsePDATA }
 
-function ParsePDATA(PE: TPEImage; out &Type: TPDATAType;
-  out Items: TPDATAItems): integer;
+function ParsePDATA(PE: TPEImage; out &Type: TPDATAType; out Items: TPDATAItems): integer;
 var
   sec: TPESection;
   i, Cnt, Size, Actual: integer;
@@ -179,35 +177,33 @@ begin
     ((sec.flags and IMAGE_SCN_MEM_READ) <> 0) and
     (PE.SeekRVA(sec.RVA)) then
   begin
+    // Load.
     case PE.FileHeader^.Machine of
-      IMAGE_FILE_MACHINE_ARM,
-        IMAGE_FILE_MACHINE_AMD64:
+      IMAGE_FILE_MACHINE_ARM, IMAGE_FILE_MACHINE_THUMB:
         begin
-          // Load.
-          case PE.FileHeader^.Machine of
-            IMAGE_FILE_MACHINE_ARM:
-              begin
-                Size := sizeof(TPDATA_ARM);
-                &Type := pdata_ARM;
-              end;
-            IMAGE_FILE_MACHINE_AMD64:
-              begin
-                Size := sizeof(TPDATA_x64);
-                &Type := pdata_x64;
-              end;
-          end;
-          Cnt := sec.VirtualSize div Size;
-          Actual := 0;
-          SetLength(Items, Cnt); // pre-allocate
-          for i := 0 to Cnt - 1 do
-          begin
-            if (not PE.ReadEx(@Items[i], Size)) or (Items[i].IsEmpty) then
-              break;
-            inc(Actual);
-          end;
-          if Actual <> Cnt then
-            SetLength(Items, Actual); // trim
+          Size := sizeof(TPDATA_ARM);
+          &Type := pdata_ARM;
         end;
+      IMAGE_FILE_MACHINE_AMD64:
+        begin
+          Size := sizeof(TPDATA_x64);
+          &Type := pdata_x64;
+        end;
+    end;
+
+    if &Type <> pdata_NONE then
+    begin
+      Cnt := sec.VirtualSize div Size;
+      Actual := 0;
+      SetLength(Items, Cnt); // pre-allocate
+      for i := 0 to Cnt - 1 do
+      begin
+        if (not PE.ReadEx(@Items[i], Size)) or (Items[i].IsEmpty) then
+          break;
+        inc(Actual);
+      end;
+      if Actual <> Cnt then
+        SetLength(Items, Actual); // trim
     end;
   end;
 
