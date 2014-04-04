@@ -97,7 +97,7 @@ type
     destructor Destroy; override;
 
     procedure LoadFromStream(Stream: TStream);
-    procedure PrintTree(PrintFn: TPrintFunc);
+    procedure PrintTree(PrintFn: TPrintFunc; Indent: integer = 0);
   end;
 
 implementation
@@ -242,9 +242,9 @@ begin
   ProcessBlocks(Stream, self.Root.Children);
 end;
 
-procedure TPEVersionInfo.PrintTree(PrintFn: TPrintFunc);
+procedure TPEVersionInfo.PrintTree(PrintFn: TPrintFunc; Indent: integer);
 begin
-  PrintTreeEx(self.Root, PrintFn, 2);
+  PrintTreeEx(self.Root, PrintFn, Indent);
 end;
 
 procedure TPEVersionInfo.PrintTreeEx(n: TRootBlock; PrintFn: TPrintFunc;
@@ -269,7 +269,7 @@ begin
   end
   else if n.ClassType = TBlockStringInfoPair then
   begin
-    PrintFn(Format('%s%s = %s', [sIndent, TBlockStringInfoPair(n).Key, TBlockStringInfoPair(n).Value]));
+    PrintFn(Format('%s"%s" = "%s"', [sIndent, TBlockStringInfoPair(n).Key, TBlockStringInfoPair(n).Value]));
   end
   else if n.ClassType = TBlockVarInfo then
     PrintFn(sIndent + 'VarInfo')
