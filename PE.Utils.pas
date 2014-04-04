@@ -17,10 +17,17 @@ function StreamWrite(AStream: TStream; const Buf; Count: longint): boolean; inli
 // Read 0-terminated 1-byte string.
 function StreamReadStringA(AStream: TStream; var S: RawByteString): boolean;
 
+// Read 0-terminated 2-byte string
+function StreamReadStringW(AStream: TStream; var S: UnicodeString): boolean;
+
 // Write Count of zero bytes to stream.
 procedure WritePadding(AStream: TStream; Count: uint32);
 
 function StreamSeek(AStream: TStream; Offset: TFileOffset): boolean; inline;
+function StreamSkip(AStream: TStream; Count: integer = 1): boolean; inline;
+
+// Seek from current position to keep alignment.
+function StreamSeekAlign(AStream: TStream; Align: integer): boolean; inline;
 
 // Try to seek Offset and insert padding if Offset < stream Size.
 procedure StreamSeekWithPadding(AStream: TStream; Offset: TFileOffset);
@@ -28,12 +35,12 @@ procedure StreamSeekWithPadding(AStream: TStream; Offset: TFileOffset);
 function Min(A, B: uint64): uint64; inline;
 function Max(A, B: uint64): uint64; inline;
 
-function AlignUp(Value: uint64; Align: uint32): uint64;
-function AlignDown(Value: uint64; Align: uint32): uint64;
+function AlignUp(Value: uint64; Align: uint32): uint64; inline;
+function AlignDown(Value: uint64; Align: uint32): uint64; inline;
 
 function IsStringASCII(const S: AnsiString): boolean;
 
-function CompareRVA(A, B: TRVA): Integer; inline;
+function CompareRVA(A, B: TRVA): integer; inline;
 
 implementation
 
@@ -46,7 +53,7 @@ end;
 
 function StreamPeek(AStream: TStream; var Buf; Count: longint): boolean; inline;
 var
-  Read: Integer;
+  Read: integer;
 begin
   Read := AStream.Read(Buf, Count);
   AStream.Seek(-Read, soFromCurrent);
@@ -64,7 +71,22 @@ var
 begin
   S := '';
   while True do
-    if AStream.Read(c, 1) <> 1 then
+    if AStream.Read(c, SizeOf(c)) <> SizeOf(c) then
+      break
+    else if (c = #0) then
+      exit(True)
+    else
+      S := S + c;
+  exit(False);
+end;
+
+function StreamReadStringW(AStream: TStream; var S: UnicodeString): boolean;
+var
+  c: WideChar;
+begin
+  S := '';
+  while True do
+    if AStream.Read(c, SizeOf(c)) <> SizeOf(c) then
       break
     else if (c = #0) then
       exit(True)
@@ -78,7 +100,7 @@ procedure WritePadding(AStream: TStream; Count: uint32);
 const
   sPadding: array [0 .. 7] of char = ('P', 'A', 'D', 'D', 'I', 'N', 'G', 'X');
 var
-  i: Integer;
+  i: integer;
 {$ENDIF}
 var
   p: pbyte;
@@ -103,6 +125,29 @@ end;
 function StreamSeek(AStream: TStream; Offset: TFileOffset): boolean;
 begin
   Result := AStream.Seek(Offset, TSeekOrigin.soBeginning) = Offset;
+end;
+
+function StreamSkip(AStream: TStream; Count: integer): boolean; inline;
+var
+  Offset: TFileOffset;
+begin
+  Offset := AStream.Position + Count;
+  Result := AStream.Seek(Offset, TSeekOrigin.soBeginning) = Offset;
+end;
+
+function StreamSeekAlign(AStream: TStream; Align: integer): boolean;
+var
+  m: integer;
+  pos: TFileOffset;
+begin
+  if Align in [0, 1] then
+    exit(True); // don't need alignment
+  pos := AStream.Position;
+  m := pos mod Align;
+  if m = 0 then
+    exit(True);        // already aligned
+  inc(pos, Align - m); // next aligned position
+  Result := AStream.Seek(pos, TSeekOrigin.soBeginning) = pos;
 end;
 
 procedure StreamSeekWithPadding(AStream: TStream; Offset: TFileOffset);
@@ -164,7 +209,7 @@ begin
   exit(True);
 end;
 
-function CompareRVA(A, B: TRVA): Integer;
+function CompareRVA(A, B: TRVA): integer;
 begin
   if A > B then
     exit(1)

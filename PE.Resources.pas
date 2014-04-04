@@ -51,6 +51,8 @@ type
     // Find either by name or by id.
     function FindByNameOrId(const Name: string; Id: uint32): TResourceTreeNode;
 
+    function GetNameOrId: string;
+
     function GetPath: string;
 
     property Id: uint32 read FId write SetId;
@@ -288,6 +290,14 @@ begin
     if p <> nil then
       Result := p^.K;
   end;
+end;
+
+function TResourceTreeNode.GetNameOrId: string;
+begin
+  if FName <> '' then
+    Result := FName
+  else
+    Result := Format('#%d', [FId]);
 end;
 
 function TResourceTreeNode.GetPath: string;

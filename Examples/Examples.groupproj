@@ -27,6 +27,9 @@
         <Projects Include="03 Resources\ResourceStats.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="03 Resources\ResourceVersionInfo.dproj">
+            <Dependencies/>
+        </Projects>
         <Projects Include="05 FillMem\FillMem.dproj">
             <Dependencies/>
         </Projects>
@@ -116,6 +119,15 @@
     <Target Name="ResourceStats:Make">
         <MSBuild Projects="03 Resources\ResourceStats.dproj" Targets="Make"/>
     </Target>
+    <Target Name="ResourceVersionInfo">
+        <MSBuild Projects="03 Resources\ResourceVersionInfo.dproj"/>
+    </Target>
+    <Target Name="ResourceVersionInfo:Clean">
+        <MSBuild Projects="03 Resources\ResourceVersionInfo.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ResourceVersionInfo:Make">
+        <MSBuild Projects="03 Resources\ResourceVersionInfo.dproj" Targets="Make"/>
+    </Target>
     <Target Name="FillMem">
         <MSBuild Projects="05 FillMem\FillMem.dproj"/>
     </Target>
@@ -144,13 +156,13 @@
         <MSBuild Projects="04 Module Loader\ModuleLoader.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="SampleLib;ExportsAdd;ImportsAdd;ImportsEnumeration;ImportsDelayed;ResourceExtract;ResourceBuild;ResourceStats;FillMem;BuildRelocs;ModuleLoader"/>
+        <CallTarget Targets="SampleLib;ExportsAdd;ImportsAdd;ImportsEnumeration;ImportsDelayed;ResourceExtract;ResourceBuild;ResourceStats;ResourceVersionInfo;FillMem;BuildRelocs;ModuleLoader"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="SampleLib:Clean;ExportsAdd:Clean;ImportsAdd:Clean;ImportsEnumeration:Clean;ImportsDelayed:Clean;ResourceExtract:Clean;ResourceBuild:Clean;ResourceStats:Clean;FillMem:Clean;BuildRelocs:Clean;ModuleLoader:Clean"/>
+        <CallTarget Targets="SampleLib:Clean;ExportsAdd:Clean;ImportsAdd:Clean;ImportsEnumeration:Clean;ImportsDelayed:Clean;ResourceExtract:Clean;ResourceBuild:Clean;ResourceStats:Clean;ResourceVersionInfo:Clean;FillMem:Clean;BuildRelocs:Clean;ModuleLoader:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="SampleLib:Make;ExportsAdd:Make;ImportsAdd:Make;ImportsEnumeration:Make;ImportsDelayed:Make;ResourceExtract:Make;ResourceBuild:Make;ResourceStats:Make;FillMem:Make;BuildRelocs:Make;ModuleLoader:Make"/>
+        <CallTarget Targets="SampleLib:Make;ExportsAdd:Make;ImportsAdd:Make;ImportsEnumeration:Make;ImportsDelayed:Make;ResourceExtract:Make;ResourceBuild:Make;ResourceStats:Make;ResourceVersionInfo:Make;FillMem:Make;BuildRelocs:Make;ModuleLoader:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>
