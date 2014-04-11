@@ -1,5 +1,5 @@
 {
-    PE Exported symbols are case-sensitive.
+  PE Exported symbols are case-sensitive.
 }
 unit PE.ExportSym;
 
@@ -7,6 +7,7 @@ interface
 
 uses
   System.Generics.Collections,
+  System.SysUtils,
   PE.Common;
 
 type
@@ -25,6 +26,10 @@ type
 
     procedure Clear;
     function Clone: TPEExportSym;
+
+    // Parse forwarder name of following structure: "LibName.FuncName".
+    // Return true if both names before and after dot found.
+    function GetForwarderLibAndFuncName(out Lib, Name: string): boolean;
   end;
 
   PPEExportSym = ^TPEExportSym;
@@ -77,6 +82,24 @@ begin
   result.Name := self.Name;
   result.ForwarderName := self.ForwarderName;
   result.Forwarder := self.Forwarder;
+end;
+
+function TPEExportSym.GetForwarderLibAndFuncName(out Lib, Name: string): boolean;
+var
+  arr: TArray<string>;
+begin
+  arr := string(ForwarderName).Split(['.']);
+  result := length(arr) = 2;
+  if result then
+  begin
+    Lib := arr[0];
+    name := arr[1];
+  end
+  else
+  begin
+    Lib := '';
+    name := '';
+  end;
 end;
 
 function TPEExportSym.IsValid: boolean;
