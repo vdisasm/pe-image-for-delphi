@@ -301,7 +301,7 @@ begin
   if FNode = nil then
   begin
     FNode := FMap.FItems.First;
-    Exit(True);
+    Exit(FNode <> nil);
   end;
   Result := FMap.FItems.Next(FNode);
 end;

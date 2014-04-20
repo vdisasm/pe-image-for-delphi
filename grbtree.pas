@@ -83,7 +83,8 @@ Type
 
     procedure Clear; virtual;
 
-    function Exists(const Key: T): Boolean; inline;
+    function Exists(const Key: T): Boolean; inline; // deprecated;
+    function ContainsKey(const Key: T): Boolean; inline;
 
     function Find(const Key: T): TRBNodePtr;
 
@@ -220,6 +221,11 @@ begin
   FFirst := nil;
   FLast := nil;
   FCount := 0;
+end;
+
+function TRBTree<T>.ContainsKey(const Key: T): Boolean;
+begin
+  Result := Exists(Key);
 end;
 
 function TRBTree<T>.Find(const Key: T): TRBNodePtr;
