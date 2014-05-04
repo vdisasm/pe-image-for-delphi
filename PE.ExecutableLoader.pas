@@ -28,6 +28,9 @@ type
     );
 
   TExecutableLoadingOption = (
+    elo_FixRelocations,
+    elo_FixImports,
+    elo_ProtectSections,
     elo_CallEntryPoint
     );
 
@@ -69,6 +72,8 @@ type
       Options: TExecutableLoadingOptions = DEFAULT_OPTIONS): TMapStatus;
 
     function Unload: boolean;
+
+    property Instance: NativeUInt read FInstance;
   end;
 
 implementation
@@ -86,9 +91,9 @@ uses
   PE.Section,
   PE.Types.Relocations;
 
-function HasBits(value, mask: DWORD): boolean; inline;
+function HasBits(Value, mask: DWORD): boolean; inline;
 begin
-  Result := (value and mask) <> 0;
+  Result := (Value and mask) <> 0;
 end;
 
 function CharacteristicsToProtect(CH: DWORD): DWORD;
@@ -189,8 +194,12 @@ begin
     exit(msImageSizeError);
 
   // Reserve and commit memory for image.
-  FInstance := NativeUInt(VirtualAlloc(Pointer(PrefferedVa), FSizeOfImage,
-    MEM_RESERVE or MEM_COMMIT, PAGE_READWRITE));
+  FInstance := NativeUInt(VirtualAlloc(
+    Pointer(PrefferedVa),
+    FSizeOfImage,
+    MEM_RESERVE or MEM_COMMIT,
+    PAGE_READWRITE
+    ));
 
   if FInstance = 0 then
     exit(msSectionAllocError);
@@ -225,6 +234,9 @@ var
   va: UInt64;
   ModuleMustBeFreed: boolean;
 begin
+  if not(elo_FixImports in FOptions) then
+    exit(msOK);
+
   for ImpLib in FPE.Imports.LibsByName do
   begin
     ImpLibName := ImpLib.Name;
@@ -302,6 +314,9 @@ var
   va: pbyte;
   dw: DWORD;
 begin
+  if not(elo_ProtectSections in FOptions) then
+    exit(msOK);
+
   for i := 0 to FPE.Sections.Count - 1 do
   begin
     Result := msProtectSectionsError;
@@ -324,6 +339,9 @@ var
   Delta: UInt32;
   pDst: PCardinal;
 begin
+  if not(elo_FixRelocations in FOptions) then
+    exit(msOK);
+
   Delta := FInstance - FPE.ImageBase;
 
   if Delta = 0 then
@@ -428,7 +446,7 @@ begin
   for Pair in FLoadedImports do
   begin
     FPE.Msg.Write('Unloading import "%s"', [Pair.Key]);
-    FreeLibrary(Pair.value);
+    FreeLibrary(Pair.Value);
   end;
   FLoadedImports.Clear;
 end;
