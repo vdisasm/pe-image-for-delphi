@@ -12,20 +12,40 @@ uses
   System.SysUtils;
 
 type
-  TPEMemoryStream = class(TCustomMemoryStream)
+  TPECustomMemoryStream = class(TStream)
+  protected
+    FMemory: Pointer;
+    FSize, FPosition: NativeInt;
+  public
+    constructor CreateFromPointer(Ptr: Pointer; Size: integer);
+
+    procedure SetPointer(Ptr: Pointer; const Size: NativeInt);
+
+    function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
+
+    function Read(var Buffer; Count: Longint): Longint; override;
+    function Write(const Buffer; Count: integer): integer; override;
+
+    procedure SaveToStream(Stream: TStream); virtual;
+    procedure SaveToFile(const FileName: string);
+
+    property Memory: Pointer read FMemory;
+  end;
+
+  TPEMemoryStream = class(TPECustomMemoryStream)
   private
-    FModuleToUnload: HMODULE; // needed if forced module loading.
+    FModuleToUnload: HMODULE; // needed if module loading is forced.
     FModuleFileName: string;
     FModuleSize: uint32;
   private
     procedure CreateFromModulePtr(ModulePtr: Pointer);
   public
     // Create stream from module in current process.
-    // If module is not found exception raise.
+    // If module is not found exception raised.
     // To force loading module set ForceLoadingModule to True.
     constructor Create(const ModuleName: string; ForceLoadingModule: boolean = False); overload;
 
-    // Create from moduly by known base address.
+    // Create from module by known base address.
     constructor Create(ModuleBase: NativeUInt); overload;
 
     destructor Destroy; override;
@@ -42,7 +62,81 @@ uses
   PE.Types.DosHeader,
   PE.Types.NTHeaders;
 
-{ TDLLStream }
+{ TPECustomMemoryStream }
+
+procedure TPECustomMemoryStream.SetPointer(Ptr: Pointer; const Size: NativeInt);
+begin
+  FMemory := Ptr;
+  FSize := Size;
+  FPosition := 0;
+end;
+
+constructor TPECustomMemoryStream.CreateFromPointer(Ptr: Pointer; Size: integer);
+begin
+  inherited Create;
+  SetPointer(Ptr, Size);
+end;
+
+procedure TPECustomMemoryStream.SaveToFile(const FileName: string);
+var
+  Stream: TStream;
+begin
+  Stream := TFileStream.Create(FileName, fmCreate);
+  try
+    SaveToStream(Stream);
+  finally
+    Stream.Free;
+  end;
+end;
+
+procedure TPECustomMemoryStream.SaveToStream(Stream: TStream);
+begin
+  if FSize <> 0 then
+    Stream.WriteBuffer(FMemory^, FSize);
+end;
+
+function TPECustomMemoryStream.Seek(const Offset: Int64; Origin: TSeekOrigin): Int64;
+begin
+  case Origin of
+    soBeginning:
+      FPosition := Offset;
+    soCurrent:
+      Inc(FPosition, Offset);
+    soEnd:
+      FPosition := FSize + Offset;
+  end;
+  Result := FPosition;
+end;
+
+function TPECustomMemoryStream.Read(var Buffer; Count: integer): Longint;
+begin
+  if Count = 0 then
+    Exit(0);
+  Result := FSize - FPosition;
+  if Result > 0 then
+  begin
+    if Result > Count then
+      Result := Count;
+    Move(PByte(FMemory)[FPosition], Buffer, Result);
+    Inc(FPosition, Result);
+  end;
+end;
+
+function TPECustomMemoryStream.Write(const Buffer; Count: integer): integer;
+begin
+  if Count = 0 then
+    Exit(0);
+  Result := FSize - FPosition;
+  if Result > 0 then
+  begin
+    if Result > Count then
+      Result := Count;
+    Move(Buffer, PByte(FMemory)[FPosition], Result);
+    Inc(FPosition, Result);
+  end;
+end;
+
+{ TPEMemoryStream }
 
 procedure TPEMemoryStream.CreateFromModulePtr(ModulePtr: Pointer);
 begin

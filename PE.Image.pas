@@ -642,7 +642,7 @@ end;
 
 function TPEImage.CalcHeadersSizeNotAligned: uint32;
 begin
-  Result := $400; // todo: do not hardcode
+  Result := CalcSecHdrEndOfs;
 end;
 
 procedure TPEImage.FixSizeOfHeaders;

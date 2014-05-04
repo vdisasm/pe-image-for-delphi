@@ -7,6 +7,11 @@ uses
   System.Classes,
   System.SysUtils;
 
+// If SavingModifiedImage is True some fields like header size and image size
+// are recalculated and updated. If it's False it's assumed image is already
+// built (or just loaded) and only headers writing done.
+function SaveHeaders(APE: TObject; AStream: TStream; SavingModifiedImage: boolean): boolean;
+
 function SaveImageToStream(APE: TObject; AStream: TStream): boolean;
 
 implementation
@@ -35,6 +40,7 @@ uses
 function DoDosHdr(PE: TPEImage; AStream: TStream): boolean;
 var
   h: PImageDOSHeader;
+  DosBlockSize: integer;
 begin
   h := PE.DOSHeader;
   h^.e_magic := MZ_SIGNATURE;
@@ -44,8 +50,9 @@ begin
   Result := StreamWrite(AStream, h^, SizeOf(h^));
 
   // Write DOS block.
-  if Length(PE.DosBlock) <> 0 then
-    StreamWrite(AStream, PE.DosBlock[0], Length(PE.DosBlock));
+  DosBlockSize := Length(PE.DosBlock);
+  if DosBlockSize <> 0 then
+    StreamWrite(AStream, PE.DosBlock[0], DosBlockSize);
 end;
 
 { NT }
@@ -146,7 +153,7 @@ begin
   end;
 end;
 
-function SaveImageToStream(APE: TObject; AStream: TStream): boolean;
+function SaveHeaders(APE: TObject; AStream: TStream; SavingModifiedImage: boolean): boolean;
 var
   PE: TPEImage;
   ofsFileHdr, ofsSecHdr: uint32;
@@ -155,23 +162,24 @@ begin
 
   PE := TPEImage(APE);
 
-  // Ensure we have all needed values set.
-  PE.Defaults.SetAll;
-
   // save dos
   if not DoDosHdr(PE, AStream) then
     exit;
-  ofsFileHdr := PE.DOSHeader.e_lfanew;
+
+  ofsFileHdr := PE.LFANew;
 
   // skip file header now
   if not StreamSeek(AStream, ofsFileHdr + SizeOf(TImageFileHeader) + 4) then
     exit;
 
-  // update size of image header
-  PE.FixSizeOfImage;
+  if SavingModifiedImage then
+  begin
+    // update size of image header
+    PE.FixSizeOfImage;
 
-  // update size of headers
-  PE.FixSizeOfHeaders;
+    // update size of headers
+    PE.FixSizeOfHeaders;
+  end;
 
   // save optional
   if not DoOptHdrAndDirs(PE, AStream) then
@@ -189,11 +197,31 @@ begin
   if not StreamSeek(AStream, ofsSecHdr) then
     exit;
 
-  // Fill RawData offsets for Section Headers.
-  FillSecHdrRawOfs(PE, ofsSecHdr);
+  if SavingModifiedImage then
+  begin
+    // Fill RawData offsets for Section Headers.
+    FillSecHdrRawOfs(PE, ofsSecHdr);
+  end;
 
   // write sec hdr
   if not DoSecHdr(PE, AStream) then
+    exit;
+
+  exit(true);
+end;
+
+function SaveImageToStream(APE: TObject; AStream: TStream): boolean;
+var
+  PE: TPEImage;
+begin
+  Result := False;
+
+  PE := TPEImage(APE);
+
+  // Ensure we have all needed values set.
+  PE.Defaults.SetAll;
+
+  if not SaveHeaders(PE, AStream, true) then
     exit;
 
   // write sec hdr gap

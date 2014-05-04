@@ -7,8 +7,11 @@ unit PE.ExecutableLoader;
 interface
 
 uses
+  System.Classes,
   System.Generics.Collections,
+
   WinApi.Windows,
+
   PE.Common,
   PE.Image;
 
@@ -28,16 +31,32 @@ type
     );
 
   TExecutableLoadingOption = (
+    // Write PE header into start of allocated image.
+    elo_MapHeader,
+
+    // Apply fixups after image mapping.
     elo_FixRelocations,
+
+    // Resolve imported functions after image mapping.
     elo_FixImports,
+
+    // Apply protection defined in section header to mapped sections.
     elo_ProtectSections,
+
+    // Call EXE or DLL entry point when image mapped.
     elo_CallEntryPoint
     );
 
   TExecutableLoadingOptions = set of TExecutableLoadingOption;
 
 const
-  DEFAULT_OPTIONS = [elo_CallEntryPoint];
+  DEFAULT_OPTIONS = [
+    elo_MapHeader,
+    elo_FixRelocations,
+    elo_FixImports,
+    elo_ProtectSections,
+    elo_CallEntryPoint
+    ];
 
 type
   TEXEEntry = procedure(); stdcall;
@@ -56,6 +75,7 @@ type
     function Check(const Desc: string; var rslt: TMapStatus; ms: TMapStatus): boolean;
 
     function MapSections(PrefferedVa: UInt64): TMapStatus;
+    function MapHeader: TMapStatus;
     function ProtectSections: TMapStatus;
     function Relocate: TMapStatus;
     function LoadImports: TMapStatus;
@@ -84,10 +104,13 @@ uses
   PE.Types.FileHeader,
   PE.Utils,
   PE.Sections,
+  PE.Image.Saving,
 
   PE.Imports,
   PE.Imports.Func,
   PE.Imports.Lib,
+
+  PE.MemoryStream,
   PE.Section,
   PE.Types.Relocations;
 
@@ -221,6 +244,25 @@ begin
   end;
 
   Result := msOK;
+end;
+
+function TExecutableModule.MapHeader: TMapStatus;
+var
+  ms: TPECustomMemoryStream;
+begin
+  if not(elo_MapHeader in FOptions) then
+    exit(msOK);
+
+  ms := TPECustomMemoryStream.CreateFromPointer(Pointer(FInstance), FSizeOfImage);
+  try
+    // Write header as-is without recalcualtions.
+    if not SaveHeaders(FPE, ms, False) then
+      exit(msError);
+  finally
+    ms.Free;
+  end;
+
+  exit(msOK);
 end;
 
 function TExecutableModule.LoadImports: TMapStatus;
@@ -377,8 +419,9 @@ begin
 
   if
     Check('Map Sections', Result, MapSections(PrefferedVa)) and
+    Check('Map Header', Result, MapHeader()) and
     Check('Fix Relocation', Result, Relocate()) and
-    Check('Fix Imports', Result, LoadImports) and
+    Check('Fix Imports', Result, LoadImports()) and
     Check('Protect Sections', Result, ProtectSections()) then
   begin
     if FPE.EntryPointRVA = 0 then
