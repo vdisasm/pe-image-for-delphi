@@ -30,6 +30,10 @@ type
     msEntryPointFailure
     );
 
+  TMapStatusHelper = record helper for TMapStatus
+    function ToString: string;
+  end;
+
   TExecutableLoadingOption = (
     // Write PE header into start of allocated image.
     elo_MapHeader,
@@ -492,6 +496,31 @@ begin
     FreeLibrary(Pair.Value);
   end;
   FLoadedImports.Clear;
+end;
+
+{ TMapStatusHelper }
+
+const
+  MapStatusText: array [TMapStatus] of string = (
+    'OK',
+    'Image already mapped',
+    'Error',
+    'Image size error',
+    'Map sections error',
+    'Section allocation error',
+    'Protect sections error',
+    'Import library not found',
+    'Import name not found',
+    'Import ordinal not found',
+    'Entry point failure'
+    );
+
+function TMapStatusHelper.ToString: string;
+begin
+  if self in [low(TMapStatus) .. high(TMapStatus)] then
+    Result := MapStatusText[self]
+  else
+    Result := '???';
 end;
 
 end.
