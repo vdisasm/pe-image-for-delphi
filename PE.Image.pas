@@ -62,6 +62,7 @@ type
     FImageKind: TPEImageKind;
     FParseStages: TParserFlags;
     FParseCallbacks: IPEParserCallbacks;
+    FOptions: TParserOptions;
 
     // Used only for loading from mapped image. Nil for disk images.
     FPEMemoryStream: TPEMemoryStream;
@@ -104,7 +105,7 @@ type
     procedure InitParsers;
 
     { Base loading }
-    function LoadSectionHeaders(AStream: TStream): UInt16;
+    procedure LoadSectionHeaders(AStream: TStream);
     function LoadSectionData(AStream: TStream): UInt16;
 
     // Replace /%num% to name from COFF string table.
@@ -503,6 +504,7 @@ end;
 
 constructor TPEImage.Create(AMsgProc: TMsgProc);
 begin
+  FOptions := DEFAULT_OPTIONS;
   FMsg := TMsgMgr.Create(AMsgProc);
   FDefaults := TPEDefaults.Create(self);
 
@@ -526,7 +528,6 @@ begin
   InitParsers;
 
   FDefaults.SetAll;
-
 end;
 
 procedure TPEImage.Clear;
@@ -702,34 +703,65 @@ begin
   Result := @self.FFileHeader;
 end;
 
-function TPEImage.LoadSectionHeaders(AStream: TStream): UInt16;
+procedure TPEImage.LoadSectionHeaders(AStream: TStream);
 var
   Sec: TPESection;
-  Cnt: integer;
+  i: integer;
+  sh: TImageSectionHeader;
+  NumberOfSections: uint16;
 begin
-  Result := 0;
+  NumberOfSections := FFileHeader.NumberOfSections;
 
-  Cnt := FFileHeader.NumberOfSections;
+  FSections.Clear; // it clears FFileHeader.NumberOfSections
 
-  FSections.Clear;
-
-  while Result < Cnt do
+  if NumberOfSections = 0 then
   begin
-    Sec := TPESection.Create;
-    if not Sec.LoadHeaderFromStream(AStream, Result) then
-    begin
-      Sec.Free;
+    Msg.Write('There are no sections in the image');
+    exit;
+  end;
+
+  for i := 0 to NumberOfSections - 1 do
+  begin
+    if not StreamRead(AStream, sh, SizeOf(sh)) then
       break;
+
+    if (sh.Misc.VirtualSize = 0) and (sh.SizeOfRawData = 0) then
+    begin
+      Msg.Write('Section #%d has vsize and rsize = 0, skipping it', [i]);
+      continue;
     end;
+
+    {
+      * Raw size can be 0
+      * Virtual size can't be 0 as it won't be mapped
+    }
+
+    if sh.Misc.VirtualSize = 0 then
+    begin
+      Msg.Write('Section #%d has vsize = 0', [i]);
+      if PO_SECTION_VSIZE_FALLBACK in FOptions then
+      begin
+        sh.Misc.VirtualSize := sh.SizeOfRawData;
+      end
+      else
+      begin
+        Msg.Write('Option to fallback to RSize isn''t included, skipping');
+        continue;
+      end;
+    end;
+
+    Sec := TPESection.Create(sh, nil);
 
     if not Sec.IsNameSafe then
     begin
-      Sec.Name := AnsiString(format('sec_%4.4x', [Result]));
-      Msg.Write('Section has not safe name. Overriding to %s', [Sec.Name]);
+      if PO_SECTION_AUTORENAME_INVALID in FOptions then
+      begin
+        Sec.Name := AnsiString(format('sec_%4.4x', [i]));
+        Msg.Write('Section has not safe name. Overriding to %s', [Sec.Name]);
+      end;
     end;
 
-    FSections.Add(Sec);
-    inc(Result);
+    FSections.Add(Sec); // changes FFileHeader.NumberOfSections
   end;
 
   // Check section count.
@@ -1259,14 +1291,18 @@ begin
   FLFANew := FDosHeader.e_lfanew;
 
   // Read DOS Block
-  DOSBlockSize := FDosHeader.e_lfanew - SizeOf(FDosHeader);
-  SetLength(self.FDosBlock, DOSBlockSize);
-  if (DOSBlockSize <> 0) then
-    if StreamSeek(AStream, SizeOf(FDosHeader)) then
-    begin
-      if not StreamRead(AStream, self.FDosBlock[0], DOSBlockSize) then
-        SetLength(self.FDosBlock, 0);
-    end;
+  self.FDosBlock := nil;
+  if FDosHeader.e_lfanew > SizeOf(FDosHeader) then
+  begin
+    DOSBlockSize := FDosHeader.e_lfanew - SizeOf(FDosHeader);
+    SetLength(self.FDosBlock, DOSBlockSize);
+    if (DOSBlockSize <> 0) then
+      if StreamSeek(AStream, SizeOf(FDosHeader)) then
+      begin
+        if not StreamRead(AStream, self.FDosBlock[0], DOSBlockSize) then
+          SetLength(self.FDosBlock, 0);
+      end;
+  end;
 
   // Go back to new header.
   if not StreamSeek(AStream, FDosHeader.e_lfanew) then
@@ -1286,8 +1322,7 @@ begin
   // Get offsets of Optional Header and Section Headers.
   OptHdrOfs := AStream.Position;
   SecHdrOfs := OptHdrOfs + FFileHeader.SizeOfOptionalHeader;
-  SecHdrEndOfs := SecHdrOfs + SizeOf(TImageSectionHeader) *
-    FFileHeader.NumberOfSections;
+  SecHdrEndOfs := SecHdrOfs + SizeOf(TImageSectionHeader) * FFileHeader.NumberOfSections;
 
   // Read COFF.
   FCOFF.LoadFromStream(AStream);

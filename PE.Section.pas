@@ -42,9 +42,10 @@ type
     procedure SetHeader(ASecHdr: TImageSectionHeader; ASrcData: pointer;
       ChangeData: boolean = True);
 
+    // todo: maybe delete TPESection.LoadHeaderFromStream
     // Load Section Header from stream.
     // Allocate memory for section data.
-    function LoadHeaderFromStream(AStream: TStream; AId: integer): boolean;
+    // function LoadHeaderFromStream(AStream: TStream; AId: integer): boolean;
 
     // Can be used to load mapped section.
     // SetHeader must be called first.
@@ -70,7 +71,7 @@ type
     function GetEndRawOffset: uint32; inline;
     function GetLastRVA: TRVA; inline;
 
-    function IsNameSafe: boolean;
+    function IsNameSafe: boolean; //inline;
 
     function IsCode: boolean; inline;
 
@@ -82,7 +83,7 @@ type
     property Flags: uint32 read FFlags write FFlags;
     property Mem: PByte read GetMemPtr;
     property ImageSectionHeader: TImageSectionHeader read GetImageSectionHeader;
-    property AllocatedSize: UInt32 read GetAllocatedSize;
+    property AllocatedSize: uint32 read GetAllocatedSize;
   end;
 
   PPESection = ^TPESection;
@@ -218,7 +219,7 @@ end;
 
 function TPESection.IsNameSafe: boolean;
 begin
-  Result := IsStringASCII(FName);
+  Result := (FName <> '') and IsStringASCII(FName);
 end;
 
 function TPESection.LoadDataFromStream(AStream: TStream): boolean;
@@ -273,22 +274,21 @@ begin
 {$WARN COMPARING_SIGNED_UNSIGNED ON}
 end;
 
-function TPESection.LoadHeaderFromStream(AStream: TStream;
-  AId: integer): boolean;
-var
-  sh: TImageSectionHeader;
-begin
-{$WARN IMPLICIT_STRING_CAST_LOSS OFF}
-  if StreamRead(AStream, sh, sizeof(sh)) then
-  begin
-    SetHeader(sh, nil);
-    if sh.Name = '' then
-      FName := Format('#%3.3d', [AId]);
-    Exit(True);
-  end;
-  Exit(false);
-{$WARN IMPLICIT_STRING_CAST_LOSS ON}
-end;
+// function TPESection.LoadHeaderFromStream(AStream: TStream; AId: integer): boolean;
+// var
+// sh: TImageSectionHeader;
+// begin
+// {$WARN IMPLICIT_STRING_CAST_LOSS OFF}
+// if StreamRead(AStream, sh, sizeof(sh)) then
+// begin
+// SetHeader(sh, nil);
+// if sh.Name = '' then
+// FName := Format('#%3.3d', [AId]);
+// Exit(True);
+// end;
+// Exit(false);
+// {$WARN IMPLICIT_STRING_CAST_LOSS ON}
+// end;
 
 procedure TPESection.Resize(NewSize: uint32);
 begin

@@ -46,6 +46,15 @@ type
 
   TPEImageObject = TObject; // Meant to cast TObject -> TPEImage
 
+  TParserOption = (
+    // If section vsize is 0 try to use rsize instead.
+    PO_SECTION_VSIZE_FALLBACK,
+    // Rename invalid section name.
+    PO_SECTION_AUTORENAME_INVALID
+    );
+
+  TParserOptions = set of TParserOption;
+
 const
   SUSPICIOUS_MIN_LIMIT_EXPORTS = $10000;
   DEFAULT_SECTOR_SIZE          = 512;
@@ -55,6 +64,7 @@ const
     PF_TLS, PF_RESOURCES];
 
   DEFAULT_PARSER_FLAGS = ALL_PARSER_FLAGS;
+  DEFAULT_OPTIONS      = [PO_SECTION_VSIZE_FALLBACK, PO_SECTION_AUTORENAME_INVALID];
 
   // Data directories.
   DDIR_EXPORT           = 0;
