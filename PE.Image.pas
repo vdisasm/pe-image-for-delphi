@@ -714,9 +714,14 @@ var
   Sec: TPESection;
   i: integer;
   sh: TImageSectionHeader;
-  NumberOfSections: uint16;
+  NumberOfSections: UInt16;
+  SizeOfHeader: integer;
+  HeaderList: TList<TImageSectionHeader>;
 begin
   NumberOfSections := FFileHeader.NumberOfSections;
+
+  // Header comes from offset: 0 to SizeOfHeader
+  SizeOfHeader := CalcHeadersSizeNotAligned;
 
   FSections.Clear; // it clears FFileHeader.NumberOfSections
 
@@ -726,48 +731,74 @@ begin
     exit;
   end;
 
-  for i := 0 to NumberOfSections - 1 do
-  begin
-    if not StreamRead(AStream, sh, SizeOf(sh)) then
-      break;
-
-    if (sh.Misc.VirtualSize = 0) and (sh.SizeOfRawData = 0) then
+  HeaderList := TList<TImageSectionHeader>.Create;
+  try
+    for i := 0 to NumberOfSections - 1 do
     begin
-      Msg.Write('Section #%d has vsize and rsize = 0, skipping it', [i]);
-      continue;
+      if StreamRead(AStream, sh, SizeOf(sh)) then
+        HeaderList.Add(sh)
+      else
+        break;
     end;
 
-    {
-      * Raw size can be 0
-      * Virtual size can't be 0 as it won't be mapped
-    }
-
-    if sh.Misc.VirtualSize = 0 then
+    for i := 0 to HeaderList.Count - 1 do
     begin
-      Msg.Write('Section #%d has vsize = 0', [i]);
-      if PO_SECTION_VSIZE_FALLBACK in FOptions then
+      sh := HeaderList[i];
+
+      // If section data points into header then need to handle special case.
+      if (sh.PointerToRawData >= 0) and (sh.PointerToRawData < SizeOfHeader) then
       begin
-        sh.Misc.VirtualSize := sh.SizeOfRawData;
-      end
-      else
+        Msg.Write('Section #%d is inside of headers', [i]);
+        // Headers are always loaded at image base with
+        // RawSize = SizeOfHeaders
+        // VirtualSize = RawSize aligned up to SectionAlignment
+
+        // Override section header.
+        sh.PointerToRawData := 0;
+        sh.SizeOfRawData := SizeOfHeader;
+        sh.Misc.VirtualSize := SizeOfHeader;
+      end;
+
+      if (sh.Misc.VirtualSize = 0) and (sh.SizeOfRawData = 0) then
       begin
-        Msg.Write('Option to fallback to RSize isn''t included, skipping');
+        Msg.Write('Section #%d has vsize and rsize = 0, skipping it', [i]);
         continue;
       end;
-    end;
 
-    Sec := TPESection.Create(sh, nil);
+      {
+        * Raw size can be 0
+        * Virtual size can't be 0 as it won't be mapped
+      }
 
-    if not Sec.IsNameSafe then
-    begin
-      if PO_SECTION_AUTORENAME_INVALID in FOptions then
+      if sh.Misc.VirtualSize = 0 then
       begin
-        Sec.Name := AnsiString(format('sec_%4.4x', [i]));
-        Msg.Write('Section has not safe name. Overriding to %s', [Sec.Name]);
+        Msg.Write('Section #%d has vsize = 0', [i]);
+        if PO_SECTION_VSIZE_FALLBACK in FOptions then
+        begin
+          sh.Misc.VirtualSize := AlignUp(sh.SizeOfRawData, SectionAlignment);
+        end
+        else
+        begin
+          Msg.Write('Option to fallback to RSize isn''t included, skipping');
+          continue;
+        end;
       end;
-    end;
 
-    FSections.Add(Sec); // changes FFileHeader.NumberOfSections
+      Sec := TPESection.Create(sh, nil);
+
+      if not Sec.IsNameSafe then
+      begin
+        if PO_SECTION_AUTORENAME_INVALID in FOptions then
+        begin
+          Sec.Name := AnsiString(format('sec_%4.4x', [i]));
+          Msg.Write('Section has not safe name. Overriding to %s', [Sec.Name]);
+        end;
+      end;
+
+      FSections.Add(Sec); // changes FFileHeader.NumberOfSections
+    end;
+  finally
+    HeaderList.Free;
   end;
 
   // Check section count.
@@ -802,13 +833,12 @@ end;
 
 procedure TPEImage.ResolveSectionNames;
 var
-  i, StringOfs, err: integer;
+  StringOfs, err: integer;
   Sec: TPESection;
   t: RawByteString;
 begin
-  for i := 0 to FSections.Count - 1 do
+  for Sec in FSections do
   begin
-    Sec := FSections[i];
     if (Sec.Name <> '') then
       if (Sec.Name[1] = '/') then
       begin
@@ -1330,36 +1360,6 @@ begin
   SecHdrOfs := OptHdrOfs + FFileHeader.SizeOfOptionalHeader;
   SecHdrEndOfs := SecHdrOfs + SizeOf(TImageSectionHeader) * FFileHeader.NumberOfSections;
 
-  // Read COFF.
-  FCOFF.LoadFromStream(AStream);
-
-  // Load Section Headers first.
-  AStream.Position := SecHdrOfs;
-  LoadSectionHeaders(AStream);
-
-  // Mapped image can't have overlay, so correct total size.
-  if FImageKind = PEIMAGE_KIND_MEMORY then
-    FFileSize := CalcRawSizeOfImage;
-
-  // Convert /%num% section names to long names if possible.
-  ResolveSectionNames;
-
-  // Read Gap after Section Header.
-  if FSections.Count <> 0 then
-  begin
-    SecDataOfs := FSections.First.RawOffset;
-    if SecDataOfs >= SecHdrEndOfs then
-    begin
-      SecHdrGapSize := SecDataOfs - SecHdrEndOfs;
-      SetLength(self.FSecHdrGap, SecHdrGapSize);
-      if SecHdrGapSize <> 0 then
-      begin
-        AStream.Position := SecHdrEndOfs;
-        AStream.Read(self.FSecHdrGap[0], SecHdrGapSize);
-      end;
-    end;
-  end;
-
   // Read opt.hdr. magic to know if image is 32 or 64 bit.
   AStream.Position := OptHdrOfs;
   if not StreamPeek(AStream, FOptionalHeader.Magic, SizeOf(FOptionalHeader.Magic)) then
@@ -1382,7 +1382,7 @@ begin
   end;
 
   // Safe read optional header.
-  OptHdrSizeRead := FOptionalHeader.ReadFromStream(AStream, ImageBits, -1);
+  OptHdrSizeRead := FOptionalHeader.ReadFromStream(AStream, FImageBitSize, -1);
 
   if OptHdrSizeRead <> 0 then
   begin
@@ -1392,6 +1392,36 @@ begin
       SecHdrOfs,
       FOptionalHeader.NumberOfRvaAndSizes // declared count
       );
+  end;
+
+  // Load Section Headers.
+  AStream.Position := SecHdrOfs;
+  LoadSectionHeaders(AStream);
+
+  // Mapped image can't have overlay, so correct total size.
+  if FImageKind = PEIMAGE_KIND_MEMORY then
+    FFileSize := CalcRawSizeOfImage;
+
+  // Read COFF.
+  FCOFF.LoadFromStream(AStream);
+
+  // Convert /%num% section names to long names if possible.
+  ResolveSectionNames;
+
+  // Read Gap after Section Header.
+  if FSections.Count <> 0 then
+  begin
+    SecDataOfs := FSections.First.RawOffset;
+    if SecDataOfs >= SecHdrEndOfs then
+    begin
+      SecHdrGapSize := SecDataOfs - SecHdrEndOfs;
+      SetLength(self.FSecHdrGap, SecHdrGapSize);
+      if SecHdrGapSize <> 0 then
+      begin
+        AStream.Position := SecHdrEndOfs;
+        AStream.Read(self.FSecHdrGap[0], SecHdrGapSize);
+      end;
+    end;
   end;
 
   Result := True;

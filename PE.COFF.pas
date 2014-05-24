@@ -85,7 +85,6 @@ begin
   // Load string block.
   SetLength(FStrings, cbStringData);
   StreamRead(AStream, FStrings[0], cbStringData);
-
 end;
 
 end.
