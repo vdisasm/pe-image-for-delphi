@@ -680,11 +680,17 @@ begin
 end;
 
 function TPEImage.CalcSecHdrOfs: TFileOffset;
+var
+  SizeOfPureOptionalHeader: uint32;
 begin
 {$WARN COMBINING_SIGNED_UNSIGNED OFF}
-  Result := FLFANew + 4 + SizeOf(TImageFileHeader) +
-    CalcSizeOfPureOptionalHeader + FDataDirectories.Count *
-    SizeOf(TImageDataDirectory);
+  SizeOfPureOptionalHeader := CalcSizeOfPureOptionalHeader();
+  Result :=
+    FLFANew +
+    4 +
+    SizeOf(TImageFileHeader) +
+    SizeOfPureOptionalHeader +
+    FDataDirectories.Count * SizeOf(TImageDataDirectory);
 {$WARN COMBINING_SIGNED_UNSIGNED ON}
 end;
 
