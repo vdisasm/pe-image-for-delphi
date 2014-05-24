@@ -755,8 +755,11 @@ begin
 
         // Override section header.
         sh.PointerToRawData := 0;
-        sh.SizeOfRawData := SizeOfHeader;
-        sh.Misc.VirtualSize := SizeOfHeader;
+        if NumberOfSections = 1 then
+          sh.SizeOfRawData := Min(FFileSize, SectionAlignment)
+        else
+          sh.SizeOfRawData := SizeOfHeader;
+        sh.Misc.VirtualSize := sh.SizeOfRawData;
       end;
 
       if (sh.Misc.VirtualSize = 0) and (sh.SizeOfRawData = 0) then
