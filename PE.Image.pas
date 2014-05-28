@@ -745,21 +745,24 @@ begin
     begin
       sh := HeaderList[i];
 
-      // If section data points into header then need to handle special case.
-      if (sh.PointerToRawData >= 0) and (sh.PointerToRawData < SizeOfHeader) then
+      if sh.SizeOfRawData <> 0 then
       begin
-        Msg.Write('Section #%d is inside of headers', [i]);
-        // Headers are always loaded at image base with
-        // RawSize = SizeOfHeaders
-        // VirtualSize = RawSize aligned up to SectionAlignment
+        // If section data points into header then need to handle special case.
+        if (sh.PointerToRawData < SizeOfHeader) then
+        begin
+          Msg.Write('Section #%d is inside of headers', [i]);
+          // Headers are always loaded at image base with
+          // RawSize = SizeOfHeaders
+          // VirtualSize = RawSize aligned up to SectionAlignment
 
-        // Override section header.
-        sh.PointerToRawData := 0;
-        if NumberOfSections = 1 then
-          sh.SizeOfRawData := Min(FFileSize, SectionAlignment)
-        else
-          sh.SizeOfRawData := SizeOfHeader;
-        sh.Misc.VirtualSize := sh.SizeOfRawData;
+          // Override section header.
+          sh.PointerToRawData := 0;
+          if NumberOfSections = 1 then
+            sh.SizeOfRawData := Min(FFileSize, SectionAlignment)
+          else
+            sh.SizeOfRawData := SizeOfHeader;
+          sh.Misc.VirtualSize := sh.SizeOfRawData;
+        end;
       end;
 
       if (sh.Misc.VirtualSize = 0) and (sh.SizeOfRawData = 0) then
