@@ -24,12 +24,17 @@ type
 
     procedure Clear;
 
-    procedure LoadFromStream(Stream: TStream; const Msg: TMsgMgr;
-      StartOffset, SectionHdrOffset: TFileOffset; DeclaredCount: integer);
+    // Load array of TImageDataDirectory (va,size) from stream.
+    procedure LoadDirectoriesFromStream(Stream: TStream; const Msg: TMsgMgr;
+      DeclaredCount: integer);
 
+    // Save array of TImageDataDirectory (va,size) to stream.
     // Return saved size.
-    function SaveToStream(Stream: TStream): integer;
+    function SaveDirectoriesToStream(Stream: TStream): integer;
 
+    // Get TImageDataDirectory by Index.
+    // Result is True if Index exists.
+    // OutDir is optional and can be nil.
     function Get(Index: integer; OutDir: PImageDataDirectory): boolean;
 
     // Get directory name.
@@ -62,7 +67,6 @@ implementation
 uses
   // Expand
   PE.Headers,
-  //
   PE.Image;
 
 { TDataDirectories }
@@ -165,7 +169,7 @@ begin
     Result := '';
 end;
 
-procedure TDataDirectories.LoadFromStream;
+procedure TDataDirectories.LoadDirectoriesFromStream;
 var
   CountToEOF: integer; // Count from StartOfs to EOF.
   CountToRead: integer;
@@ -173,7 +177,7 @@ var
   Size: uint32;
 begin
 
-  SizeToEOF := (Stream.Size - StartOffset);
+  SizeToEOF := (Stream.Size - Stream.Position);
 
   CountToEOF := SizeToEOF div SizeOf(TImageDataDirectory);
 
@@ -186,15 +190,6 @@ begin
   if DeclaredCount < 16 then
     Msg.Write('[DataDirectories] Non-usual count of directories (%d).',
       [DeclaredCount]);
-
-  // if DeclaredCount > CountInRange then
-  // begin
-  // Msg.Write('[DataDirectories] Declared count of directories (%d) is greater '
-  // + 'than should be (%d) in range of file offsets 0x%x - 0x%x.',
-  // [DeclaredCount, CountInRange, StartOffset, SectionHdrOffset]);
-  // Msg.Write('[DataDirectories] Directories from %d are loaded starting from '
-  // + 'section headers offset (0x%x)', [CountInRange + 1, SectionHdrOffset]);
-  // end;
 
   if DeclaredCount > CountToEOF then
   begin
@@ -231,10 +226,9 @@ begin
   exit(False);
 end;
 
-function TDataDirectories.SaveToStream(Stream: TStream): integer;
+function TDataDirectories.SaveDirectoriesToStream(Stream: TStream): integer;
 begin
-  Result := Stream.Write(FItems[0], Length(FItems) *
-    SizeOf(TImageDataDirectory))
+  Result := Stream.Write(FItems[0], Length(FItems) * SizeOf(TImageDataDirectory))
 end;
 
 procedure TDataDirectories.SetCount(const Value: integer);

@@ -79,7 +79,7 @@ begin
   // Write optional header.
   OptHdrSize := PE.OptionalHeader.WriteToStream(AStream, PE.ImageBits, -1);
   // Write dirs.
-  DDirSize := PE.DataDirectories.SaveToStream(AStream);
+  DDirSize := PE.DataDirectories.SaveDirectoriesToStream(AStream);
   // Update size of opt. hdr.
   PE.FileHeader.SizeOfOptionalHeader := OptHdrSize + DDirSize;
 

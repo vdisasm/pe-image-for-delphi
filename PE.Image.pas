@@ -1393,9 +1393,7 @@ begin
   if OptHdrSizeRead <> 0 then
   begin
     // Read data directories from current pos top SecHdrOfs.
-    FDataDirectories.LoadFromStream(AStream, Msg,
-      AStream.Position,
-      SecHdrOfs,
+    FDataDirectories.LoadDirectoriesFromStream(AStream, Msg,
       FOptionalHeader.NumberOfRvaAndSizes // declared count
       );
   end;
