@@ -357,8 +357,18 @@ type
     // Save memory region to stream/file (in section boundary).
     // Result is number of bytes written.
     // todo: maybe also add cross-section dumps.
-    function DumpRegionToStream(AStream: TStream; RVA: TRVA; Size: uint32): uint32;
-    function DumpRegionToFile(const AFileName: string; RVA: TRVA; Size: uint32): uint32;
+    function DumpRegionToStream(AStream: TStream; RVA: TRVA; Size: uint32): uint32; deprecated 'use SaveRegionToStream';
+    function DumpRegionToFile(const AFileName: string; RVA: TRVA; Size: uint32): uint32; deprecated 'use SaveRegionToFile';
+
+    function SaveRegionToStream(AStream: TStream; RVA: TRVA; Size: uint32): uint32;
+    function SaveRegionToFile(const AFileName: string; RVA: TRVA; Size: uint32): uint32;
+
+    // Load data from Stream at Offset to memory. RVA and Size must define region
+    // that completely fit into some section. If region is larger than file or
+    // section it is truncated.
+    // ReadSize is optional param to get number of bytes read.
+    function LoadRegionFromStream(AStream: TStream; Offset: UInt64; RVA: TRVA; Size: uint32; ReadSize: PUInt32 = nil): boolean;
+    function LoadRegionFromFile(const AFileName: string; Offset: UInt64; RVA: TRVA; Size: uint32; ReadSize: PUInt32 = nil): boolean;
 
     { Regions }
 
@@ -581,21 +591,17 @@ begin
   raise Exception.Create('Read Error.');
 end;
 
-function TPEImage.DumpRegionToFile(const AFileName: string; RVA: TRVA;
-  Size: uint32): uint32;
-var
-  fs: TFileStream;
+function TPEImage.DumpRegionToStream(AStream: TStream; RVA: TRVA; Size: uint32): uint32;
 begin
-  fs := TFileStream.Create(AFileName, fmCreate);
-  try
-    Result := DumpRegionToStream(fs, RVA, Size);
-  finally
-    fs.Free;
-  end;
+  Result := SaveRegionToStream(AStream, RVA, Size);
 end;
 
-function TPEImage.DumpRegionToStream(AStream: TStream; RVA: TRVA;
-  Size: uint32): uint32;
+function TPEImage.DumpRegionToFile(const AFileName: string; RVA: TRVA; Size: uint32): uint32;
+begin
+  Result := SaveRegionToFile(FileName, RVA, Size);
+end;
+
+function TPEImage.SaveRegionToStream(AStream: TStream; RVA: TRVA; Size: uint32): uint32;
 const
   BUFSIZE = 8192;
 var
@@ -628,6 +634,58 @@ begin
     inc(pCur, TmpSize);
     dec(Size, TmpSize);
     inc(Result, TmpSize);
+  end;
+end;
+
+function TPEImage.SaveRegionToFile(const AFileName: string; RVA: TRVA; Size: uint32): uint32;
+var
+  fs: TFileStream;
+begin
+  fs := TFileStream.Create(AFileName, fmCreate);
+  try
+    Result := SaveRegionToStream(fs, RVA, Size);
+  finally
+    fs.Free;
+  end;
+end;
+
+function TPEImage.LoadRegionFromStream(AStream: TStream; Offset: UInt64; RVA: TRVA; Size: uint32; ReadSize: PUInt32): boolean;
+var
+  Sec: TPESection;
+  p: PByte;
+  ActualSize: uint32;
+begin
+  if Size = 0 then
+    exit(true);
+  if Offset >= AStream.Size then
+    exit(false);
+  if (Offset + Size) > AStream.Size then
+    Size := AStream.Size - Offset;
+  if not RVAToSec(RVA, @Sec) then
+    exit(false);
+  if (RVA + Size) > Sec.GetEndRVA then
+    Size := Sec.GetEndRVA - RVA;
+
+  AStream.Position := Offset;
+
+  p := Sec.Mem + (RVA - Sec.RVA);
+  ActualSize := AStream.Read(p^, Size);
+
+  if Assigned(ReadSize) then
+    ReadSize^ := ActualSize;
+
+  exit(true);
+end;
+
+function TPEImage.LoadRegionFromFile(const AFileName: string; Offset: UInt64; RVA: TRVA; Size: uint32; ReadSize: PUInt32): boolean;
+var
+  fs: TFileStream;
+begin
+  fs := TFileStream.Create(AFileName, fmOpenRead or fmShareDenyWrite);
+  try
+    Result := LoadRegionFromStream(fs, Offset, RVA, Size, ReadSize);
+  finally
+    fs.Free;
   end;
 end;
 
@@ -905,7 +963,7 @@ begin
       if AStream.Seek(Ofs, TSeekOrigin.soBeginning) = Ofs then
         if AStream.Read(pe00, SizeOf(pe00)) = SizeOf(pe00) then
           if pe00 = PE00_SIGNATURE then
-            exit(True);
+            exit(true);
     end;
   exit(false);
 end;
@@ -1428,7 +1486,7 @@ begin
     end;
   end;
 
-  Result := True;
+  Result := true;
 
   // Load section data.
   LoadSectionData(AStream);
@@ -1529,7 +1587,7 @@ begin
   begin
     // If no overlay, we're done.
     if ovr^.Size = 0 then
-      exit(True);
+      exit(true);
     try
       src := SourceStreamGet(fmOpenRead or fmShareDenyWrite);
 
@@ -1544,7 +1602,7 @@ begin
       try
         src.Seek(ovr^.Offset, TSeekOrigin.soBeginning);
         dst.CopyFrom(src, ovr^.Size);
-        Result := True;
+        Result := true;
       finally
         SourceStreamFree(src);
         dst.Free;
@@ -1575,7 +1633,7 @@ begin
       try
         fs.Size := fs.Size - ovr^.Size; // Trim file.
         self.FFileSize := fs.Size;      // Update filesize.
-        Result := True;
+        Result := true;
       finally
         fs.Free;
       end;
@@ -1626,7 +1684,7 @@ begin
 
       self.FFileSize := fs.Size; // Update filesize.
     end;
-    Result := True;
+    Result := true;
   finally
     src.Free;
     fs.Free;

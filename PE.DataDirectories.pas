@@ -53,11 +53,17 @@ type
 
     // Get index of directory, which occupies whole Section. Result is -1 if
     // not found.
-    function GetDirDedicatedToSection(Section: TPESection;
-      AlignSize: boolean = False): integer;
+    function GetDirDedicatedToSection(Section: TPESection; AlignSize: boolean = False): integer;
 
-    // Save directory data to file.
+    // Save data pointed by directory RVA and Size to file.
+    // Index is directory index.
     function SaveToFile(Index: integer; const FileName: string): boolean;
+
+    // Load data into memory pointed by directory RVA and Size.
+    // Index is directory index.
+    // Offset is file offset where to start reading from.
+    // Result is True if complete size was read.
+    function LoadFromFile(Index: integer; const FileName: string; Offset: uint64 = 0): boolean;
 
     property Count: integer read GetCount write SetCount;
   end;
@@ -145,8 +151,7 @@ begin
   Result := Length(FItems);
 end;
 
-function TDataDirectories.GetDirDedicatedToSection(Section: TPESection;
-  AlignSize: boolean = False): integer;
+function TDataDirectories.GetDirDedicatedToSection(Section: TPESection; AlignSize: boolean = False): integer;
 // todo: it can be slow due to many iterations
 var
   i: integer;
@@ -213,15 +218,27 @@ begin
 
 end;
 
-function TDataDirectories.SaveToFile(Index: integer;
-  const FileName: string): boolean;
+function TDataDirectories.SaveToFile(Index: integer; const FileName: string): boolean;
 var
   Dir: TImageDataDirectory;
 begin
   if Get(Index, @Dir) then
   begin
-    TPEImage(FPE).DumpRegionToFile(FileName, Dir.VirtualAddress, Dir.Size);
+    TPEImage(FPE).SaveRegionToFile(FileName, Dir.VirtualAddress, Dir.Size);
     exit(True);
+  end;
+  exit(False);
+end;
+
+function TDataDirectories.LoadFromFile(Index: integer; const FileName: string; Offset: uint64): boolean;
+var
+  Dir: TImageDataDirectory;
+  ReadCount: uint32;
+begin
+  if Get(Index, @Dir) then
+  begin
+    TPEImage(FPE).LoadRegionFromFile(FileName, Offset, Dir.VirtualAddress, Dir.Size, @ReadCount);
+    exit(ReadCount = Dir.Size);
   end;
   exit(False);
 end;
