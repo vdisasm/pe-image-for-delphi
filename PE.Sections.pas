@@ -31,7 +31,11 @@ type
     // Add new named section.
     // If Mem <> nil, data from Mem will be copied to newly allocated block.
     // If Mem = nil, block will be allocated and filled with 0s.
-    function AddNew(const AName: AnsiString; ASize, AFlags: UInt32; Mem: pointer): TPESection;
+    // Normally Virtual Address of section is calculated to come after previous
+    // section (aligned). But if ForceVA is not 0 it is used instead of
+    // calculation.
+    function AddNew(const AName: AnsiString; ASize, AFlags: UInt32;
+      Mem: pointer; ForceVA: TVA = 0): TPESection;
 
     function SizeOfAllHeaders: UInt32; inline;
 
@@ -66,7 +70,8 @@ begin
   Result := Sec;
 end;
 
-function TPESections.AddNew(const AName: AnsiString; ASize, AFlags: UInt32; Mem: pointer): TPESection;
+function TPESections.AddNew(const AName: AnsiString; ASize, AFlags: UInt32;
+  Mem: pointer; ForceVA: TVA): TPESection;
 var
   h: TImageSectionHeader;
   i: integer;
@@ -85,7 +90,12 @@ begin
   end;
 
   h.Misc.VirtualSize := AlignUp(ASize, PE.SectionAlignment);
-  h.VirtualAddress := CalcNextSectionRVA;
+
+  if ForceVA = 0 then
+    h.VirtualAddress := CalcNextSectionRVA
+  else
+    h.VirtualAddress := ForceVA;
+
   h.SizeOfRawData := ASize;
   // h.PointerToRawData will be calculated later during image saving.
   h.Characteristics := AFlags;

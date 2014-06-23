@@ -4,6 +4,7 @@ interface
 
 uses
   System.Classes,
+  System.SysUtils,
 
   PE.Common,
   PE.Msg,
@@ -57,13 +58,15 @@ type
 
     // Save data pointed by directory RVA and Size to file.
     // Index is directory index.
+    function SaveToStream(Index: integer; Stream: TStream): boolean;
     function SaveToFile(Index: integer; const FileName: string): boolean;
 
     // Load data into memory pointed by directory RVA and Size.
     // Index is directory index.
     // Offset is file offset where to start reading from.
     // Result is True if complete size was read.
-    function LoadFromFile(Index: integer; const FileName: string; Offset: uint64 = 0): boolean;
+    function LoadFromStream(Index: integer; Stream: TStream; Offset: uint64): boolean;
+    function LoadFromFile(Index: integer; const FileName: string; Offset: uint64): boolean;
 
     property Count: integer read GetCount write SetCount;
   end;
@@ -218,29 +221,53 @@ begin
 
 end;
 
-function TDataDirectories.SaveToFile(Index: integer; const FileName: string): boolean;
+function TDataDirectories.SaveToStream(Index: integer; Stream: TStream): boolean;
 var
   Dir: TImageDataDirectory;
 begin
   if Get(Index, @Dir) then
   begin
-    TPEImage(FPE).SaveRegionToFile(FileName, Dir.VirtualAddress, Dir.Size);
+    TPEImage(FPE).SaveRegionToStream(Stream, Dir.VirtualAddress, Dir.Size);
     exit(True);
   end;
   exit(False);
 end;
 
-function TDataDirectories.LoadFromFile(Index: integer; const FileName: string; Offset: uint64): boolean;
+function TDataDirectories.SaveToFile(Index: integer; const FileName: string): boolean;
+var
+  fs: TFileStream;
+begin
+  fs := TFileStream.Create(FileName, fmCreate);
+  try
+    Result := SaveToStream(Index, fs);
+  finally
+    fs.Free;
+  end;
+end;
+
+function TDataDirectories.LoadFromStream(Index: integer; Stream: TStream; Offset: uint64): boolean;
 var
   Dir: TImageDataDirectory;
   ReadCount: uint32;
 begin
   if Get(Index, @Dir) then
   begin
-    TPEImage(FPE).LoadRegionFromFile(FileName, Offset, Dir.VirtualAddress, Dir.Size, @ReadCount);
+    TPEImage(FPE).LoadRegionFromStream(Stream, Offset, Dir.VirtualAddress, Dir.Size, @ReadCount);
     exit(ReadCount = Dir.Size);
   end;
   exit(False);
+end;
+
+function TDataDirectories.LoadFromFile(Index: integer; const FileName: string; Offset: uint64): boolean;
+var
+  fs: TFileStream;
+begin
+  fs := TFileStream.Create(FileName, fmOpenRead or fmShareDenyWrite);
+  try
+    Result := LoadFromStream(Index, fs, Offset);
+  finally
+    fs.Free;
+  end;
 end;
 
 function TDataDirectories.SaveDirectoriesToStream(Stream: TStream): integer;
