@@ -19,7 +19,7 @@ begin
     if img.LoadFromFile('SampleLib.dll', []) then
     begin
       img.DataDirectories.SaveToFile(0, 'export_dir');
-      img.DataDirectories.LoadFromFile(0, 'export_dir');
+      img.DataDirectories.LoadFromFile(0, 'export_dir', 0);
     end;
   finally
     img.Free;
