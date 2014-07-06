@@ -252,7 +252,6 @@ procedure TPEVersionInfo.PrintTreeEx(n: TRootBlock; PrintFn: TPrintFunc;
 var
   sIndent: string;
   c: TRootBlock;
-  stringItem: TPair<string, string>;
 begin
   sIndent := string.Create(' ', Indent);
 
