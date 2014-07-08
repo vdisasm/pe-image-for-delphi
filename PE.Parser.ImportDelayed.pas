@@ -85,6 +85,8 @@ begin
 end;
 
 function TPEImportDelayedParser.Parse: TParserResult;
+const
+  FLAG_RVA = 1;
 var
   PE: TPEImage;
   ddir: TImageDataDirectory;
@@ -92,6 +94,7 @@ var
   Table: TDelayLoadDirectoryTable;
   Tables: TList<TDelayLoadDirectoryTable>;
   Funcs: TFuncs;
+  TablesUseRVA, CurrentTableUseRVA: boolean;
 begin
   PE := TPEImage(FPE);
 
@@ -110,22 +113,48 @@ begin
   Tables := TList<TDelayLoadDirectoryTable>.Create;
   try
 
-    // Delay-load dir. table.
+    // Delay-load dir. tables.
     ofs := 0;
-    while PE.ReadEx(Table, SizeOf(Table)) and (not Table.IsEmpty) do
+    TablesUseRVA := True; // default, compiler-friendly
+    while True do
     begin
       if ofs > ddir.Size then
-      begin
-        // If tables overflow size of whole directory, it must be corrupted
-        // (probably by protector).
         Exit(PR_ERROR);
+
+      if not PE.ReadEx(Table, SizeOf(Table)) then
+        break;
+
+      if Table.IsEmpty then
+        break;
+
+      CurrentTableUseRVA := (Table.Attributes and FLAG_RVA) <> 0;
+
+      if (ofs = 0) then
+      begin
+        TablesUseRVA := CurrentTableUseRVA; // initialize once
+      end
+      else if TablesUseRVA <> CurrentTableUseRVA then
+      begin
+        // Normally all tables must use either VA or RVA. No mix allowed.
+        // If mix found it must be not real table.
+        // For example, Delphi (some versions for sure) use(d) such optimization.
+        break;
       end;
+
+      // Attribute:
+      // 0: addresses are VA (old VC6 binaries)
+      // 1: addresses are RVA
+      // Maybe support for 0 will be added later when I get sample of such file.
+      if (Table.Attributes and FLAG_RVA) = 0 then
+        raise Exception.Create('VAs in delayed imports currently not supported');
+
       Tables.Add(Table);
       inc(ofs, SizeOf(Table));
     end;
 
+    // Parse tables.
     if Tables.Count = 0 then
-      Exit;
+      Exit(PR_OK);
 
     Funcs := TFuncs.Create;
     try
