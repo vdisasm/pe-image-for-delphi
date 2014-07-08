@@ -53,6 +53,7 @@ var
   Lib: TPEImportLibrary;
   PE: TPEImage;
   LibraryName: RawByteString;
+  FunctionAlreadyExists: boolean;
 begin
   PE := TPEImage(FPE);
 
@@ -112,7 +113,7 @@ begin
 
       Lib.TimeDateStamp := IDir.TimeDateStamp;
 
-      // skip bad dll name
+      // Skip bad dll name.
       if Lib.Name = '' then
       begin
         PE.Msg.Write('Bad import library name.');
@@ -137,34 +138,40 @@ begin
         break;
       end;
 
-      // read IAT elements
+      // Read IAT elements.
       while PE.SeekRVA(IATRVA) and ReadGoodILTItem(TPEImage(FPE), dq) do
       begin
-        ILT.Create(dq, bIs32);
+        FunctionAlreadyExists := Assigned(Lib.Functions.FindByRVA(PATCHRVA));
 
-        ImpFn := TPEImportFunction.CreateEmpty;
-        ImpFn.RVA := PATCHRVA;
-
-        // By ordinal.
-        if ILT.IsImportByOrdinal then
+        // Process only unique functions (by RVA).
+        if not FunctionAlreadyExists then
         begin
-          ImpFn.Ordinal := ILT.OrdinalNumber;
-          ImpFn.Name := '';
-        end
+          ILT.Create(dq, bIs32);
 
-        // By name.
-        else if PE.SeekRVA(ILT.HintNameTableRVA) then
-        begin
-          dq := 0;
-          PE.ReadEx(@dq, 2);
-          ImpFn.Name := PE.ReadANSIString;
+          ImpFn := TPEImportFunction.CreateEmpty;
+          ImpFn.RVA := PATCHRVA;
+
+          // By ordinal.
+          if ILT.IsImportByOrdinal then
+          begin
+            ImpFn.Ordinal := ILT.OrdinalNumber;
+            ImpFn.Name := '';
+          end
+
+          // By name.
+          else if PE.SeekRVA(ILT.HintNameTableRVA) then
+          begin
+            dq := 0;
+            PE.ReadEx(@dq, 2);
+            ImpFn.Name := PE.ReadANSIString;
+          end;
+
+          Lib.Functions.Add(ImpFn);
         end;
 
-        Lib.Functions.Add(ImpFn); // add imported function
-        inc(IATRVA, sizet);       // next item
+        inc(IATRVA, sizet); // next item
         inc(PATCHRVA, sizet);
       end;
-
     end;
 
     Result := PR_OK;
@@ -173,7 +180,6 @@ begin
     IDirs.Free;
     ILTs.Free;
   end;
-
 end;
 
 end.
