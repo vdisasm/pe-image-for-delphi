@@ -28,6 +28,11 @@ type
 
     function CalcNextSectionRVA: TRVA;
 
+    // Create new section but don't add it. 
+    // See AddNew for list of parameters.
+    function CreateNew(const AName: AnsiString; ASize, AFlags: UInt32;
+      Mem: pointer; ForceVA: TVA = 0): TPESection;
+
     // Add new named section.
     // If Mem <> nil, data from Mem will be copied to newly allocated block.
     // If Mem = nil, block will be allocated and filled with 0s.
@@ -70,7 +75,7 @@ begin
   Result := Sec;
 end;
 
-function TPESections.AddNew(const AName: AnsiString; ASize, AFlags: UInt32;
+function TPESections.CreateNew(const AName: AnsiString; ASize, AFlags: UInt32;
   Mem: pointer; ForceVA: TVA): TPESection;
 var
   h: TImageSectionHeader;
@@ -100,7 +105,12 @@ begin
   // h.PointerToRawData will be calculated later during image saving.
   h.Characteristics := AFlags;
   Result := TPESection.Create(h, Mem);
+end;
 
+function TPESections.AddNew(const AName: AnsiString; ASize, AFlags: UInt32;
+  Mem: pointer; ForceVA: TVA): TPESection;
+begin
+  Result := CreateNew(AName, ASize, AFlags, Mem, ForceVA);
   Add(Result);
 end;
 
