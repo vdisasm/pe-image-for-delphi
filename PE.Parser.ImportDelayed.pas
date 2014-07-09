@@ -65,20 +65,20 @@ begin
     if HintNameRva = 0 then
       break;
 
-    dec(HintNameRva, SubValue);
-
     Ilt.Create(HintNameRva, PE.Is32bit);
 
     Ordinal := 0;
     FnName := '';
 
     if Ilt.IsImportByOrdinal then
+    begin
       // Import by ordinal only. No hint/name.
-      Ordinal := Ilt.OrdinalNumber
+      Ordinal := Ilt.OrdinalNumber;
+    end
     else
     begin
       // Import by name. Get hint/name
-      if not PE.SeekRVA(HintNameRva) then
+      if not PE.SeekRVA(HintNameRva - SubValue) then
         raise Exception.Create('Error reading delayed import hint/name.');
       Hint := PE.ReadWord(2);
       FnName := PE.ReadANSIString;
