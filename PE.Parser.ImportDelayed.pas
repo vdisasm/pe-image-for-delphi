@@ -45,19 +45,27 @@ var
   Ordinal: UInt16;
   Hint: UInt16 absolute Ordinal;
   Iat: TRVA;
+  SubValue: UInt32;
 begin
-  PE.SeekRVA(Table.Name);
+  if Table.UsesVA then
+    SubValue := PE.ImageBase
+  else
+    SubValue := 0;
+
+  PE.SeekRVA(Table.Name - SubValue);
   DllName := PE.ReadANSIString;
 
   wordSize := PE.ImageWordSize;
   iFunc := 0;
-  Iat := Table.DelayImportAddressTable;
+  Iat := Table.DelayImportAddressTable - SubValue;
 
-  while PE.SeekRVA(Table.DelayImportNameTable + iFunc * wordSize) do
+  while PE.SeekRVA(Table.DelayImportNameTable - SubValue + iFunc * wordSize) do
   begin
     HintNameRva := PE.ReadWord();
     if HintNameRva = 0 then
       break;
+
+    dec(HintNameRva, SubValue);
 
     Ilt.Create(HintNameRva, PE.Is32bit);
 
@@ -85,8 +93,6 @@ begin
 end;
 
 function TPEImportDelayedParser.Parse: TParserResult;
-const
-  FLAG_RVA = 1;
 var
   PE: TPEImage;
   ddir: TImageDataDirectory;
@@ -94,7 +100,7 @@ var
   Table: TDelayLoadDirectoryTable;
   Tables: TList<TDelayLoadDirectoryTable>;
   Funcs: TFuncs;
-  TablesUseRVA, CurrentTableUseRVA: boolean;
+  TablesUseRVA: boolean;
 begin
   PE := TPEImage(FPE);
 
@@ -124,29 +130,24 @@ begin
       if not PE.ReadEx(Table, SizeOf(Table)) then
         break;
 
-      if Table.IsEmpty then
+      if Table.Empty then
         break;
 
-      CurrentTableUseRVA := (Table.Attributes and FLAG_RVA) <> 0;
+      // Attribute:
+      // 0: addresses are VA (old VC6 binaries)
+      // 1: addresses are RVA
 
       if (ofs = 0) then
       begin
-        TablesUseRVA := CurrentTableUseRVA; // initialize once
+        TablesUseRVA := Table.UsesRVA; // initialize once
       end
-      else if TablesUseRVA <> CurrentTableUseRVA then
+      else if TablesUseRVA <> Table.UsesRVA then
       begin
         // Normally all tables must use either VA or RVA. No mix allowed.
         // If mix found it must be not real table.
         // For example, Delphi (some versions for sure) use(d) such optimization.
         break;
       end;
-
-      // Attribute:
-      // 0: addresses are VA (old VC6 binaries)
-      // 1: addresses are RVA
-      // Maybe support for 0 will be added later when I get sample of such file.
-      if (Table.Attributes and FLAG_RVA) = 0 then
-        raise Exception.Create('VAs in delayed imports currently not supported');
 
       Tables.Add(Table);
       inc(ofs, SizeOf(Table));

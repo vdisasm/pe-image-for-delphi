@@ -6,6 +6,11 @@ interface
 // 4.8.1. The Delay-Load Directory Table
 type
   TDelayLoadDirectoryTable = packed record
+  private
+    function GetUsesVA: boolean; inline;
+    function GetUsesRVA: boolean; inline;
+    function GetEmpty: boolean; inline;
+  public
 
     // Must be zero.
     Attributes: UInt32;
@@ -41,14 +46,31 @@ type
     // The timestamp of the DLL to which this image has been bound.
     TimeStamp: UInt32;
 
-    function IsEmpty: boolean; inline;
+    // Check if addresses are VA/RVA (by attibute).
+    property UsesVA: boolean read GetUsesVA;
+    property UsesRVA: boolean read GetUsesRVA;
+
+    property Empty: boolean read GetEmpty;
   end;
 
 implementation
 
-{ TDelayLoadDirectoryTable }
+const
+  FLAG_RVA = 1;
 
-function TDelayLoadDirectoryTable.IsEmpty: boolean;
+  { TDelayLoadDirectoryTable }
+
+function TDelayLoadDirectoryTable.GetUsesVA: boolean;
+begin
+  Result := (Attributes and FLAG_RVA) = 0;
+end;
+
+function TDelayLoadDirectoryTable.GetUsesRVA: boolean;
+begin
+  Result := (Attributes and FLAG_RVA) <> 0;
+end;
+
+function TDelayLoadDirectoryTable.GetEmpty: boolean;
 begin
   Result := Name = 0;
 end;
