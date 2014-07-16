@@ -3,6 +3,7 @@ unit PE.Sections;
 interface
 
 uses
+  System.Classes,
   System.Generics.Collections,
   System.SysUtils,
 
@@ -28,7 +29,7 @@ type
 
     function CalcNextSectionRVA: TRVA;
 
-    // Create new section but don't add it. 
+    // Create new section but don't add it.
     // See AddNew for list of parameters.
     function CreateNew(const AName: AnsiString; ASize, AFlags: UInt32;
       Mem: pointer; ForceVA: TVA = 0): TPESection;
@@ -41,6 +42,10 @@ type
     // calculation.
     function AddNew(const AName: AnsiString; ASize, AFlags: UInt32;
       Mem: pointer; ForceVA: TVA = 0): TPESection;
+
+    // Add new section using raw data from file.
+    function AddNewFromFile(const AFileName: string; const AName: AnsiString;
+      AFlags: UInt32; ForceVA: TVA = 0): TPESection;
 
     function SizeOfAllHeaders: UInt32; inline;
 
@@ -112,6 +117,20 @@ function TPESections.AddNew(const AName: AnsiString; ASize, AFlags: UInt32;
 begin
   Result := CreateNew(AName, ASize, AFlags, Mem, ForceVA);
   Add(Result);
+end;
+
+function TPESections.AddNewFromFile(const AFileName: string;
+  const AName: AnsiString; AFlags: UInt32; ForceVA: TVA): TPESection;
+var
+  ms: TMemoryStream;
+begin
+  ms := TMemoryStream.Create;
+  try
+    ms.LoadFromFile(AFileName);
+    Result := AddNew(AName, ms.Size, AFlags, ms.Memory, ForceVA);
+  finally
+    ms.Free;
+  end;
 end;
 
 function TPESections.CalcNextSectionRVA: TRVA;

@@ -45,7 +45,10 @@ type
     // will be added.
     procedure Put(Index: integer; const Dir: TImageDataDirectory); overload;
 
-    procedure Put(Index: cardinal; RVA, Size: uint32); overload;
+    procedure Put(Index: integer; RVA, Size: uint32); overload;
+
+    // If Index exists set RVA and Size to 0.
+    procedure Null(Index: integer);
 
     // Check if directory by Index occuppies whole section. If it's true,
     // result is section. Otherwise result is nil.
@@ -140,13 +143,19 @@ begin
   FItems[Index] := Dir;
 end;
 
-procedure TDataDirectories.Put(Index: cardinal; RVA, Size: uint32);
+procedure TDataDirectories.Put(Index: integer; RVA, Size: uint32);
 var
   d: TImageDataDirectory;
 begin
   d.VirtualAddress := RVA;
   d.Size := Size;
   Put(Index, d);
+end;
+
+procedure TDataDirectories.Null(Index: integer);
+begin
+  if (Index >= 0) and (Index < Length(FItems)) then
+    FItems[Index] := NULL_IMAGE_DATA_DIRECTORY;
 end;
 
 function TDataDirectories.GetCount: integer;

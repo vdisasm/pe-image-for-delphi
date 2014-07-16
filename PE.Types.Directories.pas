@@ -39,6 +39,8 @@ type
   PImageDataDirectories = ^TImageDataDirectories;
 
 const
+  NULL_IMAGE_DATA_DIRECTORY: TImageDataDirectory = (VirtualAddress: 0; Size: 0);
+
   IMAGE_NUMBEROF_DIRECTORY_ENTRIES  = 16;
 
   DirectoryNames: array [0 .. IMAGE_NUMBEROF_DIRECTORY_ENTRIES - 1] of string =
