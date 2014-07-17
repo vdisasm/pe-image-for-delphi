@@ -63,6 +63,13 @@ begin
     blCnt := block.Count;
     for iBlock := 0 to blCnt - 1 do
     begin
+      if (Ofs + SizeOf(entry)) > rlDir.Size then
+      begin
+        PE.Msg.Write('Relocation out of table. PageRVA:0x%x #:%d', [block.PageRVA, iBlock]);
+        PE.Msg.Write('Skipping next relocs.');
+        exit(PR_OK);
+      end;
+
       if not PE.ReadEx(@entry, SizeOf(entry)) then
         exit(PR_ERROR);
       inc(Ofs, SizeOf(entry));
@@ -78,6 +85,7 @@ begin
       end;
     end;
   end;
+
   exit(PR_OK);
 end;
 
