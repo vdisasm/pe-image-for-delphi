@@ -52,7 +52,9 @@ begin
   else
     SubValue := 0;
 
-  PE.SeekRVA(Table.Name - SubValue);
+  if not PE.SeekRVA(Table.Name - SubValue) then
+    exit;
+
   DllName := PE.ReadANSIString;
 
   wordSize := PE.ImageWordSize;
