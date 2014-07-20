@@ -3,6 +3,7 @@ unit PE.Search;
 interface
 
 uses
+  System.SysUtils,
   PE.Section;
 
 {
@@ -35,6 +36,19 @@ function SearchBytes(
   var AOffset: UInt32;
   ADirection: Integer
   ): boolean;
+
+{
+  * Convert string like AA??BB
+  * to pattern          AA00BB
+  * and mask            FF00FF
+  *
+  * String must not contain spaces.
+  * Output length of Pattern and Mask is same.
+}
+procedure StringToPattern(
+  const S: string;
+  out Pattern: TBytes;
+  out Mask: TBytes);
 
 implementation
 
@@ -88,6 +102,30 @@ begin
     // Next address/offset.
     inc(AOffset, ADirection);
     inc(pSrc, ADirection);
+  end;
+end;
+
+procedure StringToPattern;
+var
+  Count, i: Integer;
+  tmp: string;
+begin
+  if Length(S) mod 2 <> 0 then
+    raise Exception.Create('Invalid length of string');
+
+  Count := Length(S) div 2;
+
+  SetLength(Pattern, Count);
+  SetLength(Mask, Count);
+
+  for i := 0 to Count - 1 do
+  begin
+    tmp := S.Substring(i * 2, 2);
+    if tmp <> '??' then
+    begin
+      Pattern[i] := StrToInt('$' + tmp);
+      Mask[i] := $FF;
+    end;
   end;
 end;
 
