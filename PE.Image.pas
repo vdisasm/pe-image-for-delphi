@@ -356,6 +356,9 @@ type
 
     // Save memory region to stream/file (in section boundary).
     // Result is number of bytes written.
+    // If trying to save more bytes than section contains it will save until
+    // section end.
+    // AStream can be nil if you want just check how many bytes can be saved.
     // todo: maybe also add cross-section dumps.
     function DumpRegionToStream(AStream: TStream; RVA: TRVA; Size: uint32): uint32; deprecated 'use SaveRegionToStream';
     function DumpRegionToFile(const AFileName: string; RVA: TRVA; Size: uint32): uint32; deprecated 'use SaveRegionToFile';
@@ -373,6 +376,10 @@ type
     { Regions }
 
     procedure RegionRemove(RVA: TRVA; Size: uint32);
+
+    // Check if region belongs to some section and has enough raw/virtual size.
+    function RegionExistsRaw(RVA: TRVA; RawSize: uint32): boolean;
+    function RegionExistsVirtual(RVA: TRVA; VirtSize: uint32): boolean;
 
     { Properties }
 
@@ -607,33 +614,34 @@ const
 var
   Sec: TPESection;
   Ofs, TmpSize: uint32;
-  pCur, pEnd: PByte;
+  pCur: PByte;
 begin
-  Result := 0;
-
   if not RVAToSec(RVA, @Sec) then
-    exit;
+    exit(0);
 
-  Ofs := RVA - Sec.RVA;
-  pCur := Sec.Mem + Ofs; // start from
-  TmpSize := Sec.GetAllocatedSize;
-  if (Ofs + Size) < TmpSize then
-    TmpSize := Ofs + Size;
-  pEnd := Sec.Mem + TmpSize;
+  Ofs := RVA - Sec.RVA;  // offset to read from
 
-  if pCur >= pEnd then
-    exit;
+  // If end position is over section end then override size to read until end
+  // of section.
+  if Ofs + Size > Sec.GetAllocatedSize then
+    Size := Sec.GetAllocatedSize - Ofs;
 
-  while (Size <> 0) do
+  Result := Size;
+
+  if Assigned(AStream) then
   begin
-    if Size >= BUFSIZE then
-      TmpSize := BUFSIZE
-    else
-      TmpSize := Size;
-    AStream.Write(pCur^, TmpSize);
-    inc(pCur, TmpSize);
-    dec(Size, TmpSize);
-    inc(Result, TmpSize);
+    pCur := Sec.Mem + Ofs; // memory to read from
+
+    while Size <> 0 do
+    begin
+      if Size >= BUFSIZE then
+        TmpSize := BUFSIZE
+      else
+        TmpSize := Size;
+      AStream.Write(pCur^, TmpSize);
+      inc(pCur, TmpSize);
+      dec(Size, TmpSize);
+    end;
   end;
 end;
 
@@ -1110,6 +1118,28 @@ begin
   // Currently it's just placeholder.
   // Mark memory as free.
   FSections.FillMemory(RVA, Size, $CC);
+end;
+
+function TPEImage.RegionExistsRaw(RVA: TRVA; RawSize: uint32): boolean;
+var
+  Sec: TPESection;
+  Ofs: UInt32;
+begin
+  if not RVAToSec(RVA, @Sec) then
+    exit(False);
+  Ofs := RVA - Sec.RVA;
+  Result := Ofs + RawSize <= Sec.RawSize;
+end;
+
+function TPEImage.RegionExistsVirtual(RVA: TRVA; VirtSize: uint32): boolean;
+var
+  Sec: TPESection;
+  Ofs: UInt32;
+begin
+  if not RVAToSec(RVA, @Sec) then
+    exit(False);
+  Ofs := RVA - Sec.RVA;
+  Result := Ofs + VirtSize <= Sec.VirtualSize;
 end;
 
 function TPEImage.ReadANSIString: RawByteString;

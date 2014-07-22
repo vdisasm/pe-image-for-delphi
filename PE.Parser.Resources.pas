@@ -26,6 +26,9 @@ type
     function ReadNode(
       ParentNode: TResourceTreeBranchNode;
       RVA: TRVA): TParserResult;
+
+    function LogInvalidResourceSizesTraverse(Node: TResourceTreeNode): boolean;
+    procedure LogInvalidResourceSizes;
   public
     function Parse: TParserResult; override;
   end;
@@ -38,12 +41,27 @@ uses
 
 { TPEResourcesParser }
 
+procedure TPEResourcesParser.LogInvalidResourceSizes;
+begin
+  FTree.Root.Traverse(LogInvalidResourceSizesTraverse);
+end;
+
+function TPEResourcesParser.LogInvalidResourceSizesTraverse(
+  Node: TResourceTreeNode): boolean;
+begin
+  if Node.IsLeaf then
+    if not TResourceTreeLeafNode(Node).ValidSize then
+      TPEImage(FPE).Msg.Write('Bad size of resource (probably packed): %s', [Node.GetPath]);
+
+  Result := True;
+end;
+
 function TPEResourcesParser.Parse: TParserResult;
 var
   Img: TPEImage;
   dir: TImageDataDirectory;
 begin
-  Img := FPE as TPEImage;
+  Img := TPEImage(FPE);
 
   // Check if directory present.
   if not Img.DataDirectories.Get(DDIR_RESOURCE, @dir) then
@@ -61,6 +79,10 @@ begin
   // Read root and children.
   FTree := Img.ResourceTree;
   ReadNode(FTree.Root, FBaseRVA);
+
+  // Log invalid leaf nodes.
+  LogInvalidResourceSizes;
+
   exit(PR_OK);
 end;
 
@@ -80,7 +102,7 @@ var
   TmpNode: TResourceTreeNode;
 begin
   Result := nil;
-  Img := FPE as TPEImage;
+  Img := TPEImage(FPE);
 
   // Try to read entry.
   if not(Img.SeekRVA(RVA + Index * SizeOf(Entry)) and
@@ -106,7 +128,6 @@ begin
   else
   begin
     { Branch Node. }
-    // RVA := Img.PositionRVA; // Store RVA.
     // Alloc and fill node.
     BranchNode := TResourceTreeBranchNode.Create;
     if RDT <> nil then
@@ -164,7 +185,7 @@ var
   RDT: TResourceDirectoryTable;
   i, n: integer;
 begin
-  Img := FPE as TPEImage;
+  Img := TPEImage(FPE);
 
   // Read Directory Table.
   if not(Img.SeekRVA(RVA) and Img.ReadEx(@RDT, SizeOf(RDT))) then

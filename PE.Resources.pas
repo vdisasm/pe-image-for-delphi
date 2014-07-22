@@ -68,7 +68,9 @@ type
     FDataRVA: TRVA; // RVA of data in original image.
     FCodepage: uint32;
     FData: TMemoryStream;
-    function GetDataSize: uint32;
+    FOriginalDataSize: uint32;
+    FValidSize: boolean;
+    function GetDataSize: uint32; inline;
   public
     constructor Create;
     constructor CreateFromRVA(PE: TPEImageObject; DataRVA: TRVA; DataSize: uint32; CodePage: uint32);
@@ -83,6 +85,20 @@ type
     property DataRVA: TRVA read FDataRVA;
     property DataSize: uint32 read GetDataSize;
     property CodePage: uint32 read FCodepage write FCodepage;
+
+    // Original Size is set when node created.
+    // For example it is size of parsed leaf node data. But if executable is
+    // packed and not all raw size available or modified then OriginalSize is
+    // not equal to DataSize (DataSize = 0).
+    property OriginalDataSize: uint32 read FOriginalDataSize;
+
+    // Leaf can be invalid if data size in parsed header doesn't match actual
+    // size that can be read from section. For example if executable is packed.
+    // See OriginalSize for parsed size of data.
+    // By default created leaf is valid.
+    // Valid size doesn't mean content is also valid, i.e. in right format.
+    // For example it can be RT_BITMAP resource but contain non-bitmap info.
+    property ValidSize: boolean read FValidSize;
   end;
 
   // Branch node.
@@ -404,36 +420,59 @@ end;
 
 { TResourceTreeLeafNode }
 
-constructor TResourceTreeLeafNode.CreateFromRVA(PE: TPEImageObject; DataRVA: TRVA;
-  DataSize: uint32; CodePage: uint32);
+constructor TResourceTreeLeafNode.Create;
 begin
+  inherited Create;
+  FValidSize := True; // valid by default
+  FData := TMemoryStream.Create;
+end;
+
+constructor TResourceTreeLeafNode.CreateFromRVA(PE: TPEImageObject;
+  DataRVA: TRVA; DataSize: uint32; CodePage: uint32);
+begin
+  Create;
+
   FDataRVA := DataRVA;
   FCodepage := CodePage;
-  // Create stream and copy data from image.
-  FData := TMemoryStream.Create;
+  FOriginalDataSize := DataSize;
+
+  // Copy data from image.
   if DataSize <> 0 then
   begin
-    FData.Size := DataSize;
-    TPEImage(PE).DumpRegionToStream(FData, DataRVA, DataSize);
+    // Check if we can't read whole raw size then this section either packed or
+    // spoiled and mark it as invalid without reading any data.
+    if not TPEImage(PE).RegionExistsRaw(DataRVA, DataSize) then
+    begin
+      FValidSize := False;
+    end
+    else
+    begin
+      // Otherwise leaf is valid and contain whole size.
+      // Though it's not guaranteed that data is in right format anyway :)
+      FData.Size := DataSize;
+      TPEImage(PE).SaveRegionToStream(FData, DataRVA, DataSize);
+    end;
   end;
 end;
 
-constructor TResourceTreeLeafNode.CreateFromStream(Stream: TStream; Pos,
-  Size: UInt64);
+constructor TResourceTreeLeafNode.CreateFromStream(
+  Stream: TStream;
+  Pos, Size: UInt64);
 begin
-  FData := TMemoryStream.Create;
+  Create;
+
   Stream.Position := Pos;
+
   if Size = 0 then
     Size := Stream.Size - Pos;
+
+  FOriginalDataSize := Size;
+
   FData.CopyFrom(Stream, Size);
 end;
 
-constructor TResourceTreeLeafNode.Create;
-begin
-  FData := TMemoryStream.Create;
-end;
-
-constructor TResourceTreeLeafNode.CreateFromEntry(PE: TPEImageObject;
+constructor TResourceTreeLeafNode.CreateFromEntry(
+  PE: TPEImageObject;
   const Entry: TResourceDataEntry);
 begin
   CreateFromRVA(PE, Entry.DataRVA, Entry.Size, Entry.CodePage);
