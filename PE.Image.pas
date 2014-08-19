@@ -135,6 +135,9 @@ type
 
     procedure SetPositionRVA(const Value: TRVA);
 
+    function GetIsDll: boolean;
+    procedure SetIsDll(const Value: boolean);
+
   protected
 
     // If image is disk-based, result is created TFileStream.
@@ -165,8 +168,6 @@ type
     // Check if image is 32/64 bit.
     function Is32bit: boolean; inline;
     function Is64bit: boolean; inline;
-
-    function IsDLL: boolean; inline;
 
     // Get image bitness. 32/64 or 0 if unknown.
     function GetImageBits: UInt16; inline;
@@ -444,11 +445,15 @@ type
     property FileAlignment: uint32 read FileAlignmentGet write FileAlignmentSet;
     property SectionAlignment: uint32 read SectionAlignmentGet write SectionAlignmentSet;
 
+    property IsDLL: boolean read GetIsDll write SetIsDll;
   end;
 
 implementation
 
-{ TPEImage }
+const
+  VM_PAGE_SIZE = $1000; // 4 KB page
+
+  { TPEImage }
 
 function TPEImage.EntryPointRVAGet: TRVA;
 begin
@@ -619,7 +624,7 @@ begin
   if not RVAToSec(RVA, @Sec) then
     exit(0);
 
-  Ofs := RVA - Sec.RVA;  // offset to read from
+  Ofs := RVA - Sec.RVA; // offset to read from
 
   // If end position is over section end then override size to read until end
   // of section.
@@ -783,6 +788,7 @@ var
   NumberOfSections: UInt16;
   SizeOfHeader: integer;
   HeaderList: TList<TImageSectionHeader>;
+  VSizeToBeMapped: uint32;
 begin
   NumberOfSections := FFileHeader.NumberOfSections;
 
@@ -835,6 +841,13 @@ begin
       begin
         Msg.Write('Section #%d has vsize and rsize = 0, skipping it', [i]);
         continue;
+      end;
+
+      if (sh.SizeOfRawData > sh.Misc.VirtualSize) then
+      begin
+        // Correct virtual size to be sure all raw data will be loaded.
+        VSizeToBeMapped := AlignUp(sh.Misc.VirtualSize, VM_PAGE_SIZE);
+        sh.Misc.VirtualSize := PE.Utils.Min(sh.SizeOfRawData, VSizeToBeMapped);
       end;
 
       {
@@ -937,11 +950,6 @@ begin
   Result := FOptionalHeader.Magic = PE_MAGIC_PE32PLUS;
 end;
 
-function TPEImage.IsDLL: boolean;
-begin
-  Result := (FFileHeader.Characteristics and IMAGE_FILE_DLL) <> 0;
-end;
-
 class function TPEImage.IsPE(const FileName: string): boolean;
 var
   Stream: TFileStream;
@@ -1003,14 +1011,27 @@ begin
   FImageWordSize := Value div 8;
 end;
 
+procedure TPEImage.SetPositionVA(const Value: TVA);
+begin
+  FPositionRVA := Value - FOptionalHeader.ImageBase;
+end;
+
 procedure TPEImage.SetPositionRVA(const Value: TRVA);
 begin
   FPositionRVA := Value;
 end;
 
-procedure TPEImage.SetPositionVA(const Value: TVA);
+function TPEImage.GetIsDll: boolean;
 begin
-  FPositionRVA := Value - FOptionalHeader.ImageBase;
+  Result := (FFileHeader.Characteristics and IMAGE_FILE_DLL) <> 0;
+end;
+
+procedure TPEImage.SetIsDll(const Value: boolean);
+begin
+  if Value then
+    FFileHeader.Characteristics := FFileHeader.Characteristics or IMAGE_FILE_DLL
+  else
+    FFileHeader.Characteristics := FFileHeader.Characteristics and (not IMAGE_FILE_DLL);
 end;
 
 function TPEImage.FileAlignmentGet: uint32;
@@ -1123,10 +1144,10 @@ end;
 function TPEImage.RegionExistsRaw(RVA: TRVA; RawSize: uint32): boolean;
 var
   Sec: TPESection;
-  Ofs: UInt32;
+  Ofs: uint32;
 begin
   if not RVAToSec(RVA, @Sec) then
-    exit(False);
+    exit(false);
   Ofs := RVA - Sec.RVA;
   Result := Ofs + RawSize <= Sec.RawSize;
 end;
@@ -1134,10 +1155,10 @@ end;
 function TPEImage.RegionExistsVirtual(RVA: TRVA; VirtSize: uint32): boolean;
 var
   Sec: TPESection;
-  Ofs: UInt32;
+  Ofs: uint32;
 begin
   if not RVAToSec(RVA, @Sec) then
-    exit(False);
+    exit(false);
   Ofs := RVA - Sec.RVA;
   Result := Ofs + VirtSize <= Sec.VirtualSize;
 end;
@@ -1397,6 +1418,13 @@ begin
   if (FDosHeader.e_lfanew = 0) then
   begin
     Msg.Write('This is probably 16-bit executable.');
+    exit;
+  end;
+
+  // Check PE ofs < 256 MB (see RtlImageNtHeaderEx)
+  if (FDosHeader.e_lfanew >= 256 * 1024 * 1024) then
+  begin
+    Msg.Write('e_lfanew >= 256 MB');
     exit;
   end;
 
