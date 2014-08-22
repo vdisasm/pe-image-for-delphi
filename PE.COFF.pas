@@ -19,7 +19,7 @@ type
     procedure Clear;
     procedure LoadFromStream(AStream: TStream);
 
-    function GetString(Offset: integer; out Str: RawByteString): boolean;
+    function GetString(Offset: integer; out Str: String): boolean;
   end;
 
 implementation
@@ -44,11 +44,11 @@ begin
   self.FPE := PEImage;
 end;
 
-function TCOFF.GetString(Offset: integer; out Str: RawByteString): boolean;
+function TCOFF.GetString(Offset: integer; out Str: String): boolean;
 begin
   Result := (Offset >= 0) and (Offset < Length(FStrings));
   if Result then
-    Str := PAnsiChar(@FStrings[Offset]);
+    Str := String(PAnsiChar(@FStrings[Offset]));
 end;
 
 procedure TCOFF.LoadFromStream(AStream: TStream);

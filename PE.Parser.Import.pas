@@ -4,6 +4,8 @@ interface
 
 uses
   System.Generics.Collections,
+  System.SysUtils,
+
   PE.Common,
   PE.Types,
   PE.Types.Imports,
@@ -52,7 +54,7 @@ var
   ImpFn: TPEImportFunction;
   Lib: TPEImportLibrary;
   PE: TPEImage;
-  LibraryName: RawByteString;
+  LibraryName: string;
   FunctionAlreadyExists: boolean;
 begin
   PE := TPEImage(FPE);
@@ -94,8 +96,14 @@ begin
       ILTs.Clear;
 
       // Read library name.
-      if (not PE.SeekRVA(IDir.NameRVA)) or
-        (PE.ReadANSIString(LibraryName) = '') then
+      if (not PE.SeekRVA(IDir.NameRVA)) then
+      begin
+        PE.Msg.Write('Import library name RVA not found (0x%x).', [IDir.NameRVA]);
+      end;
+
+      LibraryName := PE.ReadANSIString;
+
+      if LibraryName.IsEmpty then
       begin
         PE.Msg.Write('Import library has NULL name.');
         Continue;
@@ -114,7 +122,7 @@ begin
       Lib.TimeDateStamp := IDir.TimeDateStamp;
 
       // Skip bad dll name.
-      if Lib.Name = '' then
+      if Lib.Name.IsEmpty then
       begin
         PE.Msg.Write('Bad import library name.');
         Continue;

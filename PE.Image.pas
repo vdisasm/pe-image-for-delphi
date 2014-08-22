@@ -88,7 +88,7 @@ type
     FImports: TPEImports;        // of TPEImportFunction
     FImportsDelayed: TPEImports; // of TPEImportFunctionDelayed
     FExports: TPEExportSyms;
-    FExportedName: AnsiString;
+    FExportedName: String;
     FTLS: TTLS;
     FResourceTree: TResourceTree;
     FOverlay: TOverlay;
@@ -179,6 +179,9 @@ type
     function SeekRVA(RVA: TRVA): boolean;
     function SeekVA(VA: TVA): boolean;
 
+    // todo: Read must be optimized
+    // now it calls RVAToMem each time Read called.
+
     // Read Count bytes to Buffer and return number of bytes read.
     function Read(Buffer: Pointer; Count: cardinal): uint32; overload;
     function Read(var Buffer; Size: cardinal): uint32; overload; inline;
@@ -195,8 +198,7 @@ type
     procedure Skip(Count: integer);
 
     // Read 1-byte 0-terminated string.
-    function ReadANSIString: RawByteString; overload;
-    function ReadANSIString(out Value: RawByteString): RawByteString; overload;
+    function ReadANSIString: String; overload;
 
     // Read 2-byte UTF-16 string with length prefix (2 bytes).
     function ReadUnicodeString: UnicodeString;
@@ -350,9 +352,6 @@ type
     // Write RVA to stream (32/64 bit sized depending on image).
     function StreamWriteRVA(AStream: TStream; RVA: TRVA): boolean;
 
-    // Write 1-byte 0-terminated string.
-    procedure StreamWriteStrA(AStream: TStream; const Str: RawByteString);
-
     { Dump }
 
     // Save memory region to stream/file (in section boundary).
@@ -427,7 +426,7 @@ type
     property ExportSyms: TPEExportSyms read FExports;
 
     // Image exported name.
-    property ExportedName: AnsiString read FExportedName write FExportedName;
+    property ExportedName: String read FExportedName write FExportedName;
 
     // Thread Local Storage items.
     property TLS: TTLS read FTLS;
@@ -508,15 +507,6 @@ begin
     exit;
   end;
   exit(false);
-end;
-
-procedure TPEImage.StreamWriteStrA(AStream: TStream; const Str: RawByteString);
-const
-  zero: byte = 0;
-begin
-  if Str <> '' then
-    AStream.Write(Str[1], Length(Str));
-  AStream.Write(zero, 1);
 end;
 
 constructor TPEImage.Create;
@@ -786,7 +776,7 @@ var
   i: integer;
   sh: TImageSectionHeader;
   NumberOfSections: UInt16;
-  SizeOfHeader: integer;
+  SizeOfHeader: uint32;
   HeaderList: TList<TImageSectionHeader>;
   VSizeToBeMapped: uint32;
 begin
@@ -875,7 +865,7 @@ begin
       begin
         if PO_SECTION_AUTORENAME_INVALID in FOptions then
         begin
-          Sec.Name := AnsiString(format('sec_%4.4x', [i]));
+          Sec.Name := format('sec_%4.4x', [i]);
           Msg.Write('Section has not safe name. Overriding to %s', [Sec.Name]);
         end;
       end;
@@ -920,23 +910,16 @@ procedure TPEImage.ResolveSectionNames;
 var
   StringOfs, err: integer;
   Sec: TPESection;
-  t: RawByteString;
+  t: string;
 begin
   for Sec in FSections do
   begin
-    if (Sec.Name <> '') then
-      if (Sec.Name[1] = '/') then
-      begin
-        t := Sec.Name;
-        delete(t, 1, 1);
-        val(string(t), StringOfs, err);
-        if err = 0 then
-          if FCOFF.GetString(StringOfs, t) then
-            if t <> '' then
-            begin
-              Sec.Name := t; // long name from COFF strings
-            end;
-      end;
+    if Sec.Name.StartsWith('/') then
+    begin
+      val(Sec.Name.Substring(1), StringOfs, err);
+      if (err = 0) and (FCOFF.GetString(StringOfs, t)) and (not t.IsEmpty) then
+        Sec.Name := t; // long name from COFF strings
+    end;
   end;
 end;
 
@@ -1066,28 +1049,6 @@ begin
   Result := SeekRVA(VAToRVA(VA));
 end;
 
-function TPEImage.Read(Buffer: Pointer; Count: cardinal): uint32;
-var
-  Mem: Pointer;
-begin
-  if Count = 0 then
-    exit(0);
-  Mem := RVAToMem(FPositionRVA);
-  if Mem <> nil then
-  begin
-    if Buffer <> nil then
-      move(Mem^, Buffer^, Count);
-    inc(FPositionRVA, Count);
-    exit(Count);
-  end;
-  exit(0);
-end;
-
-function TPEImage.ReadEx(Buffer: Pointer; Count: cardinal): boolean;
-begin
-  Result := Read(Buffer, Count) = Count;
-end;
-
 procedure TPEImage.Skip(Count: integer);
 begin
   inc(FPositionRVA, Count);
@@ -1105,16 +1066,6 @@ begin
     Result := TFileStream.Create(FFileName, Mode)
   else
     Result := FPEMemoryStream;
-end;
-
-function TPEImage.ReadUnicodeString: UnicodeString;
-var
-  Len, i: UInt16;
-begin
-  Len := ReadUInt16;
-  SetLength(Result, Len);
-  for i := 1 to Len do
-    Read(@Result[i], 2);
 end;
 
 function TPEImage.ReadWord(WordSize: byte): UInt64;
@@ -1163,13 +1114,21 @@ begin
   Result := Ofs + VirtSize <= Sec.VirtualSize;
 end;
 
-function TPEImage.ReadANSIString: RawByteString;
+function TPEImage.Read(Buffer: Pointer; Count: cardinal): uint32;
 var
-  B: byte;
+  Mem: Pointer;
 begin
-  Result := '';
-  while ReadEx(@B, 1) and (B <> 0) do
-    Result := Result + AnsiChar(B);
+  if Count = 0 then
+    exit(0);
+  Mem := RVAToMem(FPositionRVA);
+  if Mem <> nil then
+  begin
+    if Buffer <> nil then
+      move(Mem^, Buffer^, Count);
+    inc(FPositionRVA, Count);
+    exit(Count);
+  end;
+  exit(0);
 end;
 
 function TPEImage.Read(var Buffer; Size: cardinal): uint32;
@@ -1177,15 +1136,35 @@ begin
   Result := Read(@Buffer, Size);
 end;
 
-function TPEImage.ReadANSIString(out Value: RawByteString): RawByteString;
+function TPEImage.ReadEx(Buffer: Pointer; Count: cardinal): boolean;
 begin
-  Value := ReadANSIString;
-  Result := Value;
+  Result := Read(Buffer, Count) = Count;
 end;
 
 function TPEImage.ReadEx(var Buffer; Size: cardinal): boolean;
 begin
   Result := ReadEx(@Buffer, Size);
+end;
+
+function TPEImage.ReadANSIString: string;
+var
+  B: byte;
+begin
+  // todo: optimize ReadANSIString speed
+  Result := '';
+  while ReadEx(@B, 1) and (B <> 0) do
+    Result := Result + Char(B);
+end;
+
+function TPEImage.ReadUnicodeString: UnicodeString;
+var
+  Len, i: UInt16;
+begin
+  // todo: optimize ReadUnicodeString speed
+  Len := ReadUInt16;
+  SetLength(Result, Len);
+  for i := 1 to Len do
+    Read(@Result[i], 2);
 end;
 
 function TPEImage.ReadUInt8: UInt8;

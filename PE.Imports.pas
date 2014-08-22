@@ -16,8 +16,7 @@ type
     TLibTree = TRBTree<TPEImportLibrary>;
   private
     FLibsByName: TLibTree;
-    procedure LibTreeItemNotify(Sender: TObject; const Item: TPEImportLibrary;
-      Action: TCollectionNotification);
+    procedure LibTreeItemNotify(Sender: TObject; const Item: TPEImportLibrary; Action: TCollectionNotification);
   public
     constructor Create;
     destructor Destroy; override;
@@ -31,21 +30,16 @@ type
     procedure Add(Lib: TPEImportLibrary);
 
     // Find library by name (first occurrence). Result is nil if not found.
-    function FindLib(const LibName: AnsiString): TPEImportLibrary;
+    function FindLib(const LibName: String): TPEImportLibrary;
 
     // Add new import function (by IAT RVA).
-    procedure AddNew(RVA: TRVA;
-      const LibName: AnsiString; Fn: TPEImportFunction); overload;
-    procedure AddNew(RVA: TRVA;
-      const LibName, FuncName: AnsiString; Ordinal: uint16 = 0); overload; inline;
+    procedure AddNew(RVA: TRVA; const LibName: String; Fn: TPEImportFunction); overload;
+    procedure AddNew(RVA: TRVA; const LibName, FuncName: String; Ordinal: uint16 = 0); overload; inline;
 
     property LibsByName: TLibTree read FLibsByName;
   end;
 
 implementation
-
-{$WARN IMPLICIT_STRING_CAST OFF}
-{$WARN IMPLICIT_STRING_CAST_LOSS OFF}
 
 { TPEImports }
 
@@ -54,8 +48,7 @@ begin
   FLibsByName.Add(Lib);
 end;
 
-procedure TPEImports.AddNew(RVA: TRVA; const LibName: AnsiString;
-  Fn: TPEImportFunction);
+procedure TPEImports.AddNew(RVA: TRVA; const LibName: String; Fn: TPEImportFunction);
 var
   Lib: TPEImportLibrary;
 begin
@@ -68,8 +61,7 @@ begin
   Lib.Functions.Add(Fn);
 end;
 
-procedure TPEImports.AddNew(RVA: TRVA; const LibName, FuncName: AnsiString;
-  Ordinal: uint16);
+procedure TPEImports.AddNew(RVA: TRVA; const LibName, FuncName: String; Ordinal: uint16);
 begin
   AddNew(RVA, LibName, TPEImportFunction.Create(RVA, FuncName, Ordinal));
 end;
@@ -90,7 +82,7 @@ begin
   FLibsByName := TLibTree.Create(
     function(const A, B: TPEImportLibrary): Boolean
     begin
-      Result := LowerCase(A.Name) < LowerCase(B.Name);
+      Result := A.Name.ToLower < B.Name.ToLower;
     end);
   FLibsByName.OnNotify := LibTreeItemNotify;
 end;
@@ -101,7 +93,7 @@ begin
   inherited;
 end;
 
-function TPEImports.FindLib(const LibName: AnsiString): TPEImportLibrary;
+function TPEImports.FindLib(const LibName: String): TPEImportLibrary;
 var
   key: TPEImportLibrary;
   ptr: TLibTree.TRBNodePtr;
@@ -117,8 +109,7 @@ begin
   end;
 end;
 
-procedure TPEImports.LibTreeItemNotify(Sender: TObject;
-const Item: TPEImportLibrary; Action: TCollectionNotification);
+procedure TPEImports.LibTreeItemNotify(Sender: TObject; const Item: TPEImportLibrary; Action: TCollectionNotification);
 begin
   if Action = cnRemoved then
     Item.Free;

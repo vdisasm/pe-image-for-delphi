@@ -13,8 +13,10 @@ interface
 
 uses
   System.Classes,
+
   PE.Build.Common,
-  PE.Common;
+  PE.Common,
+  PE.Utils;
 
 type
   TExportBuilder = class(TDirectoryBuilder)
@@ -108,7 +110,7 @@ begin
 
     // Write exported name.
     if FPE.ExportedName <> '' then
-      FPE.StreamWriteStrA(Stream, FPE.ExportedName);
+      StreamWriteStringA(Stream, FPE.ExportedName);
 
     // Sort nSyms by names (lexicographical order) to allow binary searches.
     nSyms.Sort(TComparer<TSym>.Construct(
@@ -124,7 +126,7 @@ begin
       nSym := nSyms[i];
       nSym.nameRVA := DirRVA + Stream.Position;
       nSyms[i] := nSym;
-      FPE.StreamWriteStrA(Stream, nSym.sym.Name);
+      StreamWriteStringA(Stream, nSym.sym.Name);
     end;
 
     // Write forwarder names.
@@ -134,7 +136,7 @@ begin
       if nSym.sym.Forwarder then
       begin
         RVAs[nSym.sym.ordinal - minIndex] := DirRVA + Stream.Position;
-        FPE.StreamWriteStrA(Stream, nSym.sym.ForwarderName);
+        StreamWriteStringA(Stream, nSym.sym.ForwarderName);
       end;
     end;
 

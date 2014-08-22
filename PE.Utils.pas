@@ -8,6 +8,8 @@ interface
 
 uses
   System.Classes,
+  System.SysUtils,
+
   PE.Common;
 
 function StreamRead(AStream: TStream; var Buf; Count: longint): boolean; inline;
@@ -15,13 +17,23 @@ function StreamPeek(AStream: TStream; var Buf; Count: longint): boolean; inline;
 function StreamWrite(AStream: TStream; const Buf; Count: longint): boolean; inline;
 
 // Read 0-terminated 1-byte string.
-function StreamReadStringA(AStream: TStream; var S: RawByteString): boolean;
+function StreamReadStringA(AStream: TStream; var S: string): boolean;
 
 // Read 0-terminated 2-byte string
-function StreamReadStringW(AStream: TStream; var S: UnicodeString): boolean;
+function StreamReadStringW(AStream: TStream; var S: string): boolean;
 
-// Write Count of zero bytes to stream.
-procedure WritePadding(AStream: TStream; Count: uint32);
+// Write string and return number of bytes written.
+// If AlignAfter isn't 0 zero bytes will be written to align it up to AlignAfter value.
+function StreamWriteString(AStream: TStream; const S: string; Encoding: TEncoding; AlignAfter: integer = 0): uint32;
+// Write ANSI string and return number of bytes written.
+function StreamWriteStringA(AStream: TStream; const S: string; AlignAfter: integer = 0): uint32;
+
+const
+  PATTERN_PADDINGX: array [0 .. 7] of AnsiChar = ('P', 'A', 'D', 'D', 'I', 'N', 'G', 'X');
+
+// Write pattern to stream. If Pattern is nil or size of patter is 0 then
+// nulls are written (default).
+procedure WritePattern(AStream: TStream; Count: uint32; Pattern: Pointer = nil; PatternSize: integer = 0);
 
 function StreamSeek(AStream: TStream; Offset: TFileOffset): boolean; inline;
 function StreamSkip(AStream: TStream; Count: integer = 1): boolean; inline;
@@ -38,7 +50,7 @@ function Max(A, B: uint64): uint64; inline;
 function AlignUp(Value: uint64; Align: uint32): uint64; inline;
 function AlignDown(Value: uint64; Align: uint32): uint64; inline;
 
-function IsStringASCII(const S: AnsiString): boolean;
+function IsStringASCII(const S: String): boolean;
 
 function CompareRVA(A, B: TRVA): integer; inline;
 
@@ -65,60 +77,84 @@ begin
   Result := AStream.Write(Buf, Count) = Count;
 end;
 
-function StreamReadStringA(AStream: TStream; var S: RawByteString): boolean;
+function StreamReadStringA(AStream: TStream; var S: string): boolean;
 var
-  c: AnsiChar;
+  c: byte;
 begin
   S := '';
   while True do
     if AStream.Read(c, SizeOf(c)) <> SizeOf(c) then
       break
-    else if (c = #0) then
+    else if (c = 0) then
       exit(True)
     else
-      S := S + c;
+      S := S + Char(c);
   exit(False);
 end;
 
-function StreamReadStringW(AStream: TStream; var S: UnicodeString): boolean;
+function StreamReadStringW(AStream: TStream; var S: string): boolean;
 var
-  c: WideChar;
+  c: word;
 begin
   S := '';
   while True do
     if AStream.Read(c, SizeOf(c)) <> SizeOf(c) then
       break
-    else if (c = #0) then
+    else if (c = 0) then
       exit(True)
     else
-      S := S + c;
+      S := S + Char(c);
   exit(False);
 end;
 
-procedure WritePadding(AStream: TStream; Count: uint32);
-{$IFDEF WRITE_PADDING_STRING}
-const
-  sPadding: array [0 .. 7] of char = ('P', 'A', 'D', 'D', 'I', 'N', 'G', 'X');
+function StreamWriteString(AStream: TStream; const S: string; Encoding: TEncoding; AlignAfter: integer): uint32;
 var
-  i: integer;
-{$ENDIF}
+  Bytes: TBytes;
+begin
+  Bytes := Encoding.GetBytes(S);
+  Result := AStream.Write(Bytes, Length(Bytes));
+
+  if AlignAfter <> 0 then
+  begin
+    // Number of bytes left to write to be aligned.
+    AlignAfter := AlignAfter - (AStream.Size mod AlignAfter);
+    WritePattern(AStream, AlignAfter, nil, 0);
+  end;
+end;
+
+function StreamWriteStringA(AStream: TStream; const S: string; AlignAfter: integer): uint32;
+begin
+  Result := StreamWriteString(AStream, S, TEncoding.ANSI, AlignAfter);
+end;
+
+procedure WritePattern(AStream: TStream; Count: uint32; Pattern: Pointer; PatternSize: integer);
 var
   p: pbyte;
+  i: integer;
 begin
-  if Count <> 0 then
+  if Count = 0 then
+    exit;
+
+  if Assigned(Pattern) and (PatternSize > 0) then
   begin
-{$IFDEF WRITE_PADDING_STRING}
-    GetMem(p, Count);
-    for i := 0 to Count - 1 do
-      p[i] := byte(sPadding[i mod Length(sPadding)]);
-{$ELSE}
-    p := AllocMem(Count);
-{$ENDIF}
-    try
-      AStream.Write(p^, Count);
-    finally
-      FreeMem(p);
+    p := GetMemory(Count);
+    if PatternSize = 1 then
+      FillChar(p^, Count, pbyte(Pattern)^)
+    else
+    begin
+      for i := 0 to Count - 1 do
+        p[i] := pbyte(Pattern)[i mod PatternSize];
     end;
+  end
+  else
+  begin
+    p := AllocMem(Count); // filled with nulls
+  end;
+
+  try
+    AStream.Write(p^, Count);
+  finally
+    FreeMem(p);
   end;
 end;
 
@@ -159,7 +195,7 @@ begin
   end;
   // Insert padding if need.
   AStream.Seek(AStream.Size, TSeekOrigin.soBeginning);
-  WritePadding(AStream, Offset - AStream.Size);
+  WritePattern(AStream, Offset - AStream.Size, nil, 0);
 end;
 
 { Min / Max }
@@ -199,12 +235,12 @@ begin
   Result := (Value div Align) * Align;
 end;
 
-function IsStringASCII(const S: AnsiString): boolean;
+function IsStringASCII(const S: String): boolean;
 var
-  A: AnsiChar;
+  c: char;
 begin
-  for A in S do
-    if not(byte(A) in [32 .. 126]) then
+  for c in S do
+    if not(integer(c) in [32 .. 126]) then
       exit(False);
   exit(True);
 end;

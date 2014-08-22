@@ -15,10 +15,11 @@ type
   { TPEExportSym }
 
   TPEExportSym = class
+  public
     RVA: TRVA;
     Ordinal: dword;
-    Name: AnsiString;
-    ForwarderName: AnsiString;
+    Name: String;
+    ForwarderName: String;
     Forwarder: boolean;
 
     // Is this symbol has RVA or is forwarder.
@@ -55,12 +56,12 @@ type
     procedure Add(Sym: TPEExportSym; SetOrdinal: boolean = false);
 
     // Add symbol by Name.
-    procedure AddByName(RVA: TRVA; const Name: AnsiString);
+    procedure AddByName(RVA: TRVA; const Name: String);
 
     // Usually you don't need to set Ordinal, because ordinals are auto-incremented.
     procedure AddByOrdinal(RVA: TRVA; Ordinal: dword = 0);
 
-    procedure AddForwarder(const Name, ForwarderName: AnsiString);
+    procedure AddForwarder(const Name, ForwarderName: String);
 
     procedure Clear;
 
@@ -126,7 +127,7 @@ begin
   FItems.Add(Sym);
 end;
 
-procedure TPEExportSyms.AddByName(RVA: TRVA; const Name: AnsiString);
+procedure TPEExportSyms.AddByName(RVA: TRVA; const Name: String);
 var
   Sym: TPEExportSym;
 begin
@@ -146,7 +147,7 @@ begin
   Add(Sym, Ordinal = 0);
 end;
 
-procedure TPEExportSyms.AddForwarder(const Name, ForwarderName: AnsiString);
+procedure TPEExportSyms.AddForwarder(const Name, ForwarderName: String);
 var
   Sym: TPEExportSym;
 begin

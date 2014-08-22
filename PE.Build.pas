@@ -113,7 +113,7 @@ begin
       // User can change it later.
       if sec = nil then
       begin
-        sec := img.Sections.AddNew(AnsiString(builder.GetDefaultSectionName),
+        sec := img.Sections.AddNew(builder.GetDefaultSectionName,
           stream.Size, builder.GetDefaultSectionFlags, nil);
         destRVA := sec.RVA;
         destSize := stream.Size;

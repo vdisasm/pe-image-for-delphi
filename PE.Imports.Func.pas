@@ -12,7 +12,7 @@ type
   TPEImportFunction = class
   public
     Ordinal: uint16;
-    Name: AnsiString;
+    Name: String;
 
     // RVA patched by loader.
     // If image is not bound loader get address of function and write it at RVA.
@@ -21,7 +21,7 @@ type
 
     procedure Clear; inline;
     constructor CreateEmpty;
-    constructor Create(RVA: TRVA; const Name: AnsiString; Ordinal: uint16 = 0);
+    constructor Create(RVA: TRVA; const Name: String; Ordinal: uint16 = 0);
   end;
 
   TPEImportFunctionDelayed = class(TPEImportFunction)
@@ -50,19 +50,16 @@ type
 
 implementation
 
-{$WARN IMPLICIT_STRING_CAST OFF}
-{$WARN IMPLICIT_STRING_CAST_LOSS OFF}
-
 { TImportFunction }
 
 procedure TPEImportFunction.Clear;
 begin
-  Ordinal := 0;
-  Name := '';
-  RVA := 0;
+  self.Ordinal := 0;
+  self.Name := '';
+  self.RVA := 0;
 end;
 
-constructor TPEImportFunction.Create(RVA: TRVA; const Name: AnsiString;
+constructor TPEImportFunction.Create(RVA: TRVA; const Name: String;
   Ordinal: uint16);
 begin
   self.RVA := RVA;

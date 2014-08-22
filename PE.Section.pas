@@ -16,7 +16,7 @@ type
   TPESection = class
   private
     FMsg: PMsgMgr;
-    FName: AnsiString;  // Section name.
+    FName: String;      // Section name.
     FVSize: uint32;     // Virtual Size.
     FRVA: TRVA;         // Relative Virtual Address.
     FRawSize: uint32;   // Raw size.
@@ -42,11 +42,6 @@ type
     procedure SetHeader(ASecHdr: TImageSectionHeader; ASrcData: pointer;
       ChangeData: boolean = True);
 
-    // todo: maybe delete TPESection.LoadHeaderFromStream
-    // Load Section Header from stream.
-    // Allocate memory for section data.
-    // function LoadHeaderFromStream(AStream: TStream; AId: integer): boolean;
-
     // Can be used to load mapped section.
     // SetHeader must be called first.
     function LoadDataFromStreamEx(AStream: TStream;
@@ -71,11 +66,11 @@ type
     function GetEndRawOffset: uint32; inline;
     function GetLastRVA: TRVA; inline;
 
-    function IsNameSafe: boolean; //inline;
+    function IsNameSafe: boolean; // inline;
 
     function IsCode: boolean; inline;
 
-    property Name: AnsiString read FName write FName;
+    property Name: String read FName write FName;
     property VirtualSize: uint32 read FVSize;
     property RVA: TRVA read FRVA;
     property RawSize: uint32 read FRawSize;
@@ -137,7 +132,7 @@ procedure TPESection.SetHeader(ASecHdr: TImageSectionHeader; ASrcData: pointer;
 var
   SizeToAlloc: uint32;
 begin
-  FName := ASecHdr.Name;
+  FName := ASecHdr.GetName;
   FVSize := ASecHdr.Misc.VirtualSize;
   FRVA := ASecHdr.VirtualAddress;
   FRawSize := ASecHdr.SizeOfRawData;
@@ -185,11 +180,14 @@ end;
 
 function TPESection.GetImageSectionHeader: TImageSectionHeader;
 var
-  i: integer;
+  Bytes: TBytes;
 begin
   FillChar(Result, sizeof(Result), 0);
-  for i := 1 to Min(Length(Result.Name), Length(name)) do
-    Result.Name[i - 1] := name[i];
+
+  // Name.
+  Bytes := TEncoding.ANSI.GetBytes(FName);
+  Move(Bytes[0], Result.Name[0], Min(Length(Bytes), Length(Result.Name)));
+
   Result.VirtualAddress := RVA;
   Result.Misc.VirtualSize := VirtualSize;
   Result.SizeOfRawData := RawSize;
@@ -273,22 +271,6 @@ begin
   Result := AStream.Write(Mem^, FRawSize) = FRawSize;
 {$WARN COMPARING_SIGNED_UNSIGNED ON}
 end;
-
-// function TPESection.LoadHeaderFromStream(AStream: TStream; AId: integer): boolean;
-// var
-// sh: TImageSectionHeader;
-// begin
-// {$WARN IMPLICIT_STRING_CAST_LOSS OFF}
-// if StreamRead(AStream, sh, sizeof(sh)) then
-// begin
-// SetHeader(sh, nil);
-// if sh.Name = '' then
-// FName := Format('#%3.3d', [AId]);
-// Exit(True);
-// end;
-// Exit(false);
-// {$WARN IMPLICIT_STRING_CAST_LOSS ON}
-// end;
 
 procedure TPESection.Resize(NewSize: uint32);
 begin

@@ -273,8 +273,7 @@ function TExecutableModule.LoadImports: TMapStatus;
 var
   ImpLib: TPEImportLibrary;
   ImpFnPair: TPair<TRVA, TPEImportFunction>;
-  ImpLibName, ImpFnName: AnsiString;
-  s: string;
+  ImpLibName, ImpFnName: String;
   hmod: HMODULE;
   proc: Pointer;
   va: UInt64;
@@ -290,17 +289,16 @@ begin
     FPE.Msg.Write('Processing import module: "%s"', [ImpLibName]);
 
     // Check if module already in address space.
-    hmod := GetModuleHandleA(PAnsiChar(ImpLibName));
+    hmod := GetModuleHandle(PChar(ImpLibName));
     ModuleMustBeFreed := hmod = 0;
 
     // Try make system load lib from default paths.
     if hmod = 0 then
-      hmod := LoadLibraryA(PAnsiChar(ImpLibName));
+      hmod := LoadLibrary(PChar(ImpLibName));
     // Try load from dir, where image located.
     if (hmod = 0) and (FPE.FileName <> '') then
     begin
-      s := ExtractFilePath(FPE.FileName) + ImpLibName;
-      hmod := LoadLibrary(PChar(s));
+      hmod := LoadLibrary(PChar(ExtractFilePath(FPE.FileName) + ImpLibName));
     end;
     // If lib not found, raise.
     if hmod = 0 then
@@ -323,7 +321,7 @@ begin
       if ImpFnPair.Value.Name <> '' then
       begin
         ImpFnName := ImpFnPair.Value.Name;
-        proc := GetProcAddress(hmod, PAnsiChar(ImpFnName));
+        proc := GetProcAddress(hmod, PChar(ImpFnName));
         if proc = nil then
         begin
           FPE.Msg.Write('Imported name "%s" not found.', [ImpFnName]);

@@ -9,7 +9,8 @@ uses
 
   PE.Common,
   PE.Section,
-  PE.Build.Common;
+  PE.Build.Common,
+  PE.Utils;
 
 type
   TImportBuilder = class(TDirectoryBuilder)
@@ -41,7 +42,6 @@ var
   NameOrdSize: byte;
   Lib: TPEImportLibrary;
   fn: TPEImportFunction;
-  strA: AnsiString;
   dq: UInt64;
   hint: word;
 begin
@@ -53,15 +53,11 @@ begin
   // calc import layout:
   ofsDIR := 0;
   ofsILT := 0;
-  sOfs := 0;
 
   for Lib in FPE.Imports.LibsByName do
   begin
     inc(ofsDIR, sizeof(TImportDirectoryTable));
-    for fn in Lib.Functions.FunctionsByRVA.Values do
-      inc(ofsILT, NameOrdSize);
-    // one last (empty) item
-    inc(ofsILT, NameOrdSize);
+    inc(ofsILT, NameOrdSize * (Lib.Functions.FunctionsByRVA.Count + 1));
   end;
 
   inc(ofsDIR, sizeof(TImportDirectoryTable));
@@ -91,18 +87,14 @@ begin
 
     // write dll name
     Stream.Position := sOfs;
-    strA := Lib.Name + #0;
-    if Length(strA) mod 2 <> 0 then
-      strA := strA + #0;
-    Stream.Write(strA[1], Length(strA));
-    inc(sOfs, Length(strA));
+    sOfs := sOfs + StreamWriteStringA(Stream, Lib.Name, 2);
 
     // write import names/ords
     for fn in Lib.Functions.FunctionsByRVA.Values do
     begin
       Stream.Position := ofsILT;
 
-      if fn.Name <> '' then
+      if not fn.Name.IsEmpty then
       begin
         // by name
         dq := DirRVA + sOfs;
@@ -128,18 +120,14 @@ begin
           raise Exception.Create('Write error.');
       end;
 
-      if fn.Name <> '' then
+      if not fn.Name.IsEmpty then
       begin
         Stream.Position := sOfs;
         // hint
         hint := 0;
         Stream.Write(hint, 2);
         // name
-        strA := fn.Name + #0;
-        if Length(strA) mod 2 <> 0 then
-          strA := strA + #0;
-        Stream.Write(strA[1], Length(strA));
-        inc(sOfs, sizeof(hint) + Length(strA));
+        sOfs := sOfs + sizeof(hint) + StreamWriteStringA(Stream, fn.Name, 2);
       end;
       inc(ofsILT, NameOrdSize);
     end;

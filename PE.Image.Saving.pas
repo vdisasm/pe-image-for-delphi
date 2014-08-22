@@ -149,7 +149,7 @@ begin
     end;
 
     AStream.Write(s.Mem^, SizeToWrite);
-    WritePadding(AStream, PaddingSize);
+    WritePattern(AStream, PaddingSize, nil, 0);
   end;
 end;
 

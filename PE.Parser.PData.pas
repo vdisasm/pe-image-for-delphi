@@ -161,7 +161,7 @@ end;
 function ParsePDATA(PE: TPEImage; out &Type: TPDATAType; out Items: TPDATAItems): integer;
 var
   sec: TPESection;
-  i, Cnt, Size, Actual: integer;
+  i, Cnt, Size, Actual: uint32;
 begin
   SetLength(Items, 0);
 
@@ -196,11 +196,14 @@ begin
       Cnt := sec.VirtualSize div Size;
       Actual := 0;
       SetLength(Items, Cnt); // pre-allocate
-      for i := 0 to Cnt - 1 do
+      if Cnt <> 0 then
       begin
-        if (not PE.ReadEx(@Items[i], Size)) or (Items[i].IsEmpty) then
-          break;
-        inc(Actual);
+        for i := 0 to Cnt - 1 do
+        begin
+          if (not PE.ReadEx(@Items[i], Size)) or (Items[i].IsEmpty) then
+            break;
+          inc(Actual);
+        end;
       end;
       if Actual <> Cnt then
         SetLength(Items, Actual); // trim

@@ -57,6 +57,7 @@ type
 
   { 5.4.3. Hint/Name Table }
   THintNameTable = packed record
+  public
     // An index into the export name pointer table. A match is attempted
     // first with this value. If it fails, a binary search is performed
     // on the DLL’s export name pointer table.
@@ -65,7 +66,7 @@ type
     // An ASCII string that contains the name to import. This is
     // the string that must be matched to the public name in the DLL.
     // This string is case sensitive and terminated by a null byte.
-    Name: AnsiString;
+    Name: String;
 
     { Pad : 0/1 bytes }
   end;

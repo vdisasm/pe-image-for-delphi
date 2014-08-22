@@ -39,8 +39,7 @@ var
   Fn: TPEImportFunctionDelayed;
   HintNameRva: TRVA;
   Ilt: TImportLookupTable;
-  iFunc: integer;
-  wordSize: integer;
+  iFunc: uint32;
 var
   Ordinal: UInt16;
   Hint: UInt16 absolute Ordinal;
@@ -57,11 +56,10 @@ begin
 
   DllName := PE.ReadANSIString;
 
-  wordSize := PE.ImageWordSize;
   iFunc := 0;
   Iat := Table.DelayImportAddressTable - SubValue;
 
-  while PE.SeekRVA(Table.DelayImportNameTable - SubValue + iFunc * wordSize) do
+  while PE.SeekRVA(Table.DelayImportNameTable - SubValue + iFunc * PE.ImageWordSize) do
   begin
     HintNameRva := PE.ReadWord();
     if HintNameRva = 0 then
@@ -89,7 +87,7 @@ begin
     Fn := TPEImportFunctionDelayed.Create(Iat, FnName, Ordinal);
     PE.ImportsDelayed.AddNew(Iat, DllName, Fn);
 
-    inc(Iat, wordSize);
+    inc(Iat, PE.ImageWordSize);
     inc(iFunc);
   end;
 end;
@@ -98,7 +96,7 @@ function TPEImportDelayedParser.Parse: TParserResult;
 var
   PE: TPEImage;
   ddir: TImageDataDirectory;
-  ofs: integer;
+  ofs: uint32;
   Table: TDelayLoadDirectoryTable;
   Tables: TList<TDelayLoadDirectoryTable>;
   Funcs: TFuncs;

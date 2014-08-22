@@ -31,7 +31,7 @@ type
 
     // Create new section but don't add it.
     // See AddNew for list of parameters.
-    function CreateNew(const AName: AnsiString; ASize, AFlags: UInt32;
+    function CreateNew(const AName: String; ASize, AFlags: UInt32;
       Mem: pointer; ForceVA: TVA = 0): TPESection;
 
     // Add new named section.
@@ -40,11 +40,11 @@ type
     // Normally Virtual Address of section is calculated to come after previous
     // section (aligned). But if ForceVA is not 0 it is used instead of
     // calculation.
-    function AddNew(const AName: AnsiString; ASize, AFlags: UInt32;
+    function AddNew(const AName: String; ASize, AFlags: UInt32;
       Mem: pointer; ForceVA: TVA = 0): TPESection;
 
     // Add new section using raw data from file.
-    function AddNewFromFile(const AFileName: string; const AName: AnsiString;
+    function AddNewFromFile(const AFileName: string; const AName: String;
       AFlags: UInt32; ForceVA: TVA = 0): TPESection;
 
     function SizeOfAllHeaders: UInt32; inline;
@@ -52,7 +52,7 @@ type
     function RVAToOfs(RVA: TRVA; OutOfs: PDword): boolean;
     function RVAToSec(RVA: TRVA; OutSec: PPESection): boolean;
 
-    function FindByName(const AName: AnsiString; IgnoreCase: boolean = True): TPESection;
+    function FindByName(const AName: String; IgnoreCase: boolean = True): TPESection;
 
     // Fill section memory with specified byte and return number of bytes
     // actually written.
@@ -80,7 +80,7 @@ begin
   Result := Sec;
 end;
 
-function TPESections.CreateNew(const AName: AnsiString; ASize, AFlags: UInt32;
+function TPESections.CreateNew(const AName: String; ASize, AFlags: UInt32;
   Mem: pointer; ForceVA: TVA): TPESection;
 var
   h: TImageSectionHeader;
@@ -112,7 +112,7 @@ begin
   Result := TPESection.Create(h, Mem);
 end;
 
-function TPESections.AddNew(const AName: AnsiString; ASize, AFlags: UInt32;
+function TPESections.AddNew(const AName: String; ASize, AFlags: UInt32;
   Mem: pointer; ForceVA: TVA): TPESection;
 begin
   Result := CreateNew(AName, ASize, AFlags, Mem, ForceVA);
@@ -120,7 +120,7 @@ begin
 end;
 
 function TPESections.AddNewFromFile(const AFileName: string;
-  const AName: AnsiString; AFlags: UInt32; ForceVA: TVA): TPESection;
+  const AName: String; AFlags: UInt32; ForceVA: TVA): TPESection;
 var
   ms: TMemoryStream;
 begin
@@ -186,29 +186,24 @@ begin
   System.FillChar(p^, Result, FillByte);
 end;
 
-function TPESections.FindByName(const AName: AnsiString;
-  IgnoreCase: boolean): TPESection;
+function TPESections.FindByName(const AName: String; IgnoreCase: boolean): TPESection;
 var
-  a, b: AnsiString;
+  a, b: string;
 begin
-{$WARN IMPLICIT_STRING_CAST OFF}
-{$WARN IMPLICIT_STRING_CAST_LOSS OFF}
   if IgnoreCase then
-    a := LowerCase(AName)
+    a := AName.ToLower
   else
     a := AName;
   for Result in self do
   begin
     if IgnoreCase then
-      b := LowerCase(Result.Name)
+      b := Result.Name.ToLower
     else
       b := Result.Name;
     if a = b then
       Exit;
   end;
   Exit(nil);
-{$WARN IMPLICIT_STRING_CAST ON}
-{$WARN IMPLICIT_STRING_CAST_LOSS ON}
 end;
 
 procedure TPESections.ItemNotify(Sender: TObject; const Item: TPESection;
