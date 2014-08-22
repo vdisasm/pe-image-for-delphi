@@ -24,131 +24,133 @@ uses
 
 function TPEExportParser.Parse: TParserResult;
 var
+  PE: TPEImage;
   ExpIDD: TImageDataDirectory;
   ExpDir: TImageExportDirectory;
-  i, base, ordnl: Integer;
-  RVAs: packed array of uint32;
-  NamePointerRVAs: packed array of uint32;
-  OrdinalTableRVAs: packed array of UInt16;
+  i, base: Integer;
+  ordnl: uint16;
+  RVAs: array of uint32;
+  NamePointerRVAs: array of uint32;
+  OrdinalTableRVAs: array of uint16;
   Exp: array of TPEExportSym;
   Item: TPEExportSym;
 begin
-  with TPEImage(FPE) do
+  PE := TPEImage(FPE);
+
+  // Clear exports.
+  PE.ExportSyms.Clear;
+
+  // Get export dir.
+  if not PE.DataDirectories.Get(DDIR_EXPORT, @ExpIDD) then
+    exit(PR_OK);
+
+  // No exports is ok.
+  if ExpIDD.IsEmpty then
+    exit(PR_OK);
+
+  // If can't find Export dir, failure.
+  if not PE.SeekRVA(ExpIDD.VirtualAddress) then
+    exit(PR_ERROR);
+
+  // If can't read whole table, failure.
+  if not PE.ReadEx(@ExpDir, Sizeof(ExpDir)) then
+    exit(PR_ERROR);
+
+  // If no addresses, ok.
+  if ExpDir.AddressTableEntries = 0 then
+    exit(PR_OK);
+
+  // Read lib exported name.
+  if (ExpDir.NameRVA <> 0) and (PE.SeekRVA(ExpDir.NameRVA)) then
+    PE.ExportedName := PE.ReadAnsiString;
+
+  base := ExpDir.OrdinalBase;
+
+  // Check if there's too many exports.
+  if (ExpDir.AddressTableEntries >= SUSPICIOUS_MIN_LIMIT_EXPORTS) or
+    (ExpDir.NumberOfNamePointers >= SUSPICIOUS_MIN_LIMIT_EXPORTS) then
   begin
+    exit(PR_SUSPICIOUS);
+  end;
+
+  SetLength(Exp, ExpDir.AddressTableEntries);
+  SetLength(RVAs, ExpDir.AddressTableEntries);
+
+  // load RVAs of exported data
+  if not(PE.SeekRVA(ExpDir.ExportAddressTableRVA) and
+    PE.ReadEx(@RVAs[0], 4 * ExpDir.AddressTableEntries)) then
+    exit(PR_ERROR);
+
+  if ExpDir.NumberOfNamePointers <> 0 then
+  begin
+    // name/ordinal only
+    SetLength(NamePointerRVAs, ExpDir.NumberOfNamePointers);
+    SetLength(OrdinalTableRVAs, ExpDir.NumberOfNamePointers);
+
+    // load RVAs of name pointers
+    if not((PE.SeekRVA(ExpDir.NamePointerRVA)) and
+      PE.ReadEx(@NamePointerRVAs[0], 4 * ExpDir.NumberOfNamePointers)) then
+      exit(PR_ERROR);
+
+    // load ordinals according to names
+    if not((PE.SeekRVA(ExpDir.OrdinalTableRVA)) and
+      PE.ReadEx(@OrdinalTableRVAs[0], 2 * ExpDir.NumberOfNamePointers)) then
+      exit(PR_ERROR);
+  end;
+
+  for i := 0 to ExpDir.AddressTableEntries - 1 do
+  begin
+    Item := TPEExportSym.Create;
+    Item.Ordinal := i + base;
+    Item.RVA := RVAs[i];
+
+    Exp[i] := Item;
+
+    // if rva in export section, it's forwarder
+    Exp[i].Forwarder := ExpIDD.Contain(RVAs[i]);
+  end;
+
+  // read names
+  for i := 0 to ExpDir.NumberOfNamePointers - 1 do
+  begin
+    if (NamePointerRVAs[i] <> 0) then
     begin
+      ordnl := OrdinalTableRVAs[i];
 
-      // Clear exports.
-      ExportSyms.Clear;
+      // Check if ordinal is correct.
+      if ordnl >= length(Exp) then
+        continue;
 
-      // Get export dir.
-      if not DataDirectories.Get(DDIR_EXPORT, @ExpIDD) then
-        exit(PR_OK);
+      if not Exp[ordnl].IsValid then
+        continue;
 
-      // No exports is ok.
-      if ExpIDD.IsEmpty then
-        exit(PR_OK);
-
-      // If can't find Export dir, failure.
-      if not SeekRVA(ExpIDD.VirtualAddress) then
+      // Read export name.
+      if not PE.SeekRVA(NamePointerRVAs[i]) then
         exit(PR_ERROR);
 
-      // If can't read whole table, failure.
-      if not ReadEx(@ExpDir, Sizeof(ExpDir)) then
-        exit(PR_ERROR);
+      Exp[ordnl].Name := PE.ReadAnsiString;
 
-      // If no addresses, ok.
-      if ExpDir.AddressTableEntries = 0 then
-        exit(PR_OK);
-
-      // Read lib exported name.
-      if (ExpDir.NameRVA <> 0) and (SeekRVA(ExpDir.NameRVA)) then
-        ExportedName := ReadANSIString;
-
-      base := ExpDir.OrdinalBase;
-
-      // Check if there's too many exports.
-      if (ExpDir.AddressTableEntries >= SUSPICIOUS_MIN_LIMIT_EXPORTS) or
-        (ExpDir.NumberOfNamePointers >= SUSPICIOUS_MIN_LIMIT_EXPORTS) then
+      // Read forwarder, if it is.
+      if Exp[ordnl].Forwarder then
       begin
-        exit(PR_SUSPICIOUS);
-      end;
-
-      SetLength(Exp, ExpDir.AddressTableEntries);
-      SetLength(RVAs, ExpDir.AddressTableEntries);
-
-      // load RVAs of exported data
-      if not(SeekRVA(ExpDir.ExportAddressTableRVA) and
-        ReadEx(@RVAs[0], 4 * ExpDir.AddressTableEntries)) then
-        exit(PR_ERROR);
-
-      if ExpDir.NumberOfNamePointers <> 0 then
-      begin
-        // name/ordinal only
-        SetLength(NamePointerRVAs, ExpDir.NumberOfNamePointers);
-        SetLength(OrdinalTableRVAs, ExpDir.NumberOfNamePointers);
-
-        // load RVAs of name pointers
-        if not((SeekRVA(ExpDir.NamePointerRVA)) and
-          ReadEx(@NamePointerRVAs[0], 4 * ExpDir.NumberOfNamePointers)) then
+        // if it is forwarder, rva will point inside of export dir.
+        if not PE.SeekRVA(Exp[ordnl].RVA) then
           exit(PR_ERROR);
-
-        // load ordinals according to names
-        if not((SeekRVA(ExpDir.OrdinalTableRVA)) and
-          ReadEx(@OrdinalTableRVAs[0], 2 * ExpDir.NumberOfNamePointers)) then
-          exit(PR_ERROR);
+        Exp[ordnl].ForwarderName := PE.ReadAnsiString;
+        Exp[ordnl].RVA := 0; // no real address
       end;
-
-      for i := 0 to ExpDir.AddressTableEntries - 1 do
-      begin
-        Item := TPEExportSym.Create;
-        Item.Ordinal := i + base;
-        Item.RVA := RVAs[i];
-
-        Exp[i] := Item;
-
-        // if rva in export section, it's forwarder
-        Exp[i].Forwarder := ExpIDD.Contain(RVAs[i]);
-      end;
-
-      // read names
-      for i := 0 to ExpDir.NumberOfNamePointers - 1 do
-      begin
-        if (NamePointerRVAs[i] <> 0) then
-        begin
-          ordnl := OrdinalTableRVAs[i];
-          if Exp[ordnl].IsValid then
-          begin
-            // read export name
-            if not SeekRVA(NamePointerRVAs[i]) then
-              exit(PR_ERROR);
-            Exp[ordnl].Name := ReadANSIString;
-
-            // read forwarder, if it is
-            if Exp[ordnl].Forwarder then
-            begin
-              // if it is forwarder, rva will point inside of export dir.
-              if not SeekRVA(Exp[ordnl].RVA) then
-                exit(PR_ERROR);
-              Exp[ordnl].ForwarderName := ReadANSIString;
-              Exp[ordnl].RVA := 0; // no real address
-            end;
-
-          end;
-
-        end;
-      end;
-
-      // finally array to list
-      for i := low(Exp) to high(Exp) do
-        if Exp[i].IsValid then
-          ExportSyms.Add(Exp[i])
-        else
-          Exp[i].Free;
-
-      exit(PR_OK);
 
     end;
   end;
+
+  // finally array to list
+  for i := low(Exp) to high(Exp) do
+    if Exp[i].IsValid then
+      PE.ExportSyms.Add(Exp[i])
+    else
+      Exp[i].Free;
+
+  exit(PR_OK);
 end;
 
 end.

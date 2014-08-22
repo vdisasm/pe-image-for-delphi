@@ -101,7 +101,7 @@ begin
         PE.Msg.Write('Import library name RVA not found (0x%x).', [IDir.NameRVA]);
       end;
 
-      LibraryName := PE.ReadANSIString;
+      LibraryName := PE.ReadAnsiString;
 
       if LibraryName.IsEmpty then
       begin
@@ -171,7 +171,7 @@ begin
           begin
             dq := 0;
             PE.ReadEx(@dq, 2);
-            ImpFn.Name := PE.ReadANSIString;
+            ImpFn.Name := PE.ReadAnsiString;
           end;
 
           Lib.Functions.Add(ImpFn);
