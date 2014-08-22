@@ -5,7 +5,9 @@ interface
 uses
   System.Classes,
   PE.Common,
-  PE.Build.Common;
+  PE.Build.Common,
+  PE.Types.Relocations,
+  PE.Utils;
 
 type
   TRelocBuilder = class(TDirectoryBuilder)
@@ -17,10 +19,6 @@ type
   end;
 
 implementation
-
-uses
-  PE.Utils,
-  PE.Types.Relocations;
 
 const
   RELOC_BLOCK_ALIGN = $1000;
