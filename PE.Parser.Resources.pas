@@ -162,7 +162,7 @@ begin
             Img.Msg.Write('Failed to read resource name.');
             exit(nil);
           end;
-          Result.Name := Img.ReadUnicodeString;
+          Result.Name := Img.ReadUnicodeStringLenPfx2;
         end;
     end;
 

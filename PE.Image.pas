@@ -95,8 +95,20 @@ type
 
     FParsers: array [TParserFlag] of TPEParserClass;
     FMsg: TMsgMgr;
-    FPositionRVA: TRVA; // Current RVA.
     FDataDirectories: TDataDirectories;
+  private
+    // Used for read/write.
+    FCurrentSec: TPESection; // Current section.
+    FPositionRVA: TRVA;      // Current RVA.
+    FCurrentOfs: uint32;     // Current offset in section.
+
+    procedure SetPositionRVA(const Value: TRVA);
+
+    procedure SetPositionVA(const Value: TVA);
+    function GetPositionVA: TVA;
+
+    function ReadWrite(Buffer: Pointer; Count: cardinal; Read: boolean): uint32;
+  private
 
     { Notifiers }
     procedure DoReadError;
@@ -129,11 +141,6 @@ type
     function GetFileHeader: PImageFileHeader; inline;
     function GetImageDOSHeader: PImageDOSHeader; inline;
     function GetOptionalHeader: PPEOptionalHeader; inline;
-
-    function GetPositionVA: TVA;
-    procedure SetPositionVA(const Value: TVA);
-
-    procedure SetPositionRVA(const Value: TRVA);
 
     function GetIsDll: boolean;
     procedure SetIsDll(const Value: boolean);
@@ -179,12 +186,11 @@ type
     function SeekRVA(RVA: TRVA): boolean;
     function SeekVA(VA: TVA): boolean;
 
-    // todo: Read must be optimized
-    // now it calls RVAToMem each time Read called.
-
-    // Read Count bytes to Buffer and return number of bytes read.
+    // Read Count bytes from current RVA/VA position to Buffer and
+    // return number of bytes read.
+    // It cannot read past end of section.
     function Read(Buffer: Pointer; Count: cardinal): uint32; overload;
-    function Read(var Buffer; Size: cardinal): uint32; overload; inline;
+    function Read(var Buffer; Count: cardinal): uint32; overload; inline;
 
     // Read Count bytes to Buffer and return True if all bytes were read.
     function ReadEx(Buffer: Pointer; Count: cardinal): boolean; overload; inline;
@@ -198,10 +204,10 @@ type
     procedure Skip(Count: integer);
 
     // Read 1-byte 0-terminated string.
-    function ReadANSIString: String; overload;
+    function ReadAnsiString: String; overload;
 
     // Read 2-byte UTF-16 string with length prefix (2 bytes).
-    function ReadUnicodeString: UnicodeString;
+    function ReadUnicodeStringLenPfx2: String;
 
     // Reading values.
     // todo: these functions should be Endianness-aware.
@@ -994,14 +1000,20 @@ begin
   FImageWordSize := Value div 8;
 end;
 
-procedure TPEImage.SetPositionVA(const Value: TVA);
-begin
-  FPositionRVA := Value - FOptionalHeader.ImageBase;
-end;
-
 procedure TPEImage.SetPositionRVA(const Value: TRVA);
 begin
-  FPositionRVA := Value;
+  if not SeekRVA(Value) then
+    raise Exception.CreateFmt('Invalid RVA position (0x%x)', [Value]);
+end;
+
+procedure TPEImage.SetPositionVA(const Value: TVA);
+begin
+  FPositionRVA := VAToRVA(Value);
+end;
+
+function TPEImage.GetPositionVA: TVA;
+begin
+  Result := RVAToVA(FPositionRVA);
 end;
 
 function TPEImage.GetIsDll: boolean;
@@ -1039,9 +1051,15 @@ end;
 
 function TPEImage.SeekRVA(RVA: TRVA): boolean;
 begin
-  Result := RVAToOfs(RVA, nil);
-  if Result then
-    FPositionRVA := RVA;
+  // Section.
+  if not RVAToSec(RVA, @FCurrentSec) then
+    exit(false);
+
+  // RVA/Offset.
+  FPositionRVA := RVA;
+  FCurrentOfs := FPositionRVA - FCurrentSec.RVA;
+
+  exit(true);
 end;
 
 function TPEImage.SeekVA(VA: TVA): boolean;
@@ -1114,26 +1132,38 @@ begin
   Result := Ofs + VirtSize <= Sec.VirtualSize;
 end;
 
-function TPEImage.Read(Buffer: Pointer; Count: cardinal): uint32;
-var
-  Mem: Pointer;
+function TPEImage.ReadWrite(Buffer: Pointer; Count: cardinal; Read: boolean): uint32;
 begin
-  if Count = 0 then
+  // If count is 0 or no valid position was set we cannot do anything.
+  if (Count = 0) or (not Assigned(FCurrentSec)) then
     exit(0);
-  Mem := RVAToMem(FPositionRVA);
-  if Mem <> nil then
+
+  // Check how many bytes we can process.
+  Result := Min(Count, FCurrentSec.AllocatedSize - FCurrentOfs);
+  if Result = 0 then
+    exit;
+
+  if Assigned(Buffer) then
   begin
-    if Buffer <> nil then
-      move(Mem^, Buffer^, Count);
-    inc(FPositionRVA, Count);
-    exit(Count);
+    if Read then
+      Move(FCurrentSec.Mem[FCurrentOfs], Buffer^, Result)
+    else
+      Move(Buffer^, FCurrentSec.Mem[FCurrentOfs], Result);
   end;
-  exit(0);
+
+  // Move next.
+  inc(FPositionRVA, Result);
+  inc(FCurrentOfs, Result);
 end;
 
-function TPEImage.Read(var Buffer; Size: cardinal): uint32;
+function TPEImage.Read(Buffer: Pointer; Count: cardinal): uint32;
 begin
-  Result := Read(@Buffer, Size);
+  Result := ReadWrite(Buffer, Count, true);
+end;
+
+function TPEImage.Read(var Buffer; Count: cardinal): uint32;
+begin
+  Result := Read(@Buffer, Count);
 end;
 
 function TPEImage.ReadEx(Buffer: Pointer; Count: cardinal): boolean;
@@ -1146,25 +1176,51 @@ begin
   Result := ReadEx(@Buffer, Size);
 end;
 
-function TPEImage.ReadANSIString: string;
+function TPEImage.ReadAnsiString: string;
 var
-  B: byte;
+  len, available: uint32;
 begin
-  // todo: optimize ReadANSIString speed
-  Result := '';
-  while ReadEx(@B, 1) and (B <> 0) do
-    Result := Result + Char(B);
+  if Assigned(FCurrentSec) then
+  begin
+    available := FCurrentSec.AllocatedSize - FCurrentOfs;
+    len := 0;
+    while len < available do
+    begin
+      if FCurrentSec.Mem[FCurrentOfs + len] = 0 then
+      begin
+        // Get string.
+        Result := String(PAnsiChar(@FCurrentSec.Mem[FCurrentOfs]));
+        // Move next.
+        inc(len);
+        inc(FPositionRVA, len);
+        inc(FCurrentOfs, len);
+        exit;
+      end;
+      inc(len);
+    end;
+  end;
+  exit('');
 end;
 
-function TPEImage.ReadUnicodeString: UnicodeString;
+function TPEImage.ReadUnicodeStringLenPfx2: string;
 var
-  Len, i: UInt16;
+  Size: uint32;
+  Bytes: TBytes;
 begin
-  // todo: optimize ReadUnicodeString speed
-  Len := ReadUInt16;
-  SetLength(Result, Len);
-  for i := 1 to Len do
-    Read(@Result[i], 2);
+  // Check if there is at least 2 bytes for length.
+  if Assigned(FCurrentSec) and (FCurrentOfs + 2 <= FCurrentSec.AllocatedSize) then
+  begin
+    Size := ReadUInt16 * 2;
+    // Check if there is enough space to read string.
+    if FCurrentOfs + Size <= FCurrentSec.AllocatedSize then
+    begin
+      SetLength(Bytes, Size);
+      Read(Bytes[0], Size);
+      Result := TEncoding.Unicode.GetString(Bytes);
+      exit;
+    end;
+  end;
+  exit('');
 end;
 
 function TPEImage.ReadUInt8: UInt8;
@@ -1236,18 +1292,8 @@ begin
 end;
 
 function TPEImage.Write(Buffer: Pointer; Count: cardinal): uint32;
-var
-  Mem: Pointer;
 begin
-  Mem := RVAToMem(FPositionRVA);
-  if Mem <> nil then
-  begin
-    if Buffer <> nil then
-      move(Buffer^, Mem^, Count);
-    inc(FPositionRVA, Count);
-    exit(Count);
-  end;
-  exit(0);
+  Result := ReadWrite(Buffer, Count, false);
 end;
 
 function TPEImage.Write(var Buffer; Count: cardinal): uint32;
@@ -1594,11 +1640,6 @@ begin
   end;
 
   exit(nil);
-end;
-
-function TPEImage.GetPositionVA: TVA;
-begin
-  Result := FPositionRVA + FOptionalHeader.ImageBase;
 end;
 
 function TPEImage.GetLastSectionWithValidRawData: TPESection;
