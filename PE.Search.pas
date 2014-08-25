@@ -58,13 +58,41 @@ function StringToPattern(
 
 implementation
 
+function MatchPattern(
+  pSrc: pbyte;
+  const APattern: array of byte;
+  const AMask: array of byte
+  ): boolean;
+var
+  MaskLeft: Integer;
+  Mask: byte;
+  i: Integer;
+begin
+  Result := True;
+
+  MaskLeft := Length(AMask);
+  for i := 0 to High(APattern) do
+  begin
+    if MaskLeft <> 0 then
+      Mask := AMask[i]
+    else
+      Mask := $FF;
+
+    if (pSrc[i] and Mask) <> APattern[i] then
+    begin
+      Result := False;
+      break;
+    end;
+
+    if MaskLeft <> 0 then
+      dec(MaskLeft);
+  end;
+end;
+
 function SearchBytes;
 var
-  pSrc: PByte;
-  Mask: byte;
+  pSrc: pbyte;
   LastOffset: UInt32;
-  i: Integer;
-  MaskLeft: Integer;
 begin
   Result := False;
 
@@ -84,24 +112,7 @@ begin
 
   while AOffset <= LastOffset do
   begin
-    Result := True;
-    MaskLeft := Length(AMask);
-    for i := 0 to High(APattern) do
-    begin
-      if MaskLeft <> 0 then
-        Mask := AMask[i]
-      else
-        Mask := $FF;
-
-      if (pSrc[i] and Mask) <> APattern[i] then
-      begin
-        Result := False;
-        break;
-      end;
-
-      if MaskLeft <> 0 then
-        dec(MaskLeft);
-    end;
+    Result := MatchPattern(pSrc, APattern, AMask);
 
     // Break if: found/no direction/at lower bound.
     if (Result) or (ADirection = 0) or ((ADirection < 0) and (AOffset = 0)) then
