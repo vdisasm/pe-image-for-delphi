@@ -38,17 +38,23 @@ function SearchBytes(
   ): boolean;
 
 {
-  * Convert string like AA??BB
+  * Check string contains valid pattern text and return number of elements on
+  * success. Result is 0 if pattern text is invalid or string is empty.
+}
+function ValidatePattern(const S: string): Integer;
+
+{
+  * Convert string like AA??BB (or AA ?? BB)
   * to pattern          AA00BB
   * and mask            FF00FF
   *
   * String must not contain spaces.
   * Output length of Pattern and Mask is same.
 }
-procedure StringToPattern(
+function StringToPattern(
   const S: string;
   out Pattern: TBytes;
-  out Mask: TBytes);
+  out Mask: TBytes): boolean;
 
 implementation
 
@@ -60,11 +66,13 @@ var
   i: Integer;
   MaskLeft: Integer;
 begin
+  Result := False;
+
   if Length(APattern) = 0 then
-    Exit(False);
+    Exit;
 
   if (AOffset + Length(APattern)) > ASection.AllocatedSize then
-    Exit(False);
+    Exit;
 
   if ADirection < 0 then
     ADirection := -1
@@ -105,28 +113,134 @@ begin
   end;
 end;
 
-procedure StringToPattern;
+function ValidatePattern(const S: string): Integer;
 var
-  Count, i: Integer;
-  tmp: string;
+  i: Integer;
+  ElementLen: Integer;
+  c: char;
 begin
-  if Length(S) mod 2 <> 0 then
-    raise Exception.Create('Invalid length of string');
+  Result := 0;
 
-  Count := Length(S) div 2;
+  if S.IsEmpty then
+    Exit;
 
-  SetLength(Pattern, Count);
-  SetLength(Mask, Count);
+  { Any element is 2 chars max }
+  ElementLen := 0;
 
-  for i := 0 to Count - 1 do
+  i := 0;
+  while i < S.Length do
   begin
-    tmp := S.Substring(i * 2, 2);
-    if tmp <> '??' then
+    c := S.Chars[i];
+    case c of
+      '?':
+        begin
+          if (ElementLen = 0) or ((ElementLen < 2) and (S.Chars[i - 1] = '?')) then
+            inc(ElementLen)
+          else
+            Exit(0);
+        end;
+      '0' .. '9', 'A' .. 'F', 'a' .. 'f':
+        begin
+          if (ElementLen = 0) or ((ElementLen < 2) and CharInSet(S.Chars[i - 1], ['0' .. '9', 'A' .. 'F', 'a' .. 'f'])) then
+            inc(ElementLen)
+          else
+            Exit(0);
+        end;
+    end;
+
+    inc(i);
+
+    if (ElementLen <> 0) and ((i = S.Length) or (c = ' ')) then
+      inc(Result);
+
+    if c = ' ' then
+      ElementLen := 0;
+  end;
+end;
+
+function StringToPattern(
+  const S: string;
+  out Pattern: TBytes;
+  out Mask: TBytes): boolean;
+var
+  i, hcn, masked: Integer;
+  hc: array [0 .. 1] of byte;
+  c: char;
+  element, count: Integer;
+begin
+  count := ValidatePattern(S);
+  if count = 0 then
+    Exit(False);
+
+  SetLength(Pattern, count);
+  SetLength(Mask, count);
+
+  element := 0;
+
+  hcn := 0;
+  hc[0] := 0;
+  hc[1] := 0;
+  masked := 0;
+
+  i := 0;
+  while i < S.Length do
+  begin
+    c := S.Chars[i];
+
+    case c of
+      '0' .. '9':
+        begin
+          hc[hcn] := Integer(c) - Integer('0');
+          inc(hcn);
+        end;
+      'A' .. 'F':
+        begin
+          hc[hcn] := Integer(c) - Integer('A') + 10;
+          inc(hcn);
+        end;
+      'a' .. 'f':
+        begin
+          hc[hcn] := Integer(c) - Integer('a') + 10;
+          inc(hcn);
+        end;
+      '?':
+        inc(masked);
+    end;
+
+    inc(i);
+
+    if (i = S.Length) or (c = ' ') then
     begin
-      Pattern[i] := StrToInt('$' + tmp);
-      Mask[i] := $FF;
+      case hcn of
+        0:
+          if masked <> 0 then
+          begin
+            Pattern[element] := 0;
+            Mask[element] := 0;
+            inc(element);
+          end;
+        1:
+          begin
+            Pattern[element] := hc[0];
+            Mask[element] := $FF;
+            inc(element);
+          end;
+        2:
+          begin
+            Pattern[element] := (hc[0] shl 4) or hc[1];
+            Mask[element] := $FF;
+            inc(element);
+          end;
+      end;
+
+      hcn := 0;
+      hc[0] := 0;
+      hc[1] := 0;
+      masked := 0;
     end;
   end;
+
+  Exit(True);
 end;
 
 end.
