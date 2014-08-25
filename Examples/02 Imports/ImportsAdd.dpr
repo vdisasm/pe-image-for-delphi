@@ -7,6 +7,7 @@ uses
   PE.Common,
   PE.Image,
   PE.Imports,
+  PE.Imports.Func,
   PE.Build;
 
 var

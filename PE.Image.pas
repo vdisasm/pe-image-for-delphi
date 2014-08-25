@@ -366,9 +366,6 @@ type
     // section end.
     // AStream can be nil if you want just check how many bytes can be saved.
     // todo: maybe also add cross-section dumps.
-    function DumpRegionToStream(AStream: TStream; RVA: TRVA; Size: uint32): uint32; deprecated 'use SaveRegionToStream';
-    function DumpRegionToFile(const AFileName: string; RVA: TRVA; Size: uint32): uint32; deprecated 'use SaveRegionToFile';
-
     function SaveRegionToStream(AStream: TStream; RVA: TRVA; Size: uint32): uint32;
     function SaveRegionToFile(const AFileName: string; RVA: TRVA; Size: uint32): uint32;
 
@@ -597,16 +594,6 @@ end;
 procedure TPEImage.DoReadError;
 begin
   raise Exception.Create('Read Error.');
-end;
-
-function TPEImage.DumpRegionToStream(AStream: TStream; RVA: TRVA; Size: uint32): uint32;
-begin
-  Result := SaveRegionToStream(AStream, RVA, Size);
-end;
-
-function TPEImage.DumpRegionToFile(const AFileName: string; RVA: TRVA; Size: uint32): uint32;
-begin
-  Result := SaveRegionToFile(FileName, RVA, Size);
 end;
 
 function TPEImage.SaveRegionToStream(AStream: TStream; RVA: TRVA; Size: uint32): uint32;

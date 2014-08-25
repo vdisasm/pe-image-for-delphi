@@ -4,6 +4,7 @@
 program ResourceExtract;
 
 uses
+  System.Classes,
   System.SysUtils,
 
   PE.Image,
@@ -23,7 +24,6 @@ function TMyImg.MyTraverse(Node: TResourceTreeNode): boolean;
 var
   Leaf: TResourceTreeLeafNode;
   FileName, ParentName: string;
-  Written: uint32;
 begin
   // Need only leaf nodes (data).
   if Node.IsLeaf then
@@ -41,7 +41,7 @@ begin
       [ParentName, Leaf.DataRVA, Leaf.DataSize, Leaf.Codepage]);
 
     // Dump raw resource.
-    Written := self.DumpRegionToFile(FileName, Leaf.DataRVA, Leaf.DataSize);
+    self.SaveRegionToFile(FileName, Leaf.DataRVA, Leaf.DataSize);
   end;
   Result := True; // continue
 end;
