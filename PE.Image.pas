@@ -852,7 +852,7 @@ begin
         end;
       end;
 
-      Sec := TPESection.Create(sh, nil);
+      Sec := TPESection.Create(sh, nil, @FMsg);
 
       if not Sec.IsNameSafe then
       begin

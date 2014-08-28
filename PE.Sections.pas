@@ -84,8 +84,8 @@ function TPESections.CreateNew(const AName: String; ASize, AFlags: UInt32;
   Mem: pointer; ForceVA: TVA): TPESection;
 var
   h: TImageSectionHeader;
-  i: integer;
   PE: TPEImage;
+  Bytes: TBytes;
 begin
   PE := TPEImage(FPE);
 
@@ -95,8 +95,8 @@ begin
   // Copy name.
   if AName <> '' then
   begin
-    i := max(Length(h.Name), Length(AName));
-    System.Move(AName[1], h.Name[0], i);
+    Bytes := TEncoding.ANSI.GetBytes(AName);
+    System.Move(Bytes[0], h.Name[0], max(Length(h.Name), Length(Bytes)));
   end;
 
   h.Misc.VirtualSize := AlignUp(ASize, PE.SectionAlignment);
