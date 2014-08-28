@@ -1450,7 +1450,10 @@ begin
 
   // DOS header.
   if not LoadDosHeader(AStream, FDosHeader) then
-    exit; // dos header failed
+  begin
+    Msg.Write('No DOS header found.');
+    exit;
+  end;
 
   if (FDosHeader.e_lfanew = 0) then
   begin
