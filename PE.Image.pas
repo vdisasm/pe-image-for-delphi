@@ -117,7 +117,7 @@ type
     procedure InitParsers;
 
     { Base loading }
-    procedure LoadSectionHeaders(AStream: TStream);
+    function LoadSectionHeaders(AStream: TStream): boolean;
     function LoadSectionData(AStream: TStream): UInt16;
 
     // Replace /%num% to name from COFF string table.
@@ -763,7 +763,7 @@ begin
   Result := @self.FFileHeader;
 end;
 
-procedure TPEImage.LoadSectionHeaders(AStream: TStream);
+function TPEImage.LoadSectionHeaders(AStream: TStream): boolean;
 var
   Sec: TPESection;
   i: integer;
@@ -772,6 +772,8 @@ var
   SizeOfHeader: uint32;
   HeaderList: TList<TImageSectionHeader>;
   VSizeToBeMapped: uint32;
+  CorrectRawDataPositions: integer;
+  StreamSize: UInt64;
 begin
   NumberOfSections := FFileHeader.NumberOfSections;
 
@@ -783,19 +785,45 @@ begin
   if NumberOfSections = 0 then
   begin
     Msg.Write('There are no sections in the image');
-    exit;
+    exit(true);
   end;
 
   HeaderList := TList<TImageSectionHeader>.Create;
   try
+    // -------------------------------------------------------------------------
+    // Load section headers.
+    CorrectRawDataPositions := 0;
+    StreamSize := AStream.Size;
     for i := 0 to NumberOfSections - 1 do
     begin
-      if StreamRead(AStream, sh, SizeOf(sh)) then
-        HeaderList.Add(sh)
-      else
+      if not StreamRead(AStream, sh, SizeOf(sh)) then
         break;
+
+      if (sh.SizeOfRawData = 0) or (sh.PointerToRawData < AStream.Size) then
+      begin
+        inc(CorrectRawDataPositions);
+        HeaderList.Add(sh);
+      end
+      else
+        Msg.Write('Raw data is outside of stream (0x%x>0x%x). Skipped.', [sh.PointerToRawData, StreamSize]);
     end;
 
+    if CorrectRawDataPositions = 0 then
+    begin
+      Msg.Write('No good raw data positions found.');
+      exit(false);
+    end
+    else if CorrectRawDataPositions <> NumberOfSections then
+    begin
+      Msg.Write('%d of %d sections contain correct raw data positions.', [CorrectRawDataPositions, NumberOfSections]);
+    end;
+
+    // -------------------------------------------------------------------------
+    // Check section count.
+    if HeaderList.Count <> NumberOfSections then
+      FMsg.Write('Found %d of %d section headers.', [HeaderList.Count, NumberOfSections]);
+
+    // -------------------------------------------------------------------------
     for i := 0 to HeaderList.Count - 1 do
     begin
       sh := HeaderList[i];
@@ -869,10 +897,7 @@ begin
     HeaderList.Free;
   end;
 
-  // Check section count.
-  if FSections.Count <> FFileHeader.NumberOfSections then
-    FMsg.Write('Found %d of %d section headers.',
-      [FSections.Count, FFileHeader.NumberOfSections]);
+  exit(true);
 end;
 
 function TPEImage.LoadSectionData(AStream: TStream): UInt16;
@@ -1528,7 +1553,8 @@ begin
 
   // Load Section Headers.
   AStream.Position := SecHdrOfs;
-  LoadSectionHeaders(AStream);
+  if not LoadSectionHeaders(AStream) then
+    exit;
 
   // Mapped image can't have overlay, so correct total size.
   if FImageKind = PEIMAGE_KIND_MEMORY then
