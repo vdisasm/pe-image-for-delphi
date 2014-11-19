@@ -1020,7 +1020,7 @@ end;
 
 procedure TPEImage.SetPositionVA(const Value: TVA);
 begin
-  FPositionRVA := VAToRVA(Value);
+  SetPositionRVA(VAToRVA(Value));
 end;
 
 function TPEImage.GetPositionVA: TVA;
