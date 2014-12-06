@@ -110,10 +110,11 @@ type
     destructor Destroy; override;
 
     // Add new item.
-    procedure Add(const Key: TKey; const Value: TValue); // inline; XE4 doesn't like the inline
+    procedure Add(const Key: TKey; const Value: TValue); inline;
     procedure Clear; inline;
-    function ContainsKey(const Key: TKey): boolean; // inline; XE4 doesn't like the inline
+    function ContainsKey(const Key: TKey): boolean; inline;
     function TryGetValue(const Key: TKey; out Value: TValue): boolean;
+    function TryGetKeyAndValue(const Key: TKey; out OutKey: TKey; out OutValue: TValue): boolean;
     procedure Remove(const Key: TKey);
 
     function FirstKey: TKey; inline;
@@ -259,17 +260,34 @@ begin
   Result := FindNodePtr(Key) <> nil;
 end;
 
-function TMap<TKey, TValue>.TryGetValue(const Key: TKey;
-  out Value: TValue): boolean;
+function TMap<TKey, TValue>.TryGetValue(const Key: TKey; out Value: TValue): boolean;
 var
   Ptr: TItemTree.TRBNodePtr;
 begin
   Ptr := FindNodePtr(Key);
-  Result := Assigned(Ptr);
-  if Result then
-    Value := Ptr^.K.Pair.Value
-  else
-    Value := Default (TValue);
+  if Assigned(Ptr) then
+  begin
+    Value := Ptr^.K.Pair.Value;
+    exit(true);
+  end;
+  Value := Default (TValue);
+  exit(false);
+end;
+
+function TMap<TKey, TValue>.TryGetKeyAndValue(const Key: TKey; out OutKey: TKey; out OutValue: TValue): boolean;
+var
+  Ptr: TItemTree.TRBNodePtr;
+begin
+  Ptr := FindNodePtr(Key);
+  if Assigned(Ptr) then
+  begin
+    OutKey := Ptr^.K.Pair.Key;
+    OutValue := Ptr^.K.Pair.Value;
+    exit(true);
+  end;
+  OutKey := Default (TKey);
+  OutValue := Default (TValue);
+  exit(false);
 end;
 
 { TMap<TKey, TValue>.TItem }
@@ -301,7 +319,7 @@ begin
   if FNode = nil then
   begin
     FNode := FMap.FItems.First;
-    Exit(FNode <> nil);
+    exit(FNode <> nil);
   end;
   Result := FMap.FItems.Next(FNode);
 end;
