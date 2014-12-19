@@ -13,22 +13,32 @@ uses
   System.SysUtils,
 
   WinApi.PsApi,
-  WinApi.Windows;
+  WinApi.TlHelp32,
+  WinApi.Windows,
+
+  WinHelper;
 
 type
   TProcessModuleStream = class(TStream)
   private
     FProcessHandle: THandle;
     FModuleBase: NativeUInt;
-    FModuleInfo: MODULEINFO;
+    FModuleSize: DWORD;
   private
     FCurrentRVA: UInt64;
   public
-    constructor Create(ProcessID: DWORD; ModuleBase: NativeUInt;
-      TryToFindModuleBase: boolean = False);
-    destructor Destroy; override;
+    constructor Create(ProcessID: DWORD; const me: TModuleEntry32);
 
-    function AddressToModuleBase(Addr: UInt64): UInt64;
+    // Create from known process ID. Module base is found from ModuleName.
+    // If process id is invalid or no module found exception raised.
+    constructor CreateFromPidAndModuleName(ProcessID: DWORD; const ModuleName: string);
+
+    constructor CreateFromPidAndAddress(ProcessID: DWORD; Address: NativeUInt);
+
+    // Create from known process id. Main module used (i.e. started exe).
+    constructor CreateFromPid(ProcessID: DWORD);
+
+    destructor Destroy; override;
 
     function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     function Read(var Buffer; Count: Longint): Longint; override;
@@ -38,58 +48,48 @@ type
 
 implementation
 
-const
-  PAGE_SIZE = $1000;
+{ TProcessModuleStream }
 
-  { TProcessModuleStream }
-
-function TProcessModuleStream.AddressToModuleBase(Addr: UInt64): UInt64;
-var
-  sig: array [0 .. 3] of AnsiChar;
-  done: SIZE_T;
-  peofs: uint32;
+procedure RaiseFailedToFindModule;
 begin
-  sig := #0#0#0#0;
-  Addr := Addr and ($FFFFFFFFFFFFF000);
-  // MZ
-  while True do
-  begin
-    ReadProcessMemory(FProcessHandle, Pointer(Addr), @sig[0], 4, done);
-    if (sig[0] = 'M') and (sig[1] = 'Z') then
-      break;
-    dec(Addr, PAGE_SIZE);
-  end;
-
-  // PE,0,0
-  ReadProcessMemory(FProcessHandle, Pointer(Addr + $3C), @peofs, 4, done);
-  ReadProcessMemory(FProcessHandle, Pointer(Addr + peofs), @sig[0], 4, done);
-  if (sig[0] <> 'P') and (sig[1] <> 'E') and (sig[2] <> #0) and (sig[3] <> #0) then
-    raise Exception.CreateFmt('Bad module at %x', [Addr]);
-
-  Result := Addr;
+  raise Exception.Create('Failed to find main module.');
 end;
 
-constructor TProcessModuleStream.Create(ProcessID: DWORD;
-  ModuleBase: NativeUInt; TryToFindModuleBase: boolean);
+constructor TProcessModuleStream.Create(ProcessID: DWORD; const me: TModuleEntry32);
 begin
   inherited Create;
-
-  FProcessHandle := OpenProcess(
-    PROCESS_QUERY_INFORMATION or // for GetModuleInformation
-    PROCESS_VM_READ,             // to read memory
-    False,
-    ProcessID);
-
+  FProcessHandle := OpenProcess(MAXIMUM_ALLOWED, False, ProcessID);
   if FProcessHandle = 0 then
     RaiseLastOSError;
+  FModuleBase := NativeUInt(me.modBaseAddr);
+  FModuleSize := me.modBaseSize;
+end;
 
-  if TryToFindModuleBase then
-    ModuleBase := AddressToModuleBase(ModuleBase);
+constructor TProcessModuleStream.CreateFromPidAndModuleName(ProcessID: DWORD; const ModuleName: string);
+var
+  me: TModuleEntry32;
+begin
+  if not FindModuleByName(ProcessID, ModuleName) then
+    RaiseFailedToFindModule;
+  Create(ProcessID, me);
+end;
 
-  FModuleBase := ModuleBase;
+constructor TProcessModuleStream.CreateFromPidAndAddress(ProcessID: DWORD; Address: NativeUInt);
+var
+  me: TModuleEntry32;
+begin
+  if not FindModuleByAddress(ProcessID, Address, me) then
+    RaiseFailedToFindModule;
+  Create(ProcessID, me);
+end;
 
-  if not GetModuleInformation(FProcessHandle, ModuleBase, @FModuleInfo, SizeOf(FModuleInfo)) then
-    RaiseLastOSError;
+constructor TProcessModuleStream.CreateFromPid(ProcessID: DWORD);
+var
+  me: TModuleEntry32;
+begin
+  if not FindMainModule(ProcessID, me) then
+    RaiseFailedToFindModule;
+  Create(ProcessID, me);
 end;
 
 destructor TProcessModuleStream.Destroy;
@@ -103,15 +103,14 @@ var
   p: pbyte;
   done: NativeUInt;
 begin
-  p := pbyte(FModuleInfo.lpBaseOfDll) + FCurrentRVA;
+  p := pbyte(FModuleBase) + FCurrentRVA;
   done := 0;
   ReadProcessMemory(FProcessHandle, p, @Buffer, Count, done);
   inc(FCurrentRVA, done);
   Result := done;
 end;
 
-function TProcessModuleStream.Seek(const Offset: Int64;
-  Origin: TSeekOrigin): Int64;
+function TProcessModuleStream.Seek(const Offset: Int64; Origin: TSeekOrigin): Int64;
 begin
   case Origin of
     soBeginning:
@@ -119,7 +118,7 @@ begin
     soCurrent:
       FCurrentRVA := FCurrentRVA + Offset;
     soEnd:
-      FCurrentRVA := FModuleInfo.SizeOfImage + Offset;
+      FCurrentRVA := FModuleSize + Offset;
   end;
   Result := FCurrentRVA;
 end;

@@ -316,7 +316,8 @@ type
       AParseStages: TParserFlags = DEFAULT_PARSER_FLAGS): boolean; overload;
 
     // Load PE image from running process.
-    function LoadFromProcessImage(ProcessId: DWORD; ModuleBase: NativeUInt;
+    // Address defines module to load.
+    function LoadFromProcessImage(ProcessId: DWORD; Address: NativeUInt;
       AParseStages: TParserFlags = DEFAULT_PARSER_FLAGS): boolean;
 
     { Saving }
@@ -1416,12 +1417,12 @@ begin
   Result := LoadFromStream(FPEMemoryStream, AParseStages, PEIMAGE_KIND_MEMORY);
 end;
 
-function TPEImage.LoadFromProcessImage(ProcessId: DWORD; ModuleBase: NativeUInt;
+function TPEImage.LoadFromProcessImage(ProcessId: DWORD; Address: NativeUInt;
   AParseStages: TParserFlags): boolean;
 var
   Stream: TProcessModuleStream;
 begin
-  Stream := TProcessModuleStream.Create(ProcessId, ModuleBase);
+  Stream := TProcessModuleStream.CreateFromPidAndAddress(ProcessId, Address);
   try
     Result := LoadFromStream(Stream, AParseStages, PEIMAGE_KIND_MEMORY);
   finally

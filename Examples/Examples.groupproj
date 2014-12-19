@@ -42,6 +42,9 @@
         <Projects Include="09 PEID Signatures\PeidSignatures.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="10 Load From Process\ProcessTest.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -167,14 +170,23 @@
     <Target Name="PeidSignatures:Make">
         <MSBuild Projects="09 PEID Signatures\PeidSignatures.dproj" Targets="Make"/>
     </Target>
+    <Target Name="ProcessTest">
+        <MSBuild Projects="10 Load From Process\ProcessTest.dproj"/>
+    </Target>
+    <Target Name="ProcessTest:Clean">
+        <MSBuild Projects="10 Load From Process\ProcessTest.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ProcessTest:Make">
+        <MSBuild Projects="10 Load From Process\ProcessTest.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="SampleLib;ExportsAdd;ImportsAdd;ImportsEnumeration;ImportsDelayed;ResourceExtract;ResourceBuild;ResourceStats;ResourceVersionInfo;FillMem;BuildRelocs;ModuleLoader;PeidSignatures"/>
+        <CallTarget Targets="SampleLib;ExportsAdd;ImportsAdd;ImportsEnumeration;ImportsDelayed;ResourceExtract;ResourceBuild;ResourceStats;ResourceVersionInfo;FillMem;BuildRelocs;ModuleLoader;PeidSignatures;ProcessTest"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="SampleLib:Clean;ExportsAdd:Clean;ImportsAdd:Clean;ImportsEnumeration:Clean;ImportsDelayed:Clean;ResourceExtract:Clean;ResourceBuild:Clean;ResourceStats:Clean;ResourceVersionInfo:Clean;FillMem:Clean;BuildRelocs:Clean;ModuleLoader:Clean;PeidSignatures:Clean"/>
+        <CallTarget Targets="SampleLib:Clean;ExportsAdd:Clean;ImportsAdd:Clean;ImportsEnumeration:Clean;ImportsDelayed:Clean;ResourceExtract:Clean;ResourceBuild:Clean;ResourceStats:Clean;ResourceVersionInfo:Clean;FillMem:Clean;BuildRelocs:Clean;ModuleLoader:Clean;PeidSignatures:Clean;ProcessTest:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="SampleLib:Make;ExportsAdd:Make;ImportsAdd:Make;ImportsEnumeration:Make;ImportsDelayed:Make;ResourceExtract:Make;ResourceBuild:Make;ResourceStats:Make;ResourceVersionInfo:Make;FillMem:Make;BuildRelocs:Make;ModuleLoader:Make;PeidSignatures:Make"/>
+        <CallTarget Targets="SampleLib:Make;ExportsAdd:Make;ImportsAdd:Make;ImportsEnumeration:Make;ImportsDelayed:Make;ResourceExtract:Make;ResourceBuild:Make;ResourceStats:Make;ResourceVersionInfo:Make;FillMem:Make;BuildRelocs:Make;ModuleLoader:Make;PeidSignatures:Make;ProcessTest:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>
