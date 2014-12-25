@@ -353,9 +353,6 @@ type
 
     { Writing to external stream }
 
-    // Write buffer to stream.
-    function StreamWrite(AStream: TStream; var Buf; Size: integer): boolean;
-
     // Write RVA to stream (32/64 bit sized depending on image).
     function StreamWriteRVA(AStream: TStream; RVA: TRVA): boolean;
 
@@ -486,11 +483,6 @@ end;
 procedure TPEImage.SetSizeOfImage(Value: UInt64);
 begin
   FOptionalHeader.SizeOfImage := Value;
-end;
-
-function TPEImage.StreamWrite(AStream: TStream; var Buf; Size: integer): boolean;
-begin
-  Result := AStream.Write(Buf, Size) = Size;
 end;
 
 function TPEImage.StreamWriteRVA(AStream: TStream; RVA: TRVA): boolean;
