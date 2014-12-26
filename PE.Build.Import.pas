@@ -188,7 +188,7 @@ procedure TImportBuilder.Build(DirRVA: TRVA; Stream: TStream);
 var
   idt: TImportDirectoryTable;
   Lib: TPEImportLibrary;
-  elements: integer;
+  elements: uint32;
 var
   ofs_idt: uint32;
   ofs_name_pointers: uint32;
