@@ -5,7 +5,8 @@ interface
 uses
   System.Classes,
   PE.Common,
-  PE.Image;
+  PE.Image,
+  NullStream;
 
 type
   // Parent class for any directory builders.
@@ -15,6 +16,10 @@ type
     FPE: TPEImage;
   public
     constructor Create(PE: TPEImage);
+
+    // Builds bogus directory and return size.
+    // Override it if you have better implementation.
+    function EstimateTheSize: uint32; virtual;
 
     // Build directory data and store it to stream.
     // * DirRVA:  RVA of directory start.
@@ -35,11 +40,25 @@ type
 
 implementation
 
+
 { TDirBuilder }
 
 constructor TDirectoryBuilder.Create(PE: TPEImage);
 begin
   FPE := PE;
+end;
+
+function TDirectoryBuilder.EstimateTheSize: uint32;
+var
+  tmp: TNullStream;
+begin
+  tmp := TNullStream.Create;
+  try
+    Build(0, tmp);
+    Result := tmp.Size;
+  finally
+    tmp.Free;
+  end;
 end;
 
 end.

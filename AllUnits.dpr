@@ -51,7 +51,10 @@ uses
   PE.ExecutableLoader in 'PE.ExecutableLoader.pas',
   PE.ParserCallbacks in 'PE.ParserCallbacks.pas',
   PE.Types.ImportsDelayed in 'PE.Types.ImportsDelayed.pas',
-  PE.Parser.ImportDelayed in 'PE.Parser.ImportDelayed.pas';
+  PE.Parser.ImportDelayed in 'PE.Parser.ImportDelayed.pas',
+  NullStream in 'NullStream.pas',
+  PE.Imports.Func in 'PE.Imports.Func.pas',
+  PE.Imports.Lib in 'PE.Imports.Lib.pas';
 
 begin
 end.

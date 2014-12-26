@@ -85,8 +85,8 @@ type
 
     FSections: TPESections;
     FRelocs: TRelocs;
-    FImports: TPEImports;        // of TPEImportFunction
-    FImportsDelayed: TPEImports; // of TPEImportFunctionDelayed
+    FImports: TPEImport;        // of TPEImportFunction
+    FImportsDelayed: TPEImport; // of TPEImportFunctionDelayed
     FExports: TPEExportSyms;
     FExportedName: String;
     FTLS: TTLS;
@@ -225,10 +225,10 @@ type
 
     // Write Count bytes from Buffer to current position.
     function Write(Buffer: Pointer; Count: cardinal): uint32; overload;
-    function Write(var Buffer; Count: cardinal): uint32; overload;
+    function Write(const Buffer; Count: cardinal): uint32; overload;
 
     function WriteEx(Buffer: Pointer; Count: cardinal): boolean; overload; inline;
-    function WriteEx(var Buffer; Count: cardinal): boolean; overload; inline;
+    function WriteEx(const Buffer; Count: cardinal): boolean; overload; inline;
 
     { Address conversions }
 
@@ -420,8 +420,8 @@ type
     property Relocs: TRelocs read FRelocs;
 
     // Import items.
-    property Imports: TPEImports read FImports;
-    property ImportsDelayed: TPEImports read FImportsDelayed;
+    property Imports: TPEImport read FImports;
+    property ImportsDelayed: TPEImport read FImportsDelayed;
 
     // Export items.
     property ExportSyms: TPEExportSyms read FExports;
@@ -522,8 +522,8 @@ begin
 
   FRelocs := TRelocs.Create;
 
-  FImports := TPEImports.Create;
-  FImportsDelayed := TPEImports.Create;
+  FImports := TPEImport.Create;
+  FImportsDelayed := TPEImport.Create;
 
   FExports := TPEExportSyms.Create;
 
@@ -1301,7 +1301,7 @@ begin
   Result := ReadWrite(Buffer, Count, false);
 end;
 
-function TPEImage.Write(var Buffer; Count: cardinal): uint32;
+function TPEImage.Write(const Buffer; Count: cardinal): uint32;
 begin
   Result := Write(@Buffer, Count);
 end;
@@ -1311,7 +1311,7 @@ begin
   Result := Write(Buffer, Count) = Count;
 end;
 
-function TPEImage.WriteEx(var Buffer; Count: cardinal): boolean;
+function TPEImage.WriteEx(const Buffer; Count: cardinal): boolean;
 begin
   Result := Write(@Buffer, Count) = Count;
 end;

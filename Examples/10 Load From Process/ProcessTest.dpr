@@ -73,7 +73,7 @@ begin
       if not Img.LoadFromStream(Stream, [PF_IMPORT], PEIMAGE_KIND_MEMORY) then
         writeln('Failed to parse image from process');
 
-      for Lib in Img.Imports.LibsByName do
+      for Lib in Img.Imports.Libs do
         writeln('  ', Lib.Name);
 
       writeln;

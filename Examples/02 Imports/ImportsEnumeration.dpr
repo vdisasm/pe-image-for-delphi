@@ -17,26 +17,33 @@ procedure Enumerate(Img: TPEImage; ShowRVAs: boolean);
 var
   Lib: TPEImportLibrary;
   Fn: TPEImportFunction;
+  rva: TRVA;
 begin
   // Scan libraries.
-  for Lib in Img.Imports.LibsByName do
+  for Lib in Img.Imports.Libs do
   begin
     writeln(format('"%s"', [Lib.Name]));
 
+    rva := Lib.IatRva;
+
     // Scan imported functions (sorted by RVA).
     // It's map of RVA->Func (key->value).
-    for Fn in Lib.Functions.FunctionsByRVA.Values do
+    for Fn in Lib.Functions do
     begin
       write('  '); // indent
 
       if ShowRVAs then
-        write(format('rva: %-8x', [Fn.RVA]));
+        write(format('rva: %-8x', [rva]));
 
       if Fn.Name <> '' then
         writeln(format('"%s"', [Fn.Name]))
       else
-        writeln(format('"%s" ordinal: %d', [Fn.Name, Fn.Ordinal]))
+        writeln(format('"%s" ordinal: %d', [Fn.Name, Fn.Ordinal]));
+
+      inc(rva, Img.ImageWordSize);
     end;
+    inc(rva, Img.ImageWordSize); // null
+
     writeln;
   end;
 end;
@@ -44,15 +51,19 @@ end;
 procedure AnotherWayToEnumerate(Img: TPEImage);
 var
   Lib: TPEImportLibrary;
-  pair: TPair<TRVA, TPEImportFunction>;
+  Func: TPEImportFunction;
+  rva: TRVA;
 begin
-  for Lib in Img.Imports.LibsByName do
-    for pair in Lib.Functions.FunctionsByRVA do
+  for Lib in Img.Imports.Libs do
+  begin
+    rva := Lib.IatRva;
+    for Func in Lib.Functions do
     begin
-      // pair.key is rva of function
-      // pair.value is function
-      writeln(format('rva: %-8x %s "%s" %d', [pair.Key, Lib.Name, pair.Value.Name, pair.Value.Ordinal]));
+      writeln(format('rva: %-8x %s "%s" %d', [rva, Lib.Name, Func.Name, Func.Ordinal]));
+      inc(rva, Img.ImageWordSize);
     end;
+    inc(rva, Img.ImageWordSize); // null
+  end;
 end;
 
 procedure main;

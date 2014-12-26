@@ -5,120 +5,59 @@ interface
 uses
   System.Generics.Collections,
   System.SysUtils,
+
   PE.Common,
   PE.Imports.Func,
-  PE.Imports.Lib,
-  gRBTree;
+  PE.Imports.Lib;
 
 type
-  TPEImports = class
-  private type
-    TLibTree = TRBTree<TPEImportLibrary>;
+  TPEImportLibraryObjectList = TObjectList<TPEImportLibrary>;
+
+  TPEImport = class
   private
-    FLibsByName: TLibTree;
-    procedure LibTreeItemNotify(Sender: TObject; const Item: TPEImportLibrary; Action: TCollectionNotification);
-    function GetCount: integer; inline;
+    FLibs: TPEImportLibraryObjectList;
   public
     constructor Create;
     destructor Destroy; override;
 
     procedure Clear;
 
-    // Add existing library.
-    // Libraries are sorted by name (case insensitive).
-    // Result is same library.
     function Add(Lib: TPEImportLibrary): TPEImportLibrary; inline;
+    function NewLib(const Name: string): TPEImportLibrary;
 
-    // Find library by name (first occurrence). Result is nil if not found.
-    function FindLib(const LibName: String): TPEImportLibrary;
-
-    // Find library by name (first occurrence). If it's not found create and
-    // add new library.
-    function FetchLib(const LibName: String): TPEImportLibrary;
-
-    // Add new import function (by IAT RVA).
-    procedure AddNew(RVA: TRVA; const LibName: String; Fn: TPEImportFunction); overload;
-    procedure AddNew(RVA: TRVA; const LibName, FuncName: String; Ordinal: uint16 = 0); overload; inline;
-
-    property LibsByName: TLibTree read FLibsByName;
-
-    property Count: integer read GetCount;
+    property Libs: TPEImportLibraryObjectList read FLibs;
   end;
 
 implementation
 
 { TPEImports }
 
-constructor TPEImports.Create;
+constructor TPEImport.Create;
 begin
   inherited Create;
-  FLibsByName := TLibTree.Create(
-    function(const A, B: TPEImportLibrary): Boolean
-    begin
-      result := A.Name.ToLower < B.Name.ToLower;
-    end);
-  FLibsByName.OnNotify := LibTreeItemNotify;
+  FLibs := TPEImportLibraryObjectList.Create;
 end;
 
-destructor TPEImports.Destroy;
+destructor TPEImport.Destroy;
 begin
-  FLibsByName.Free;
+  FLibs.Free;
   inherited;
 end;
 
-procedure TPEImports.LibTreeItemNotify(Sender: TObject; const Item: TPEImportLibrary; Action: TCollectionNotification);
+function TPEImport.NewLib(const Name: string): TPEImportLibrary;
 begin
-  if Action = cnRemoved then
-    Item.Free;
+  result := Add(TPEImportLibrary.Create(Name));
 end;
 
-function TPEImports.GetCount: integer;
+procedure TPEImport.Clear;
 begin
-  result := FLibsByName.Count;
+  FLibs.Clear;
 end;
 
-procedure TPEImports.Clear;
+function TPEImport.Add(Lib: TPEImportLibrary): TPEImportLibrary;
 begin
-  FLibsByName.Clear;
-end;
-
-function TPEImports.Add(Lib: TPEImportLibrary): TPEImportLibrary;
-begin
-  FLibsByName.Add(Lib);
+  FLibs.Add(Lib);
   result := Lib;
-end;
-
-function TPEImports.FindLib(const LibName: String): TPEImportLibrary;
-var
-  key: TPEImportLibrary;
-  ptr: TLibTree.TRBNodePtr;
-begin
-  key := TPEImportLibrary.Create(LibName);
-  try
-    ptr := FLibsByName.Find(key);
-    if ptr = nil then
-      exit(nil);
-    result := ptr^.K;
-  finally
-    key.Free;
-  end;
-end;
-
-function TPEImports.FetchLib(const LibName: String): TPEImportLibrary;
-begin
-  result := FindLib(LibName);
-  if not Assigned(result) then
-    result := Add(TPEImportLibrary.Create(LibName));
-end;
-
-procedure TPEImports.AddNew(RVA: TRVA; const LibName: String; Fn: TPEImportFunction);
-begin
-  FetchLib(LibName).Functions.Add(Fn);
-end;
-
-procedure TPEImports.AddNew(RVA: TRVA; const LibName, FuncName: String; Ordinal: uint16);
-begin
-  AddNew(RVA, LibName, TPEImportFunction.Create(RVA, FuncName, Ordinal));
 end;
 
 end.

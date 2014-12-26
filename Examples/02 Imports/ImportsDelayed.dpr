@@ -38,12 +38,11 @@ begin
   try
     img.LoadFromFile(ParamStr(0), [PF_IMPORT_DELAYED]);
 
-    for Lib in img.ImportsDelayed.LibsByName do
+    for Lib in img.ImportsDelayed.Libs do
     begin
       writeln(Lib.Name);
-      for fn in Lib.Functions.FunctionsByRVA.Values do
-        writeln(format('  va: 0x%x "%s" ordinal %d', [
-          img.RVAToVA(fn.RVA), fn.Name, fn.Ordinal]));
+      for fn in Lib.Functions do
+        writeln(format('  "%s" ordinal %d', [fn.Name, fn.Ordinal]));
     end;
 
     readln;

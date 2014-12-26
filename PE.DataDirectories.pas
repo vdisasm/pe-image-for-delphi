@@ -164,7 +164,6 @@ begin
 end;
 
 function TDataDirectories.GetDirDedicatedToSection(Section: TPESection; AlignSize: boolean = False): integer;
-// todo: it can be slow due to many iterations
 var
   i: integer;
 begin
@@ -227,7 +226,6 @@ begin
 
   // Set final count.
   self.Count := CountToRead;
-
 end;
 
 function TDataDirectories.SaveToStream(Index: integer; Stream: TStream): boolean;

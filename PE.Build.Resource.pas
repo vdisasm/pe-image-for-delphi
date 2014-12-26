@@ -56,23 +56,23 @@ uses
 
 procedure TRsrcBuilder.Build(DirRVA: TRVA; Stream: TStream);
 var
-  root: TResourceTreeBranchNode;
+  Root: TResourceTreeBranchNode;
 begin
   FBaseRVA := DirRVA;
   CalcSizes;
   CalcOffsets;
 
-  root := FPE.ResourceTree.Root;
+  Root := FPE.ResourceTree.Root;
 
   // If there's no items at root exit.
-  if root.Children.Count = 0 then
+  if Root.Children.Count = 0 then
     exit;
 
   // Setup stream.
   FStream := Stream;
   FStream.Size := FOfsEnd;
   // Build nodes starting from root.
-  WriteBranchNode(root);
+  WriteBranchNode(Root);
 end;
 
 procedure TRsrcBuilder.CalcSizes;
@@ -179,18 +179,18 @@ var
   Pos: UInt32;
 begin
   if Root.Children.Count = 0 then
-    Exit(0);
+    exit(0);
 
   Pos := FStream.Position;
 
   Result := FOfsTables;
+
   // Prepare table.
   Table.Characteristics := Root.Characteristics;
   Table.TimeDateStamp := Root.TimeDateStamp;
   Table.MajorVersion := Root.MajorVersion;
   Table.MinorVersion := Root.MinorVersion;
 
-  // todo: it can be precalculated
   Table.NumberOfNameEntries := 0;
   Table.NumberOfIDEntries := 0;
 

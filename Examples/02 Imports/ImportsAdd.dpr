@@ -18,8 +18,9 @@ begin
   try
     img.LoadFromFile('SampleLib.dll');
 
-    // Import some func from some.dll at rva $1000
-    img.Imports.AddNew($1000, 'some.dll', 'somefunc');
+    // Adding dll and func in one line.
+    // To add few funcs, lib must be stored to temp. variable.
+    img.Imports.NewLib('some.dll').NewFunction('somefunc');
 
     if ReBuildDirData(img, DDIR_IMPORT, true) <> nil then
       img.SaveToFile('tmp\new_import.dll')

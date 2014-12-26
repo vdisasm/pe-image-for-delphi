@@ -15,7 +15,10 @@ uses
 type
   TImportBuilder = class(TDirectoryBuilder)
   public
-    procedure Build(DirRVA: UInt64; Stream: TStream); override;
+    // Modified after Build called.
+    BuiltIatRVA: TRVA;
+    BuiltIatSize: uint32;
+    procedure Build(DirRVA: TRVA; Stream: TStream); override;
     class function GetDefaultSectionFlags: Cardinal; override;
     class function GetDefaultSectionName: string; override;
     class function NeedRebuildingIfRVAChanged: Boolean; override;
@@ -33,115 +36,195 @@ uses
   PE.Imports.Func,
   PE.Types.Imports;
 
-procedure TImportBuilder.Build(DirRVA: UInt64; Stream: TStream);
+{
+  *  Import directory layout
+  *
+  *  IDT.
+  *  For each library
+  *    Import Descriptor
+  *  Null Import Descriptor
+  *
+  *  Name pointers.
+  *  For each library
+  *    For each function
+  *      Pointer to function hint/name or ordinal
+  *    Null pointer
+  *
+  *  IAT.
+  *  For each library
+  *    For each function
+  *      Function address
+  *    Null address
+  *
+  *  Names.
+  *  For each library
+  *    Library name
+  *    ** align 2 **
+  *    For each function
+  *      Hint: uint16
+  *      Function name: variable length
+}
+procedure WriteStringAligned2(Stream: TStream; const s: string);
+const
+  null: byte = 0;
 var
-  IDir: TImportDirectoryTable;
-  sOfs: uint32;
-  ofsILT: uint32;
-  ofsDIR: uint32;
-  NameOrdSize: byte;
-  Lib: TPEImportLibrary;
-  fn: TPEImportFunction;
-  dq: UInt64;
-  hint: word;
+  bytes: TBytes;
 begin
-  if FPE.Imports.Count = 0 then
+  bytes := TEncoding.ANSI.GetBytes(s);
+  StreamWrite(Stream, bytes[0], length(bytes));
+  StreamWrite(Stream, null, 1);
+  if Stream.Position mod 2 <> 0 then
+    StreamWrite(Stream, null, 1);
+end;
+
+procedure WriteIDT(
+  Stream: TStream;
+  var ofs_idt: uint32;
+  const idt: TImportDirectoryTable);
+begin
+  Stream.Position := ofs_idt;
+  StreamWrite(Stream, idt, sizeof(idt));
+  inc(ofs_idt, sizeof(idt));
+end;
+
+procedure WriteNullIDT(Stream: TStream; var ofs_idt: uint32);
+var
+  idt: TImportDirectoryTable;
+begin
+  idt.Clear;
+  WriteIDT(Stream, ofs_idt, idt);
+end;
+
+// Write library name and set idt name pointer, update name pointer offset.
+procedure WriteLibraryName(
+  Stream: TStream;
+  Lib: TPEImportLibrary;
+  DirRVA: TRVA;
+  var ofs_names: uint32;
+  var idt: TImportDirectoryTable);
+begin
+  // library name
+  idt.NameRVA := DirRVA + ofs_names;
+  Stream.Position := ofs_names;
+  WriteStringAligned2(Stream, Lib.Name);
+  ofs_names := Stream.Position;
+end;
+
+function MakeOrdinalRVA(ordinal: uint16; wordsize: byte): TRVA; inline;
+begin
+  if wordsize = 4 then
+    result := $80000000 or ordinal
+  else
+    result := $8000000000000000 or ordinal;
+end;
+
+procedure WriteFunctionNamesOrOrdinalsAndIat(
+  Stream: TStream;
+  Lib: TPEImportLibrary;
+  DirRVA: TRVA;
+  var ofs_names: uint32;
+  var ofs_name_pointers: uint32;
+  var ofs_iat: uint32;
+  var idt: TImportDirectoryTable;
+  wordsize: byte);
+var
+  hint: uint16;
+  fn: TPEImportFunction;
+  rva_hint_name: TRVA;
+begin
+  if Lib.Functions.Count = 0 then
     exit;
 
-  NameOrdSize := FPE.ImageWordSize;
+  idt.ImportLookupTableRVA := DirRVA + ofs_name_pointers;
+  idt.ImportAddressTable := DirRVA + ofs_iat;
 
-  // calc import layout:
-  ofsDIR := 0;
-  ofsILT := 0;
+  // Update IAT in library.
+  Lib.IatRva := idt.ImportAddressTable;
 
-  for Lib in FPE.Imports.LibsByName do
+  hint := 0;
+  for fn in Lib.Functions do
   begin
-    inc(ofsDIR, sizeof(TImportDirectoryTable));
-    inc(ofsILT, NameOrdSize * (Lib.Functions.FunctionsByRVA.Count + 1));
-  end;
-
-  inc(ofsDIR, sizeof(TImportDirectoryTable));
-
-  // set base values
-  sOfs := ofsDIR + ofsILT;
-  ofsILT := ofsDIR;
-  ofsDIR := 0;
-
-  Stream.Size := sOfs;
-
-  // write
-  for Lib in FPE.Imports.LibsByName do
-  begin
-    // write IDT
-    Stream.Position := ofsDIR;
-    IDir.ImportLookupTableRVA := DirRVA + ofsILT;
-    IDir.TimeDateStamp := 0;
-    IDir.ForwarderChain := 0;
-    IDir.NameRVA := DirRVA + sOfs;
-    if Lib.Functions.Count > 0 then
-      IDir.ImportAddressTable := Lib.Functions.FunctionsByRVA.FirstKey
-    else
-      IDir.ImportAddressTable := 0;
-    Stream.Write(IDir, sizeof(TImportDirectoryTable));
-    inc(ofsDIR, sizeof(TImportDirectoryTable));
-
-    // write dll name
-    Stream.Position := sOfs;
-    sOfs := sOfs + StreamWriteStringA(Stream, Lib.Name, 2);
-
-    // write import names/ords
-    for fn in Lib.Functions.FunctionsByRVA.Values do
+    // Write name.
+    if not fn.Name.IsEmpty then
     begin
-      Stream.Position := ofsILT;
-
-      if not fn.Name.IsEmpty then
-      begin
-        // by name
-        dq := DirRVA + sOfs;
-        Stream.Write(dq, NameOrdSize);
-      end
-      else
-      begin
-        // by ordinal
-        dq := fn.Ordinal;
-        if FPE.Is32bit then
-          dq := dq or $80000000
-        else
-          dq := dq or $8000000000000000;
-        Stream.Write(dq, NameOrdSize);
-      end;
-
-      // iat (write same value; Windows loader changes this value with real
-      // address in LdrpSnapModule).
-      if fn.RVA <> 0 then
-      begin
-        FPE.PositionRVA := fn.RVA;
-        if not FPE.WriteEx(dq, NameOrdSize) then
-          raise Exception.Create('Write error.');
-      end;
-
-      if not fn.Name.IsEmpty then
-      begin
-        Stream.Position := sOfs;
-        // hint
-        hint := 0;
-        Stream.Write(hint, 2);
-        // name
-        sOfs := sOfs + sizeof(hint) + StreamWriteStringA(Stream, fn.Name, 2);
-      end;
-      inc(ofsILT, NameOrdSize);
+      // If imported by name.
+      rva_hint_name := DirRVA + ofs_names;
+      Stream.Position := ofs_names;
+      StreamWrite(Stream, hint, sizeof(hint));
+      WriteStringAligned2(Stream, fn.Name);
+      ofs_names := Stream.Position;
+    end
+    else
+    begin
+      // If imported by ordinal.
+      rva_hint_name := MakeOrdinalRVA(fn.ordinal, wordsize);
     end;
-    // write empty name/ord
-    dq := 0;
-    Stream.Position := ofsILT;
-    Stream.Write(dq, NameOrdSize);
-    inc(ofsILT, NameOrdSize);
+
+    // Write name pointer.
+    Stream.Position := ofs_name_pointers;
+    StreamWrite(Stream, rva_hint_name, wordsize);
+    inc(ofs_name_pointers, wordsize);
+
+    // Write IAT item.
+    Stream.Position := ofs_iat;
+    StreamWrite(Stream, rva_hint_name, wordsize);
+    inc(ofs_iat, wordsize);
   end;
 
-  // last empty descriptor
-  Stream.Position := ofsDIR;
-  IDir.Clear;
-  Stream.Write(IDir, sizeof(TImportDirectoryTable));
+  rva_hint_name := 0;
+
+  // Write null name pointer.
+  Stream.Position := ofs_name_pointers;
+  StreamWrite(Stream, rva_hint_name, wordsize);
+  ofs_name_pointers := Stream.Position;
+
+  // Write null IAT item.
+  Stream.Position := ofs_iat;
+  StreamWrite(Stream, rva_hint_name, wordsize);
+  inc(ofs_iat, wordsize);
+end;
+
+procedure TImportBuilder.Build(DirRVA: TRVA; Stream: TStream);
+var
+  idt: TImportDirectoryTable;
+  Lib: TPEImportLibrary;
+  elements: integer;
+var
+  ofs_idt: uint32;
+  ofs_name_pointers: uint32;
+  ofs_iat, ofs_iat_0: uint32;
+  ofs_names: uint32;
+begin
+  BuiltIatRVA := 0;
+  BuiltIatSize := 0;
+
+  if FPE.Imports.Libs.Count = 0 then
+    exit;
+
+  // Calculate initial offsets.
+  elements := 0;
+  for Lib in FPE.Imports.Libs do
+    inc(elements, Lib.Functions.Count + 1);
+
+  ofs_idt := 0;
+  ofs_name_pointers := sizeof(idt) * (FPE.Imports.Libs.Count + 1);
+  ofs_iat := ofs_name_pointers + elements * (FPE.ImageWordSize);
+  ofs_iat_0 := ofs_iat;
+  ofs_names := ofs_name_pointers + 2 * elements * (FPE.ImageWordSize);
+
+  // Write.
+  for Lib in FPE.Imports.Libs do
+  begin
+    idt.Clear;
+    WriteLibraryName(Stream, Lib, DirRVA, ofs_names, idt);
+    WriteFunctionNamesOrOrdinalsAndIat(Stream, Lib, DirRVA,
+      ofs_names, ofs_name_pointers, ofs_iat, idt, FPE.ImageWordSize);
+    WriteIDT(Stream, ofs_idt, idt);
+  end;
+  WriteNullIDT(Stream, ofs_idt);
+
+  self.BuiltIatRVA := DirRVA + ofs_iat_0;
+  self.BuiltIatSize := ofs_iat - ofs_iat_0;
 end;
 
 class function TImportBuilder.GetDefaultSectionFlags: Cardinal;

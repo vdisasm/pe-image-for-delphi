@@ -109,15 +109,21 @@ begin
         Continue;
       end;
 
-      // Try to find existing library. If there are few libraries with same
-      // name, the libs are merged.
-      Lib := PE.Imports.FindLib(LibraryName);
-      // if not found, create new.
-      if Lib = nil then
-      begin
+      {
+        // Try to find existing library. If there are few libraries with same
+        // name, the libs are merged.
+        Lib := PE.Imports.FindLib(LibraryName);
+        // if not found, create new.
+        if Lib = nil then
+        begin
         Lib := TPEImportLibrary.Create(LibraryName, IDir.IsBound);
         PE.Imports.Add(Lib);
-      end;
+        end;
+      }
+      // Don't merge libraries any more.
+      // It should be implemented as optional optimization pass.
+      Lib := TPEImportLibrary.Create(LibraryName, IDir.IsBound);
+      PE.Imports.Add(Lib);
 
       Lib.TimeDateStamp := IDir.TimeDateStamp;
 
@@ -146,10 +152,12 @@ begin
         break;
       end;
 
+      Lib.IATRVA := IATRVA;
+
       // Read IAT elements.
       while PE.SeekRVA(IATRVA) and ReadGoodILTItem(TPEImage(FPE), dq) do
       begin
-        FunctionAlreadyExists := Assigned(Lib.Functions.FindByRVA(PATCHRVA));
+        FunctionAlreadyExists := False; // Assigned(Lib.Functions.FindByRVA(PATCHRVA));
 
         // Process only unique functions (by RVA).
         if not FunctionAlreadyExists then
@@ -157,7 +165,6 @@ begin
           ILT.Create(dq, bIs32);
 
           ImpFn := TPEImportFunction.CreateEmpty;
-          ImpFn.RVA := PATCHRVA;
 
           // By ordinal.
           if ILT.IsImportByOrdinal then

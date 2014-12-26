@@ -163,14 +163,14 @@ begin
     Stream.Write(ExpDir, SizeOf(ExpDir));
 
     // Write RVAs of all symbols.
-    FPE.StreamWrite(Stream, RVAs[0], Length(RVAs) * SizeOf(RVAs[0]));
+    StreamWrite(Stream, RVAs[0], Length(RVAs) * SizeOf(RVAs[0]));
 
     // Write name RVAs.
     for i := 0 to nSyms.Count - 1 do
     begin
       nSym := nSyms[i];
       rva32 := nSym.nameRVA;
-      FPE.StreamWrite(Stream, rva32, SizeOf(rva32));
+      StreamWrite(Stream, rva32, SizeOf(rva32));
     end;
 
     // Write name ordinals.
@@ -178,7 +178,7 @@ begin
     begin
       nSym := nSyms[i];
       ordinal := nSym.sym.ordinal - minIndex;
-      FPE.StreamWrite(Stream, ordinal, SizeOf(ordinal));
+      StreamWrite(Stream, ordinal, SizeOf(ordinal));
     end;
 
   finally

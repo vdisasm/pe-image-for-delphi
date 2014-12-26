@@ -7,6 +7,7 @@ uses
   System.SysUtils,
 
   PE.Common,
+  PE.Imports,
   PE.Types,
   PE.Types.Directories,
   PE.Types.FileHeader, // expand TPEImage.Is32bit
@@ -24,7 +25,8 @@ implementation
 
 uses
   PE.Image,
-  PE.Imports.Func;
+  PE.Imports.Func,
+  PE.Imports.Lib;
 
 type
   TFuncs = TList<TPEImportFunctionDelayed>;
@@ -45,6 +47,7 @@ var
   Hint: UInt16 absolute Ordinal;
   Iat: TRVA;
   SubValue: UInt32;
+  Lib: TPEImportLibrary;
 begin
   if Table.UsesVA then
     SubValue := PE.ImageBase
@@ -55,6 +58,8 @@ begin
     exit;
 
   DllName := PE.ReadANSIString;
+  Lib := TPEImportLibrary.Create(DLLName);
+  PE.ImportsDelayed.Add(Lib);
 
   iFunc := 0;
   Iat := Table.DelayImportAddressTable - SubValue;
@@ -84,8 +89,8 @@ begin
       FnName := PE.ReadANSIString;
     end;
 
-    Fn := TPEImportFunctionDelayed.Create(Iat, FnName, Ordinal);
-    PE.ImportsDelayed.AddNew(Iat, DllName, Fn);
+    Fn := TPEImportFunctionDelayed.Create(FnName, Ordinal);
+    Lib.Functions.Add(Fn);
 
     inc(Iat, PE.ImageWordSize);
     inc(iFunc);

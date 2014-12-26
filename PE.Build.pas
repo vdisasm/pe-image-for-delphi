@@ -146,6 +146,14 @@ begin
     // Update directory pointer.
     img.DataDirectories.Put(DDIR_ID, destRVA, destSize);
 
+    // For imports also update IAT table.
+    if DDIR_ID = DDIR_IMPORT then
+    begin
+      img.DataDirectories.Put(DDIR_IAT,
+        TImportBuilder(builder).BuiltIatRVA,
+        TImportBuilder(builder).BuiltIatSize);
+    end;
+
     Result := sec;
 
   finally

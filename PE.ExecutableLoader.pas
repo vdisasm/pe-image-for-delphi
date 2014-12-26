@@ -272,17 +272,18 @@ end;
 function TExecutableModule.LoadImports: TMapStatus;
 var
   ImpLib: TPEImportLibrary;
-  ImpFnPair: TPair<TRVA, TPEImportFunction>;
-  ImpLibName, ImpFnName: String;
+  Fn: TPEImportFunction;
+  ImpLibName: String;
   hmod: HMODULE;
   proc: Pointer;
-  va: UInt64;
+  RVA: TRVA;
+  va: TVA;
   ModuleMustBeFreed: boolean;
 begin
   if not(elo_FixImports in FOptions) then
     exit(msOK);
 
-  for ImpLib in FPE.Imports.LibsByName do
+  for ImpLib in FPE.Imports.Libs do
   begin
     ImpLibName := ImpLib.Name;
 
@@ -313,39 +314,44 @@ begin
       FLoadedImports.Add(ImpLibName, hmod);
 
     // Process import functions.
-    for ImpFnPair in ImpLib.Functions.FunctionsByRVA do
+    RVA := ImpLib.IatRva;
+
+    for Fn in ImpLib.Functions do
     begin
       // Find imported function.
 
       // By Name.
-      if ImpFnPair.Value.Name <> '' then
+      if Fn.Name <> '' then
       begin
-        ImpFnName := ImpFnPair.Value.Name;
-        proc := GetProcAddress(hmod, PChar(ImpFnName));
+        proc := GetProcAddress(hmod, PChar(Fn.Name));
         if proc = nil then
         begin
-          FPE.Msg.Write('Imported name "%s" not found.', [ImpFnName]);
+          FPE.Msg.Write('Imported name "%s" not found.', [Fn.Name]);
           exit(msImportNameNotFound);
         end;
       end
       else
       // By Ordinal.
       begin
-        proc := GetProcAddress(hmod, PAnsiChar(ImpFnPair.Value.Ordinal));
+        proc := GetProcAddress(hmod, PAnsiChar(Fn.Ordinal));
         if proc = nil then
         begin
-          FPE.Msg.Write('Imported ordinal "%d" not found.', [ImpFnPair.Value.Ordinal]);
+          FPE.Msg.Write('Imported ordinal "%d" not found.', [Fn.Ordinal]);
           exit(msImportOrdinalNotFound);
         end;
       end;
 
       // Patch.
-      va := FInstance + ImpFnPair.Value.RVA;
+      va := FInstance + rva;
       if FPE.Is32bit then
         PUINT(va)^ := UInt32(proc)
       else if FPE.Is64bit then
         PUInt64(va)^ := UInt64(proc);
+
+      inc(RVA, FPE.ImageWordSize);
     end;
+
+    inc(RVA, FPE.ImageWordSize); // null
   end;
   Result := msOK;
 end;
