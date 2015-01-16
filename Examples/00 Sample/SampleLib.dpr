@@ -33,6 +33,10 @@ procedure p7;
 begin
 end;
 
+procedure p8;
+begin
+end;
+
 var
   ExpVar: integer;
 
@@ -55,6 +59,11 @@ exports
   p_ord_50 index $50,
   p6,
   p7,
+
+  p8 name 'p8_one',
+  p8 name 'p8_two',
+  p8 name 'p8_three',
+
   ExpVar,
 
   delayed_01 index 110,
