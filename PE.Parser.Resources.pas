@@ -199,14 +199,14 @@ begin
   n := 0;
 
   // Read named entries.
-  for i := 0 to RDT.NumberOfNameEntries - 1 do
+  for i := 1 to RDT.NumberOfNameEntries do
   begin
     ReadEntry(ParentNode, RVA, n, EK_NAME, @RDT);
     inc(n);
   end;
 
   // Read Id entries.
-  for i := 0 to RDT.NumberOfIDEntries - 1 do
+  for i := 1 to RDT.NumberOfIDEntries do
   begin
     ReadEntry(ParentNode, RVA, n, EK_ID, @RDT);
     inc(n);

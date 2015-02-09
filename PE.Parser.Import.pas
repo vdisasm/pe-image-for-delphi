@@ -50,7 +50,6 @@ var
   IDirs: TImpDirs;
   ILT: TImportLookupTable;
   ILTs: TILTs;
-  i: Integer;
   ImpFn: TPEImportFunction;
   Lib: TPEImportLibrary;
   PE: TPEImage;
@@ -90,9 +89,8 @@ begin
     end;
 
     // Parse import descriptors.
-    for i := 0 to IDirs.Count - 1 do
+    for IDir in IDirs do
     begin
-      IDir := IDirs[i];
       ILTs.Clear;
 
       // Read library name.
