@@ -98,48 +98,54 @@ begin
       exit(PR_ERROR);
   end;
 
-  for i := 0 to ExpDir.AddressTableEntries - 1 do
+  if ExpDir.AddressTableEntries <> 0 then
   begin
-    Item := TPEExportSym.Create;
-    Item.Ordinal := i + base;
-    Item.RVA := RVAs[i];
+    for i := 0 to ExpDir.AddressTableEntries - 1 do
+    begin
+      Item := TPEExportSym.Create;
+      Item.Ordinal := i + base;
+      Item.RVA := RVAs[i];
 
-    Exp[i] := Item;
+      Exp[i] := Item;
 
-    // if rva in export section, it's forwarder
-    Exp[i].Forwarder := ExpIDD.Contain(RVAs[i]);
+      // if rva in export section, it's forwarder
+      Exp[i].Forwarder := ExpIDD.Contain(RVAs[i]);
+    end;
   end;
 
   // read names
-  for i := 0 to ExpDir.NumberOfNamePointers - 1 do
+  if ExpDir.NumberOfNamePointers <> 0 then
   begin
-    if (NamePointerRVAs[i] <> 0) then
+    for i := 0 to ExpDir.NumberOfNamePointers - 1 do
     begin
-      ordnl := OrdinalTableRVAs[i];
-
-      // Check if ordinal is correct.
-      if ordnl >= length(Exp) then
-        continue;
-
-      if not Exp[ordnl].IsValid then
-        continue;
-
-      // Read export name.
-      if not PE.SeekRVA(NamePointerRVAs[i]) then
-        exit(PR_ERROR);
-
-      Exp[ordnl].Name := PE.ReadAnsiString;
-
-      // Read forwarder, if it is.
-      if Exp[ordnl].Forwarder then
+      if (NamePointerRVAs[i] <> 0) then
       begin
-        // if it is forwarder, rva will point inside of export dir.
-        if not PE.SeekRVA(Exp[ordnl].RVA) then
-          exit(PR_ERROR);
-        Exp[ordnl].ForwarderName := PE.ReadAnsiString;
-        Exp[ordnl].RVA := 0; // no real address
-      end;
+        ordnl := OrdinalTableRVAs[i];
 
+        // Check if ordinal is correct.
+        if ordnl >= length(Exp) then
+          continue;
+
+        if not Exp[ordnl].IsValid then
+          continue;
+
+        // Read export name.
+        if not PE.SeekRVA(NamePointerRVAs[i]) then
+          exit(PR_ERROR);
+
+        Exp[ordnl].Name := PE.ReadAnsiString;
+
+        // Read forwarder, if it is.
+        if Exp[ordnl].Forwarder then
+        begin
+          // if it is forwarder, rva will point inside of export dir.
+          if not PE.SeekRVA(Exp[ordnl].RVA) then
+            exit(PR_ERROR);
+          Exp[ordnl].ForwarderName := PE.ReadAnsiString;
+          Exp[ordnl].RVA := 0; // no real address
+        end;
+
+      end;
     end;
   end;
 
