@@ -787,7 +787,7 @@ begin
     // Load section headers.
     CorrectRawDataPositions := 0;
     StreamSize := AStream.Size;
-    for i := 0 to NumberOfSections - 1 do
+    for i := 1 to NumberOfSections do
     begin
       if not StreamRead(AStream, sh, SizeOf(sh)) then
         break;
@@ -1371,7 +1371,10 @@ end;
 
 function TPEImage.VAToRVA(VA: TVA): TRVA;
 begin
-  Result := VA - FOptionalHeader.ImageBase;
+  if VA >= FOptionalHeader.ImageBase then
+    Result := VA - FOptionalHeader.ImageBase
+  else
+    raise Exception.Create('VAToRVA: VA argument must be >= ImageBase.');
 end;
 
 function TPEImage.LoadFromFile(const AFileName: string;

@@ -3,6 +3,8 @@ unit PE.Parser.TLS;
 interface
 
 uses
+  System.SysUtils,
+
   PE.Common,
   PE.Types,
   PE.Types.Directories,
@@ -64,7 +66,9 @@ begin
   // Assign dir.
   PE.TLS.Dir := TLSDir;
 
-  if PE.SeekVA(AddressofCallbacks) then
+  // Try to read callback addresses if available.
+  if (AddressofCallbacks <> 0) and PE.SeekVA(AddressofCallbacks) then
+  begin
     while True do
     begin
       VA := PE.ReadUIntPE;
@@ -72,6 +76,7 @@ begin
         break;
       PE.TLS.CallbackRVAs.Add(PE.VAToRVA(VA));
     end;
+  end;
 
   result := PR_OK;
 
