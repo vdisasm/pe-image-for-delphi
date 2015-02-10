@@ -204,7 +204,10 @@ type
     procedure Skip(Count: integer);
 
     // Read 1-byte 0-terminated string.
-    function ReadAnsiString: String; overload;
+    function ReadAnsiString: String;
+
+    // MaxLen: 0 - no limit
+    function ReadAnsiStringLen(MaxLen: integer; out Len: integer; out Str: string): boolean;
 
     // Read 2-byte UTF-16 string with length prefix (2 bytes).
     function ReadUnicodeStringLenPfx2: String;
@@ -1183,28 +1186,56 @@ end;
 
 function TPEImage.ReadAnsiString: string;
 var
-  len, available: uint32;
+  len: Integer;
 begin
-  if Assigned(FCurrentSec) then
+  if not ReadAnsiStringLen(0, len, result) then
+    result := '';
+end;
+
+function TPEImage.ReadAnsiStringLen(MaxLen: integer; out Len: integer; out Str: string): boolean;
+var
+  available: uint32;
+  pBegin, pCur, pEnd: PAnsiChar;
+begin
+  Len := 0;
+  Str := '';
+  Result := false;
+
+  if not Assigned(FCurrentSec) then
+    exit;
+
+  available := FCurrentSec.AllocatedSize - FCurrentOfs;
+
+  if (MaxLen <> 0) and (MaxLen < available) then
+    available := MaxLen;
+
+  pBegin := @FCurrentSec.Mem[FCurrentOfs];
+  pCur := pBegin;
+  pEnd := pBegin + available;
+  while pCur < pEnd do
   begin
-    available := FCurrentSec.AllocatedSize - FCurrentOfs;
-    len := 0;
-    while len < available do
+    if pCur^ = #0 then
     begin
-      if FCurrentSec.Mem[FCurrentOfs + len] = 0 then
-      begin
-        // Get string.
-        Result := String(PAnsiChar(@FCurrentSec.Mem[FCurrentOfs]));
-        // Move next.
-        inc(len);
-        inc(FPositionRVA, len);
-        inc(FCurrentOfs, len);
-        exit;
-      end;
-      inc(len);
+      Result := true;
+      break;
     end;
+    inc(pCur);
   end;
-  exit('');
+
+  Len := pCur - pBegin;
+
+  if Result then
+  begin
+    // String.
+    Str := string(pBegin);
+
+    // Include null at end.
+    inc(len);
+
+    // Move current position.
+    inc(FPositionRVA, Len);
+    inc(FCurrentOfs, Len);
+  end;
 end;
 
 function TPEImage.ReadUnicodeStringLenPfx2: string;

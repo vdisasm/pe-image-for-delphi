@@ -28,13 +28,12 @@ uses
   PE.Imports.Func,
   PE.Imports.Lib;
 
-type
-  TFuncs = TList<TPEImportFunctionDelayed>;
-
-procedure ParseTable(
+// Testing mode: check if read fields are correct.
+function ParseTable(
   const PE: TPEImage;
   const Table: TDelayLoadDirectoryTable;
-  const Funcs: TFuncs);
+  Testing: boolean
+  ): boolean;
 var
   DllName: string;
   FnName: string;
@@ -43,10 +42,11 @@ var
   Ilt: TImportLookupTable;
   iFunc: uint32;
 var
+  iLen: integer;
   Ordinal: UInt16;
   Hint: UInt16 absolute Ordinal;
   Iat: TRVA;
-  SubValue: UInt32;
+  SubValue: uint32;
   Lib: TPEImportLibrary;
 begin
   if Table.UsesVA then
@@ -54,12 +54,42 @@ begin
   else
     SubValue := 0;
 
-  if not PE.SeekRVA(Table.Name - SubValue) then
-    exit;
+  if Testing then
+  begin
+    if (Table.Name = 0) or (Table.Name < SubValue) then
+    begin
+      PE.Msg.Write('Delayed Import: Name address incorrect.');
+      exit(false);
+    end;
 
-  DllName := PE.ReadANSIString;
-  Lib := TPEImportLibrary.Create(DLLName);
-  PE.ImportsDelayed.Add(Lib);
+    if (Table.DelayImportNameTable = 0) or (Table.DelayImportNameTable < SubValue) then
+    begin
+      PE.Msg.Write('Delayed Import: Name table address incorrect.');
+      exit(false);
+    end;
+
+    if (Table.DelayImportAddressTable = 0) or (Table.DelayImportAddressTable < SubValue) then
+    begin
+      PE.Msg.Write('Delayed Import: Address table incorrect.');
+      exit(false);
+    end;
+  end;
+
+  if not PE.SeekRVA(Table.Name - SubValue) then
+    exit(false);
+
+  if not PE.ReadAnsiStringLen(MAX_PATH_WIN, iLen, DllName) then
+    exit(false);
+
+  if not Testing then
+  begin
+    Lib := TPEImportLibrary.Create(DllName);
+    PE.ImportsDelayed.Add(Lib);
+  end
+  else
+  begin
+    Lib := nil; // compiler friendly
+  end;
 
   iFunc := 0;
   Iat := Table.DelayImportAddressTable - SubValue;
@@ -84,17 +114,26 @@ begin
     begin
       // Import by name. Get hint/name
       if not PE.SeekRVA(HintNameRva - SubValue) then
-        raise Exception.Create('Error reading delayed import hint/name.');
+      begin
+        PE.Msg.Write('Delayed Import: incorrect Hint/Name RVA encountered.');
+        exit(false);
+      end;
+
       Hint := PE.ReadWord(2);
       FnName := PE.ReadANSIString;
     end;
 
-    Fn := TPEImportFunctionDelayed.Create(FnName, Ordinal);
-    Lib.Functions.Add(Fn);
+    if not Testing then
+    begin
+      Fn := TPEImportFunctionDelayed.Create(FnName, Ordinal);
+      Lib.Functions.Add(Fn);
+    end;
 
     inc(Iat, PE.ImageWordSize);
     inc(iFunc);
   end;
+
+  exit(true);
 end;
 
 function TPEImportDelayedParser.Parse: TParserResult;
@@ -104,33 +143,32 @@ var
   ofs: uint32;
   Table: TDelayLoadDirectoryTable;
   Tables: TList<TDelayLoadDirectoryTable>;
-  Funcs: TFuncs;
   TablesUseRVA: boolean;
 begin
   PE := TPEImage(FPE);
 
-  Result := PR_ERROR;
+  result := PR_ERROR;
 
   // If no imports, it's ok.
   if not PE.DataDirectories.Get(DDIR_DELAYIMPORT, @ddir) then
-    Exit(PR_OK);
+    exit(PR_OK);
   if ddir.IsEmpty then
-    Exit(PR_OK);
+    exit(PR_OK);
 
   // Seek import dir.
   if not PE.SeekRVA(ddir.VirtualAddress) then
-    Exit;
+    exit;
 
   Tables := TList<TDelayLoadDirectoryTable>.Create;
   try
 
     // Delay-load dir. tables.
     ofs := 0;
-    TablesUseRVA := True; // default, compiler-friendly
-    while True do
+    TablesUseRVA := true; // default, compiler-friendly
+    while true do
     begin
       if ofs > ddir.Size then
-        Exit(PR_ERROR);
+        exit(PR_ERROR);
 
       if not PE.ReadEx(Table, SizeOf(Table)) then
         break;
@@ -150,7 +188,7 @@ begin
       begin
         // Normally all tables must use either VA or RVA. No mix allowed.
         // If mix found it must be not real table.
-        // For example, Delphi (some versions for sure) use(d) such optimization.
+        // For example, some Delphi versions used such optimization.
         break;
       end;
 
@@ -159,18 +197,13 @@ begin
     end;
 
     // Parse tables.
-    if Tables.Count = 0 then
-      Exit(PR_OK);
+    for Table in Tables do
+      // First test if fields are correct
+      if ParseTable(PE, Table, true) then
+        // Then do real reading.
+        ParseTable(PE, Table, false);
 
-    Funcs := TFuncs.Create;
-    try
-      for Table in Tables do
-        ParseTable(PE, Table, Funcs);
-    finally
-      Funcs.Free;
-    end;
-
-    Result := PR_OK;
+    exit(PR_OK);
   finally
     Tables.Free;
   end;

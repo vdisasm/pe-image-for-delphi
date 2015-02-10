@@ -56,6 +56,8 @@ type
   TParserOptions = set of TParserOption;
 
 const
+  MAX_PATH_WIN = 260;
+
   SUSPICIOUS_MIN_LIMIT_EXPORTS = $10000;
   DEFAULT_SECTOR_SIZE          = 512;
   DEFAULT_PAGE_SIZE            = 4096;

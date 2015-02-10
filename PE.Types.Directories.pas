@@ -76,9 +76,8 @@ end;
 
 function TImageDataDirectory.IsEmpty: boolean;
 begin
-//  Result := (VirtualAddress = 0) or (Size = 0);
-  Result := (VirtualAddress = 0);
   // In some cases Size can be 0, but VirtualAddress will point to valid data.
+  Result := (VirtualAddress = 0);
 end;
 
 
