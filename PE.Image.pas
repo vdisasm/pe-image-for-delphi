@@ -1382,7 +1382,7 @@ end;
 
 function TPEImage.VAExists(VA: TRVA): boolean;
 begin
-  Result := RVAToSec(VA - FOptionalHeader.ImageBase, nil);
+  Result := RVAToSec(VAToRVA(VA), nil);
 end;
 
 function TPEImage.VAToMem(VA: TVA): Pointer;
