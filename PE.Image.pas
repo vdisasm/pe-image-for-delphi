@@ -53,8 +53,6 @@ uses
 
 type
 
-  TPEImageKind = (PEIMAGE_KIND_DISK, PEIMAGE_KIND_MEMORY);
-
   { TPEImage }
 
   TPEImage = class

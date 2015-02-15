@@ -44,6 +44,11 @@ type
 
   TParserFlags = set of TParserFlag;
 
+  TPEImageKind = (
+    PEIMAGE_KIND_DISK,
+    PEIMAGE_KIND_MEMORY
+    );
+
   TPEImageObject = TObject; // Meant to cast TObject -> TPEImage
 
   TParserOption = (
