@@ -54,18 +54,34 @@ begin
 
   // If can't read whole table, failure.
   if not PE.ReadEx(@ExpDir, Sizeof(ExpDir)) then
+  begin
+    PE.Msg.Write('Export Parser: not enough space to read dir. header.');
     exit(PR_ERROR);
+  end;
 
   // If no addresses, ok.
   if ExpDir.AddressTableEntries = 0 then
+  begin
+    PE.Msg.Write('Export Parser: directory present, but there are no functions.');
     exit(PR_OK);
+  end;
 
   if ExpDir.ExportFlags <> 0 then
+  begin
+    PE.Msg.Write('Export Parser: reserved directory flags <> 0');
     exit(PR_ERROR);
+  end;
 
   // Read lib exported name.
-  if (ExpDir.NameRVA <> 0) and (PE.SeekRVA(ExpDir.NameRVA)) then
+  if (ExpDir.NameRVA <> 0) then
+  begin
+    if not PE.SeekRVA(ExpDir.NameRVA) then
+    begin
+      PE.Msg.Write('Export Parser: Wrong RVA of dll exported name = 0x%x', [ExpDir.NameRVA]);
+      exit(PR_ERROR);
+    end;
     PE.ExportedName := PE.ReadAnsiString;
+  end;
 
   base := ExpDir.OrdinalBase;
 
