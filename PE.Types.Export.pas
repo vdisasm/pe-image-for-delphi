@@ -7,7 +7,7 @@ uses
 
 type
   TImageExportDirectory = packed record
-    ExportFlags:           uint32;     //  Characteristics; Reserved, must be 0.
+    ExportFlags:           uint32;     //  Reserved, must be 0.
     TimeDateStamp:         uint32;     //  The time and date that the export data was created.
     MajorVersion:          uint16;     //  The major version number.
                                        //  The major and minor version numbers can be set by the user.

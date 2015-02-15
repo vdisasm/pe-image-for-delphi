@@ -27,7 +27,7 @@ var
   PE: TPEImage;
   ExpIDD: TImageDataDirectory;
   ExpDir: TImageExportDirectory;
-  i, base: Integer;
+  i, base: uint32;
   ordnl: uint16;
   RVAs: array of uint32;
   NamePointerRVAs: array of uint32;
@@ -59,6 +59,9 @@ begin
   // If no addresses, ok.
   if ExpDir.AddressTableEntries = 0 then
     exit(PR_OK);
+
+  if ExpDir.ExportFlags <> 0 then
+    exit(PR_ERROR);
 
   // Read lib exported name.
   if (ExpDir.NameRVA <> 0) and (PE.SeekRVA(ExpDir.NameRVA)) then

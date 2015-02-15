@@ -17,7 +17,7 @@ type
   TPEExportSym = class
   public
     RVA: TRVA;
-    Ordinal: dword;
+    Ordinal: uint32;
     Name: String;
     ForwarderName: String;
     Forwarder: boolean;
