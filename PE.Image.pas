@@ -960,21 +960,20 @@ end;
 class function TPEImage.IsPE(AStream: TStream; Ofs: UInt64): boolean;
 var
   dos: TImageDOSHeader;
-  pe00: uint32;
+  peSig: TNTSignature;
 begin
-  if AStream.Seek(Ofs, TSeekOrigin.soBeginning) <> Ofs then
+  if not StreamSeek(AStream, Ofs) then
     exit(false);
 
-  if (AStream.Read(dos, SizeOf(dos)) = SizeOf(dos)) then
-    if (dos.e_magic = MZ_SIGNATURE) then
+  if StreamRead(AStream, dos, SizeOf(dos)) then
+    if dos.e_magic.IsMZ then
     begin
       Ofs := Ofs + dos.e_lfanew;
       if Ofs >= AStream.Size then
         exit(false);
-      if AStream.Seek(Ofs, TSeekOrigin.soBeginning) = Ofs then
-        if AStream.Read(pe00, SizeOf(pe00)) = SizeOf(pe00) then
-          if pe00 = PE00_SIGNATURE then
-            exit(true);
+      if StreamSeek(AStream, Ofs) then
+        if StreamRead(AStream, peSig, SizeOf(peSig)) then
+          exit(peSig.IsPE00);
     end;
   exit(false);
 end;
@@ -1184,10 +1183,10 @@ end;
 
 function TPEImage.ReadAnsiString: string;
 var
-  len: Integer;
+  Len: integer;
 begin
-  if not ReadAnsiStringLen(0, len, result) then
-    result := '';
+  if not ReadAnsiStringLen(0, Len, Result) then
+    Result := '';
 end;
 
 function TPEImage.ReadAnsiStringLen(MaxLen: integer; out Len: integer; out Str: string): boolean;
@@ -1228,7 +1227,7 @@ begin
     Str := string(pBegin);
 
     // Include null at end.
-    inc(len);
+    inc(Len);
 
     // Move current position.
     inc(FPositionRVA, Len);
@@ -1464,7 +1463,7 @@ var
   OptHdrSizeRead: int32; // w/o directories
   Stage: TParserFlag;
   Parser: TPEParser;
-  Signature: uint32;
+  Signature: TNTSignature;
   DOSBlockSize: uint32;
 begin
   Result := false;
@@ -1535,7 +1534,7 @@ begin
   if not StreamRead(AStream, Signature, SizeOf(Signature)) then
     exit;
   // Check signature.
-  if Signature <> PE00_SIGNATURE then
+  if not Signature.IsPE00 then
     exit; // not PE file
 
   // Load File Header.

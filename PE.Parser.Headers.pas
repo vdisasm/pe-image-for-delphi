@@ -20,7 +20,7 @@ implementation
 
 function LoadDosHeader;
 begin
-  Result := StreamRead(AStream, AHdr, SizeOf(AHdr)) and (AHdr.e_magic = MZ_SIGNATURE);
+  Result := StreamRead(AStream, AHdr, SizeOf(AHdr)) and AHdr.e_magic.IsMZ;
 end;
 
 function LoadFileHeader;

@@ -43,7 +43,7 @@ var
   DosBlockSize: integer;
 begin
   h := PE.DOSHeader;
-  h^.e_magic := MZ_SIGNATURE;
+  h^.e_magic.SetMZ;
   h^.e_lfanew := PE.LFANew;
 
   // Write DOS header.
@@ -58,13 +58,11 @@ end;
 { NT }
 
 function DoFileHdr(PE: TPEImage; AStream: TStream): boolean;
-const
-  sig: uint32 = PE00_SIGNATURE;
 begin
-  Result := False;
-  if StreamWrite(AStream, sig, SizeOf(sig)) then
+  if StreamWrite(AStream, PE00_SIGNATURE, SizeOf(PE00_SIGNATURE)) then
     if StreamWrite(AStream, PE.FileHeader^, SizeOf(PE.FileHeader^)) then
-      Result := true;
+      exit(true);
+  exit(false);
 end;
 
 { Optional }

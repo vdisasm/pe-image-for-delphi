@@ -193,12 +193,12 @@ var
 begin
   dos := PImageDOSHeader(ModulePtr);
 
-  if dos.e_magic <> MZ_SIGNATURE then
+  if not dos.e_magic.IsMZ then
     raise Exception.Create('Not PE image');
 
   nt := PImageNTHeaders(ModulePtr + dos^.e_lfanew);
 
-  if nt.Signature <> PE00_SIGNATURE then
+  if not nt.Signature.IsPE00 then
     raise Exception.Create('Not PE image');
 
   Result := nt^.OptionalHeader.pe32.SizeOfImage;
