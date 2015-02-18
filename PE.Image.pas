@@ -885,7 +885,7 @@ begin
         if PO_SECTION_AUTORENAME_INVALID in FOptions then
         begin
           Sec.Name := format('sec_%4.4x', [i]);
-          Msg.Write('Section has not safe name. Overriding to %s', [Sec.Name]);
+          Msg.Write('Section name can be garbage. Overriding to %s', [Sec.Name]);
         end;
       end;
 
@@ -1513,7 +1513,7 @@ begin
 
   if (FDosHeader.e_lfanew < SizeOf(TImageDOSHeader)) then
   begin
-    Msg.Write('DOS header e_lfanew points into itself.');
+    Msg.Write('DOS header e_lfanew points into itself (0x%x)', [FDosHeader.e_lfanew]);
   end;
 
   // Check if e_lfanew is ok

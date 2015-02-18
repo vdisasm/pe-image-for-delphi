@@ -60,16 +60,24 @@ procedure TCOFF.LoadStrings(AStream: TStream);
 var
   StrTableOfs, EndPos: uint64;
   cbStringData: uint32;
+  FileHdr: TImageFileHeader;
 begin
-
   // 4.6. COFF String Table
 
-  with TPEImage(FPE).FileHeader^ do
+  FileHdr := TPEImage(FPE).FileHeader^;
+
+  if FileHdr.PointerToSymbolTable = 0 then
+    exit;
+
+  if FileHdr.PointerToSymbolTable >= AStream.Size then
   begin
-    if PointerToSymbolTable = 0 then
-      exit;
-    StrTableOfs := PointerToSymbolTable + NumberOfSymbols * SizeOf(TCOFFSymbolTable);
+    TPEImage(FPE).Msg.Write('[FileHeader] Bad PointerToSymbolTable (0x%x)', [FileHdr.PointerToSymbolTable]);
+    exit;
   end;
+
+  StrTableOfs :=
+    FileHdr.PointerToSymbolTable +
+    FileHdr.NumberOfSymbols * SizeOf(TCOFFSymbolTable);
 
   if not StreamSeek(AStream, StrTableOfs) then
     exit; // table not found

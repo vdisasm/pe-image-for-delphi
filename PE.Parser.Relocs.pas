@@ -23,7 +23,7 @@ uses
 
 function TPERelocParser.Parse: TParserResult;
 var
-  rlDir: TImageDataDirectory;
+  dir: TImageDataDirectory;
   block: TBaseRelocationBlock;
   blCnt, iBlock: Integer;
   entry: TBaseRelocationEntry;
@@ -38,15 +38,20 @@ begin
   PE := TPEImage(FPE);
   PE.Relocs.Clear;
 
-  if not PE.DataDirectories.Get(DDIR_RELOCATION, @rlDir) then
+  if not PE.DataDirectories.Get(DDIR_RELOCATION, @dir) then
     exit(PR_OK);
-  if rlDir.IsEmpty then
+
+  if dir.IsEmpty then
     exit(PR_OK);
-  if not PE.SeekRVA(rlDir.VirtualAddress) then
+
+  if not PE.SeekRVA(dir.VirtualAddress) then
+  begin
+    PE.Msg.Write('[Reloc Parser] Bad directory RVA (0x%x)', [dir.VirtualAddress]);
     exit(PR_ERROR);
+  end;
 
   Ofs := 0;
-  while (Ofs < rlDir.Size) do
+  while (Ofs < dir.Size) do
   begin
     tmpRVA := PE.PositionRVA;
 
@@ -63,7 +68,7 @@ begin
     blCnt := block.Count;
     for iBlock := 0 to blCnt - 1 do
     begin
-      if (Ofs + SizeOf(entry)) > rlDir.Size then
+      if (Ofs + SizeOf(entry)) > dir.Size then
       begin
         PE.Msg.Write('Relocation out of table. PageRVA:0x%x #:%d', [block.PageRVA, iBlock]);
         PE.Msg.Write('Skipping next relocs.');
