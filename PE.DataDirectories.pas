@@ -33,6 +33,9 @@ type
     // Return saved size.
     function SaveDirectoriesToStream(Stream: TStream): integer;
 
+    // Check if index is in item range.
+    function IsGoodIndex(Index: integer): boolean; inline;
+
     // Get TImageDataDirectory by Index.
     // Result is True if Index exists.
     // OutDir is optional and can be nil.
@@ -126,11 +129,15 @@ begin
     Result := sec;
 end;
 
-function TDataDirectories.Get(Index: integer;
-  OutDir: PImageDataDirectory): boolean;
+function TDataDirectories.IsGoodIndex(Index: integer): boolean;
 begin
   Result := (Index >= 0) and (Index < Length(FItems));
-  if Result and (OutDir <> nil) then
+end;
+
+function TDataDirectories.Get(Index: integer; OutDir: PImageDataDirectory): boolean;
+begin
+  Result := IsGoodIndex(Index);
+  if Result and Assigned(OutDir) then
     OutDir^ := FItems[Index];
 end;
 
@@ -176,11 +183,9 @@ begin
 end;
 
 function TDataDirectories.GetName(Index: integer): string;
-var
-  Dir: TImageDataDirectory;
 begin
-  if Get(Index, @Dir) then
-    Result := DirectoryNames[index]
+  if IsGoodIndex(Index) then
+    Result := GetDirectoryName(index)
   else
     Result := '';
 end;
@@ -192,7 +197,6 @@ var
   SizeToEOF: uint64;
   Size: uint32;
 begin
-
   SizeToEOF := (Stream.Size - Stream.Position);
 
   CountToEOF := SizeToEOF div SizeOf(TImageDataDirectory);
@@ -203,7 +207,7 @@ begin
 
   CountToRead := DeclaredCount;
 
-  if DeclaredCount < 16 then
+  if DeclaredCount <> TYPICAL_NUMBER_OF_DIRECTORIES then
     Msg.Write('[DataDirectories] Non-usual count of directories (%d).',
       [DeclaredCount]);
 
