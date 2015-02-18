@@ -219,7 +219,8 @@ begin
 
     List.Add(block);
 
-    Offset := AlignUp(Offset + blockHdr.Length, 4); // next block
+    // Next block.
+    Offset := AlignUp(Offset + blockHdr.Length, 4);
   end;
 end;
 
@@ -290,7 +291,15 @@ begin
   begin
     if n.ClassType = TBlockVersionInfo then
     begin
-      StreamRead(Stream, TBlockVersionInfo(n).FixedInfo, SizeOf(VS_FIXEDFILEINFO));
+      // value
+      if n.ValueSize < SizeOf(VS_FIXEDFILEINFO) then
+        raise Exception.Create('Version Info resource: size for VS_FIXEDFILEINFO is too low.');
+      if not StreamSeek(Stream, n.ValueOffset) then
+        raise Exception.Create('Failed to seek offset of VS_FIXEDFILEINFO.');
+      if not StreamRead(Stream, TBlockVersionInfo(n).FixedInfo, SizeOf(VS_FIXEDFILEINFO)) then
+        raise Exception.Create('Failed to read VS_FIXEDFILEINFO.');
+
+      // sub-nodes
       ReadLevelOfBlocks(Stream, AlignUp(Stream.Position, 4), n.GetBlockEndOffset, n.Children, n);
       ProcessBlocks(Stream, n.Children);
     end
