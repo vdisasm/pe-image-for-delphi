@@ -198,6 +198,10 @@ type
     // If WordSize is 0 size native to image is used (4 for PE32, 8 for PE64).
     function ReadWord(WordSize: byte = 0): UInt64;
 
+    // Try to read 1/2/4/8-sized word.
+    // Result shows if all bytes are read.
+    function ReadWordEx(WordSize: byte; OutValue: PUInt64): boolean;
+
     // Skip Count bytes.
     procedure Skip(Count: integer);
 
@@ -1093,6 +1097,14 @@ end;
 
 function TPEImage.ReadWord(WordSize: byte): UInt64;
 begin
+  if not ReadWordEx(WordSize, @Result) then
+    raise Exception.Create('Read error');
+end;
+
+function TPEImage.ReadWordEx(WordSize: byte; OutValue: PUInt64): boolean;
+var
+  tmp: UInt64;
+begin
   case WordSize of
     0:
       WordSize := FImageWordSize;
@@ -1102,10 +1114,11 @@ begin
     raise Exception.Create('Unsupported word size for ReadWord');
   end;
 
-  Result := 0;
+  tmp := 0;
+  Result := ReadEx(tmp, WordSize);
 
-  if Read(Result, WordSize) <> WordSize then
-    raise Exception.Create('Read error');
+  if Assigned(OutValue) then
+    OutValue^ := tmp;
 end;
 
 procedure TPEImage.RegionRemove(RVA: TRVA; Size: uint32);
