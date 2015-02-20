@@ -1257,13 +1257,16 @@ begin
   if Assigned(FCurrentSec) and (FCurrentOfs + 2 <= FCurrentSec.AllocatedSize) then
   begin
     Size := ReadUInt16 * 2;
-    // Check if there is enough space to read string.
-    if FCurrentOfs + Size <= FCurrentSec.AllocatedSize then
+    if Size <> 0 then
     begin
-      SetLength(Bytes, Size);
-      Read(Bytes[0], Size);
-      Result := TEncoding.Unicode.GetString(Bytes);
-      exit;
+      // Check if there is enough space to read string.
+      if FCurrentOfs + Size <= FCurrentSec.AllocatedSize then
+      begin
+        SetLength(Bytes, Size);
+        Read(Bytes[0], Size);
+        Result := TEncoding.Unicode.GetString(Bytes);
+        exit;
+      end;
     end;
   end;
   exit('');
