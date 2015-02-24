@@ -122,7 +122,8 @@ const
   SCategoryLoadFromFile = 'LoadFromFile';
   SCategoryDOSHeader    = 'DOS Header';
   SCategorySections     = 'Sections';
-  SCategoryDataDirecory = 'Data Direcories';
+  SCategoryDataDirecory = 'Data Directories';
+  SCategoryResources    = 'Resources';
 
 implementation
 

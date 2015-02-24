@@ -197,6 +197,7 @@ var
   SizeToEOF: uint64;
   Size: uint32;
   i: integer;
+  needToNullDir: boolean;
 begin
   SizeToEOF := (Stream.Size - Stream.Position);
 
@@ -235,14 +236,27 @@ begin
   // Check RVAs.
   for i := 0 to self.Count - 1 do
   begin
-    if not TPEImage(FPE).RVAExists(FItems[i].RVA) then
+    // Empty dir is ok.
+    if FItems[i].IsEmpty then
+      continue;
+
+    needToNullDir := False;
+
+    if (FItems[i].Size = 0) and (FItems[i].RVA <> 0) then
     begin
-      Msg.Write(SCategoryDataDirecory, 'Directory # %d is not in image.', [i]);
-      if PO_NULL_INVALID_DIRECTORY in TPEImage(FPE).Options then
-      begin
-        FItems[i] := NULL_IMAGE_DATA_DIRECTORY;
-        Msg.Write(SCategoryDataDirecory, 'Directory # %d nulled.', [i]);
-      end;
+      Msg.Write(SCategoryDataDirecory, 'Directory # %d has size = 0.', [i]);
+      needToNullDir := true;
+    end
+    else if not TPEImage(FPE).RVAExists(FItems[i].RVA) then
+    begin
+      Msg.Write(SCategoryDataDirecory, 'Directory # %d RVA is not in image.', [i]);
+      needToNullDir := true;
+    end;
+
+    if needToNullDir and (PO_NULL_INVALID_DIRECTORY in TPEImage(FPE).Options) then
+    begin
+      FItems[i] := NULL_IMAGE_DATA_DIRECTORY;
+      Msg.Write(SCategoryDataDirecory, 'Directory # %d nulled.', [i]);
     end;
   end;
 end;
@@ -254,7 +268,7 @@ begin
   if Get(Index, @Dir) then
   begin
     TPEImage(FPE).SaveRegionToStream(Stream, Dir.VirtualAddress, Dir.Size);
-    exit(True);
+    exit(true);
   end;
   exit(False);
 end;

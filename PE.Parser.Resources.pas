@@ -51,7 +51,7 @@ function TPEResourcesParser.LogInvalidResourceSizesTraverse(
 begin
   if Node.IsLeaf then
     if not TResourceTreeLeafNode(Node).ValidSize then
-      TPEImage(FPE).Msg.Write('Bad size of resource (probably packed): %s', [Node.GetPath]);
+      TPEImage(FPE).Msg.Write(SCategoryResources, 'Bad size of resource (probably packed): %s', [Node.GetPath]);
 
   Result := True;
 end;
@@ -66,6 +66,7 @@ begin
   // Check if directory present.
   if not Img.DataDirectories.Get(DDIR_RESOURCE, @dir) then
     exit(PR_OK);
+
   if dir.IsEmpty then
     exit(PR_OK);
 
@@ -108,7 +109,15 @@ begin
   if not(Img.SeekRVA(RVA + Index * SizeOf(Entry)) and
     Img.ReadEx(@Entry, SizeOf(Entry))) then
   begin
-    Img.Msg.Write('Bad resource entry.');
+    Img.Msg.Write(SCategoryResources, 'Bad resource entry.');
+    exit;
+  end;
+
+  // Check if RVA is correct.
+  DataRVA := Entry.DataEntryRVA + FBaseRVA;
+  if not Img.RVAExists(DataRVA) then
+  begin
+    Img.Msg.Write(SCategoryResources, 'Bad entry RVA.');
     exit;
   end;
 
@@ -119,7 +128,7 @@ begin
     DataRVA := Entry.DataEntryRVA + FBaseRVA;
     if not(Img.SeekRVA(DataRVA) and Img.ReadEx(@DataEntry, SizeOf(DataEntry))) then
     begin
-      Img.Msg.Write('Bad resource leaf node.');
+      Img.Msg.Write(SCategoryResources, 'Bad resource leaf node.');
       exit;
     end;
     LeafNode := TResourceTreeLeafNode.CreateFromEntry(FPE, DataEntry);
@@ -159,7 +168,7 @@ begin
           NameRVA := Entry.NameRVA + FBaseRVA;
           if not Img.SeekRVA(NameRVA) then
           begin
-            Img.Msg.Write('Failed to read resource name.');
+            Img.Msg.Write(SCategoryResources, 'Failed to read resource name.');
             exit(nil);
           end;
           Result.Name := Img.ReadUnicodeStringLenPfx2;
@@ -190,7 +199,7 @@ begin
   // Read Directory Table.
   if not(Img.SeekRVA(RVA) and Img.ReadEx(@RDT, SizeOf(RDT))) then
   begin
-    Img.Msg.Write('Failed to read resource directory table.');
+    Img.Msg.Write(SCategoryResources, 'Failed to read resource directory table.');
     exit(PR_ERROR);
   end;
 
@@ -201,14 +210,18 @@ begin
   // Read named entries.
   for i := 1 to RDT.NumberOfNameEntries do
   begin
-    ReadEntry(ParentNode, RVA, n, EK_NAME, @RDT);
+    if ReadEntry(ParentNode, RVA, n, EK_NAME, @RDT) = nil then
+      exit(PR_ERROR);
+
     inc(n);
   end;
 
   // Read Id entries.
   for i := 1 to RDT.NumberOfIDEntries do
   begin
-    ReadEntry(ParentNode, RVA, n, EK_ID, @RDT);
+    if ReadEntry(ParentNode, RVA, n, EK_ID, @RDT) = nil then
+      exit(PR_ERROR);
+
     inc(n);
   end;
 
