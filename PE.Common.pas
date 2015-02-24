@@ -54,8 +54,12 @@ type
   TParserOption = (
     // If section vsize is 0 try to use rsize instead.
     PO_SECTION_VSIZE_FALLBACK,
+
     // Rename invalid section name.
-    PO_SECTION_AUTORENAME_INVALID
+    PO_SECTION_AUTORENAME_INVALID,
+
+    // If data directory is invalid directory RVA and Size nulled.
+    PO_NULL_INVALID_DIRECTORY
     );
 
   TParserOptions = set of TParserOption;
@@ -71,7 +75,11 @@ const
     PF_TLS, PF_RESOURCES];
 
   DEFAULT_PARSER_FLAGS = ALL_PARSER_FLAGS;
-  DEFAULT_OPTIONS      = [PO_SECTION_VSIZE_FALLBACK, PO_SECTION_AUTORENAME_INVALID];
+  DEFAULT_OPTIONS      = [
+    PO_SECTION_VSIZE_FALLBACK,
+    PO_SECTION_AUTORENAME_INVALID,
+    PO_NULL_INVALID_DIRECTORY
+    ];
 
   // Data directories.
   DDIR_EXPORT           = 0;
@@ -109,6 +117,12 @@ type
   TEndianness = (Little, Big);
 {$SCOPEDENUMS OFF}
 
+
+const
+  SCategoryLoadFromFile = 'LoadFromFile';
+  SCategoryDOSHeader    = 'DOS Header';
+  SCategorySections     = 'Sections';
+  SCategoryDataDirecory = 'Data Direcories';
 
 implementation
 

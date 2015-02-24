@@ -154,7 +154,7 @@ procedure TDataDirectories.Put(Index: integer; RVA, Size: uint32);
 var
   d: TImageDataDirectory;
 begin
-  d.VirtualAddress := RVA;
+  d.RVA := RVA;
   d.Size := Size;
   Put(Index, d);
 end;
@@ -196,6 +196,7 @@ var
   CountToRead: integer;
   SizeToEOF: uint64;
   Size: uint32;
+  i: integer;
 begin
   SizeToEOF := (Stream.Size - Stream.Position);
 
@@ -208,14 +209,14 @@ begin
   CountToRead := DeclaredCount;
 
   if DeclaredCount <> TYPICAL_NUMBER_OF_DIRECTORIES then
-    Msg.Write('[DataDirectories] Non-usual count of directories (%d).',
+    Msg.Write(SCategoryDataDirecory, 'Non-usual count of directories (%d).',
       [DeclaredCount]);
 
   if DeclaredCount > CountToEOF then
   begin
     CountToRead := CountToEOF;
 
-    Msg.Write('[DataDirectories] Declared count of directories is greater ' +
+    Msg.Write(SCategoryDataDirecory, 'Declared count of directories is greater ' +
       'than file can contain (%d > %d).', [DeclaredCount, CountToEOF]);
   end;
 
@@ -230,6 +231,20 @@ begin
 
   // Set final count.
   self.Count := CountToRead;
+
+  // Check RVAs.
+  for i := 0 to self.Count - 1 do
+  begin
+    if not TPEImage(FPE).RVAExists(FItems[i].RVA) then
+    begin
+      Msg.Write(SCategoryDataDirecory, 'Directory # %d is not in image.', [i]);
+      if PO_NULL_INVALID_DIRECTORY in TPEImage(FPE).Options then
+      begin
+        FItems[i] := NULL_IMAGE_DATA_DIRECTORY;
+        Msg.Write(SCategoryDataDirecory, 'Directory # %d nulled.', [i]);
+      end;
+    end;
+  end;
 end;
 
 function TDataDirectories.SaveToStream(Index: integer; Stream: TStream): boolean;

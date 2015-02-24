@@ -25,6 +25,7 @@ type
     NumberOfLinenumbers: uint16;
     Characteristics: uint32;
     function GetName: string;
+    procedure Clear; inline;
   end;
 
   PImageSectionHeader = ^TImageSectionHeader;
@@ -32,6 +33,11 @@ type
 implementation
 
 { TImageSectionHeader }
+
+procedure TImageSectionHeader.Clear;
+begin
+  fillchar(self, sizeof(self), 0);
+end;
 
 function TImageSectionHeader.GetName: string;
 begin

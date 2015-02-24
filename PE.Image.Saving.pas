@@ -88,15 +88,19 @@ end;
 
 procedure FillSecHdrRawOfs(PE: TPEImage; ofsSecHdr: uint32);
 var
-  s: TPESection;
+  sec: TPESection;
   ofs: uint64;
 begin
   ofs := ofsSecHdr + PE.Sections.Count * SizeOf(TImageSectionHeader);
-  for s in PE.Sections do
+  for sec in PE.Sections do
   begin
+    // Process only TPESection.
+    if sec.ClassType <> TPESection then
+      continue;
+
     ofs := AlignUp(ofs, PE.FileAlignment);
-    s.RawOffset := ofs;
-    inc(ofs, s.RawSize);
+    sec.RawOffset := ofs;
+    inc(ofs, sec.RawSize);
   end;
 end;
 
@@ -107,6 +111,10 @@ var
 begin
   for Sec in PE.Sections do
   begin
+    // Process only TPESection.
+    if sec.ClassType <> TPESection then
+      continue;
+
     h := Sec.ImageSectionHeader;
     if not StreamWrite(AStream, h, SizeOf(h)) then
       exit(False);
@@ -127,26 +135,30 @@ end;
 
 procedure DoSecData(PE: TPEImage; AStream: TStream);
 var
-  s: TPESection;
+  sec: TPESection;
   SizeToWrite: uint32;
   PaddingSize: uint32;
 begin
-  for s in PE.Sections do
+  for sec in PE.Sections do
   begin
-    StreamSeekWithPadding(AStream, s.RawOffset);
+    // Process only TPESection.
+    if sec.ClassType <> TPESection then
+      continue;
 
-    if s.RawSize > s.VirtualSize then
+    StreamSeekWithPadding(AStream, sec.RawOffset);
+
+    if sec.RawSize > sec.VirtualSize then
     begin
-      SizeToWrite := s.VirtualSize;
-      PaddingSize := s.RawSize - s.VirtualSize;
+      SizeToWrite := sec.VirtualSize;
+      PaddingSize := sec.RawSize - sec.VirtualSize;
     end
     else
     begin
-      SizeToWrite := s.RawSize;
+      SizeToWrite := sec.RawSize;
       PaddingSize := 0;
     end;
 
-    AStream.Write(s.Mem^, SizeToWrite);
+    AStream.Write(sec.Mem^, SizeToWrite);
     WritePattern(AStream, PaddingSize, nil, 0);
   end;
 end;

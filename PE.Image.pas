@@ -107,6 +107,9 @@ type
 
     function ReadWrite(Buffer: Pointer; Count: cardinal; Read: boolean): uint32;
   private
+    // Add new section to have range of addresses for image header.
+    procedure LoadingAddHeaderAsASection(Stream: TStream);
+  private
 
     { Notifiers }
     procedure DoReadError;
@@ -451,6 +454,8 @@ type
     property SectionAlignment: uint32 read SectionAlignmentGet write SectionAlignmentSet;
 
     property IsDLL: boolean read GetIsDll write SetIsDll;
+
+    property Options: TParserOptions read FOptions write FOptions;
   end;
 
 implementation
@@ -735,7 +740,6 @@ function TPEImage.CalcSecHdrOfs: TFileOffset;
 var
   SizeOfPureOptionalHeader: uint32;
 begin
-{$WARN COMBINING_SIGNED_UNSIGNED OFF}
   SizeOfPureOptionalHeader := CalcSizeOfPureOptionalHeader();
   Result :=
     FLFANew +
@@ -743,7 +747,6 @@ begin
     SizeOf(TImageFileHeader) +
     SizeOfPureOptionalHeader +
     FDataDirectories.Count * SizeOf(TImageDataDirectory);
-{$WARN COMBINING_SIGNED_UNSIGNED ON}
 end;
 
 function TPEImage.CalcSecHdrEndOfs: TFileOffset;
@@ -767,7 +770,7 @@ var
   i: integer;
   sh: TImageSectionHeader;
   NumberOfSections: UInt16;
-  SizeOfHeader: uint32;
+  SizeOfHeader, SizeOfHeaderMapped: uint32;
   HeaderList: TList<TImageSectionHeader>;
   VSizeToBeMapped: uint32;
   CorrectRawDataPositions: integer;
@@ -777,12 +780,13 @@ begin
 
   // Header comes from offset: 0 to SizeOfHeader
   SizeOfHeader := CalcHeadersSizeNotAligned;
+  SizeOfHeaderMapped := AlignUp(SizeOfHeader, VM_PAGE_SIZE);
 
   FSections.Clear; // it clears FFileHeader.NumberOfSections
 
   if NumberOfSections = 0 then
   begin
-    Msg.Write('There are no sections in the image');
+    Msg.Write(SCategorySections, 'There are no sections in the image');
     exit(true);
   end;
 
@@ -803,23 +807,23 @@ begin
         HeaderList.Add(sh);
       end
       else
-        Msg.Write('Raw data is outside of stream (0x%x>0x%x). Skipped.', [sh.PointerToRawData, StreamSize]);
+        Msg.Write(SCategorySections, 'Raw data is outside of stream (0x%x>0x%x). Skipped.', [sh.PointerToRawData, StreamSize]);
     end;
 
     if CorrectRawDataPositions = 0 then
     begin
-      Msg.Write('No good raw data positions found.');
+      Msg.Write(SCategorySections, 'No good raw data positions found.');
       exit(false);
     end
     else if CorrectRawDataPositions <> NumberOfSections then
     begin
-      Msg.Write('%d of %d sections contain correct raw data positions.', [CorrectRawDataPositions, NumberOfSections]);
+      Msg.Write(SCategorySections, '%d of %d sections contain correct raw data positions.', [CorrectRawDataPositions, NumberOfSections]);
     end;
 
     // -------------------------------------------------------------------------
     // Check section count.
     if HeaderList.Count <> NumberOfSections then
-      FMsg.Write('Found %d of %d section headers.', [HeaderList.Count, NumberOfSections]);
+      FMsg.Write(SCategorySections, 'Found %d of %d section headers.', [HeaderList.Count, NumberOfSections]);
 
     // -------------------------------------------------------------------------
     for i := 0 to HeaderList.Count - 1 do
@@ -829,26 +833,24 @@ begin
       if sh.SizeOfRawData <> 0 then
       begin
         // If section data points into header then need to handle special case.
-        if (sh.PointerToRawData < SizeOfHeader) then
+        if (sh.PointerToRawData < SizeOfHeaderMapped) then
         begin
-          Msg.Write('Section #%d is inside of headers', [i]);
+          Msg.Write(SCategorySections, 'Section # %d is inside of headers', [i]);
+
           // Headers are always loaded at image base with
           // RawSize = SizeOfHeaders
-          // VirtualSize = RawSize aligned up to SectionAlignment
+          // VirtualSize = SizeOfHeaderMapped
 
           // Override section header.
           sh.PointerToRawData := 0;
-          if NumberOfSections = 1 then
-            sh.SizeOfRawData := Min(FFileSize, SectionAlignment)
-          else
-            sh.SizeOfRawData := SizeOfHeader;
-          sh.Misc.VirtualSize := sh.SizeOfRawData;
+          sh.SizeOfRawData := Min(FFileSize, SizeOfHeaderMapped);
+          sh.Misc.VirtualSize := SizeOfHeaderMapped;
         end;
       end;
 
       if (sh.Misc.VirtualSize = 0) and (sh.SizeOfRawData = 0) then
       begin
-        Msg.Write('Section #%d has vsize and rsize = 0, skipping it', [i]);
+        Msg.Write(SCategorySections, 'Section # %d has vsize and rsize = 0, skipping it', [i]);
         continue;
       end;
 
@@ -866,14 +868,14 @@ begin
 
       if sh.Misc.VirtualSize = 0 then
       begin
-        Msg.Write('Section #%d has vsize = 0', [i]);
+        Msg.Write(SCategorySections, 'Section # %d has vsize = 0', [i]);
         if PO_SECTION_VSIZE_FALLBACK in FOptions then
         begin
           sh.Misc.VirtualSize := AlignUp(sh.SizeOfRawData, SectionAlignment);
         end
         else
         begin
-          Msg.Write('Option to fallback to RSize isn''t included, skipping');
+          Msg.Write(SCategorySections, 'Option to fallback to RSize isn''t included, skipping');
           continue;
         end;
       end;
@@ -885,7 +887,7 @@ begin
         if PO_SECTION_AUTORENAME_INVALID in FOptions then
         begin
           Sec.Name := format('sec_%4.4x', [i]);
-          Msg.Write('Section name can be garbage. Overriding to %s', [Sec.Name]);
+          Msg.Write(SCategorySections, 'Section name can be garbage. Overriding to %s', [Sec.Name]);
         end;
       end;
 
@@ -909,15 +911,20 @@ begin
   begin
     Sec := FSections[i];
 
-    if FImageKind = PEIMAGE_KIND_DISK then
+    // Process only normal sections.
+    // Section like "image header" is skipped.
+    if Sec.ClassType = TPESection then
     begin
-      if Sec.LoadDataFromStream(AStream) then
-        inc(Result);
-    end
-    else
-    begin
-      if Sec.LoadDataFromStreamEx(AStream, Sec.RVA, Sec.VirtualSize) then
-        inc(Result);
+      if FImageKind = PEIMAGE_KIND_DISK then
+      begin
+        if Sec.LoadDataFromStream(AStream) then
+          inc(Result);
+      end
+      else
+      begin
+        if Sec.LoadDataFromStreamEx(AStream, Sec.RVA, Sec.VirtualSize) then
+          inc(Result);
+      end;
     end;
   end;
 end;
@@ -1428,7 +1435,7 @@ var
 begin
   if not FileExists(AFileName) then
   begin
-    FMsg.Write('File not found.');
+    FMsg.Write(SCategoryLoadFromFile, 'File not found.');
     exit(false);
   end;
 
@@ -1474,7 +1481,7 @@ function TPEImage.LoadFromStream(AStream: TStream; AParseStages: TParserFlags;
 const
   PE_HEADER_ALIGN = 4;
 var
-  OptHdrOfs, SecHdrOfs, SecHdrEndOfs, SecDataOfs: TFileOffset;
+  OptHdrOfs, DataDirOfs, SecHdrOfs, SecHdrEndOfs, SecDataOfs: TFileOffset;
   SecHdrGapSize: integer;
   OptHdrSizeRead: int32; // w/o directories
   Stage: TParserFlag;
@@ -1491,32 +1498,32 @@ begin
   // DOS header.
   if not LoadDosHeader(AStream, FDosHeader) then
   begin
-    Msg.Write('No DOS header found.');
+    Msg.Write(SCategoryDOSHeader, 'No DOS header found.');
     exit;
   end;
 
   if (FDosHeader.e_lfanew = 0) then
   begin
-    Msg.Write('This is probably 16-bit executable.');
+    Msg.Write(SCategoryDOSHeader, 'This is probably 16-bit executable.');
     exit;
   end;
 
   // Check PE ofs < 256 MB (see RtlImageNtHeaderEx)
   if (FDosHeader.e_lfanew >= 256 * 1024 * 1024) then
   begin
-    Msg.Write('e_lfanew >= 256 MB');
+    Msg.Write(SCategoryDOSHeader, 'e_lfanew >= 256 MB');
     exit;
   end;
 
   if (FDosHeader.e_lfanew mod PE_HEADER_ALIGN) <> 0 then
   begin
-    Msg.Write('PE header is not properly aligned.');
+    Msg.Write(SCategoryDOSHeader, 'PE header is not properly aligned.');
     exit;
   end;
 
   if (FDosHeader.e_lfanew < SizeOf(TImageDOSHeader)) then
   begin
-    Msg.Write('DOS header e_lfanew points into itself (0x%x)', [FDosHeader.e_lfanew]);
+    Msg.Write(SCategoryDOSHeader, 'e_lfanew points into itself (0x%x)', [FDosHeader.e_lfanew]);
   end;
 
   // Check if e_lfanew is ok
@@ -1549,6 +1556,7 @@ begin
   // Load signature.
   if not StreamRead(AStream, Signature, SizeOf(Signature)) then
     exit;
+
   // Check signature.
   if not Signature.IsPE00 then
     exit; // not PE file
@@ -1585,19 +1593,24 @@ begin
 
   // Safe read optional header.
   OptHdrSizeRead := FOptionalHeader.ReadFromStream(AStream, FImageBitSize, -1);
-
-  if OptHdrSizeRead <> 0 then
-  begin
-    // Read data directories from current pos top SecHdrOfs.
-    FDataDirectories.LoadDirectoriesFromStream(AStream, Msg,
-      FOptionalHeader.NumberOfRvaAndSizes // declared count
-      );
-  end;
+  DataDirOfs := AStream.Position;
 
   // Load Section Headers.
   AStream.Position := SecHdrOfs;
   if not LoadSectionHeaders(AStream) then
     exit;
+
+  // Add header as a section.
+  LoadingAddHeaderAsASection(AStream);
+
+  // Read data directories.
+  if OptHdrSizeRead <> 0 then
+  begin
+    AStream.Position := DataDirOfs;
+    FDataDirectories.LoadDirectoriesFromStream(AStream, Msg,
+      FOptionalHeader.NumberOfRvaAndSizes // declared count
+      );
+  end;
 
   // Mapped image can't have overlay, so correct total size.
   if FImageKind = PEIMAGE_KIND_MEMORY then
@@ -1652,6 +1665,30 @@ begin
           Parser.Free;
         end;
       end;
+  end;
+end;
+
+procedure TPEImage.LoadingAddHeaderAsASection(Stream: TStream);
+var
+  sh: TImageSectionHeader;
+  Sec: TPESection;
+  oldPos: int64;
+begin
+  oldPos := Stream.Position;
+  try
+    sh.Clear;
+    sh.Name := 'header';
+    sh.SizeOfRawData := FOptionalHeader.SizeOfHeaders;
+    sh.Misc.VirtualSize := AlignUp(FOptionalHeader.SizeOfHeaders, FOptionalHeader.SectionAlignment);
+
+    Sec := TPESection(TPESectionImageHeader.Create(sh, nil));
+
+    FSections.Insert(0, Sec);
+
+    Stream.Position := 0;
+    Stream.Read(Sec.Mem^, sh.SizeOfRawData);
+  finally
+    Stream.Position := oldPos;
   end;
 end;
 

@@ -4,10 +4,13 @@ interface
 
 type
   TImageDataDirectory = packed record
-    VirtualAddress: uint32; // RVA
+    RVA: uint32;
     Size: uint32;
     function IsEmpty: boolean; inline;
     function Contain(rva: uint32): boolean; inline;
+
+    // todo: VirtualAddress is deprecated, use RVA instead.
+    property VirtualAddress: uint32 read RVA write RVA;
   end;
 
   PImageDataDirectory = ^TImageDataDirectory;
@@ -39,7 +42,7 @@ type
   PImageDataDirectories = ^TImageDataDirectories;
 
 const
-  NULL_IMAGE_DATA_DIRECTORY: TImageDataDirectory = (VirtualAddress: 0; Size: 0);
+  NULL_IMAGE_DATA_DIRECTORY: TImageDataDirectory = (RVA: 0; Size: 0);
 
   IMAGE_NUMBEROF_DIRECTORY_ENTRIES = 16;
 

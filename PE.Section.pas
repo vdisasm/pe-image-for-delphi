@@ -13,7 +13,7 @@ uses
   PE.Utils;
 
 type
-  TPESection = class
+  TPESectionBase = class
   private
     FMsg: PMsgMgr;
     FName: String;      // Section name.
@@ -61,7 +61,7 @@ type
 
     procedure Resize(NewSize: uint32);
 
-    function ContainRVA(RVA: TRVA): boolean; inline;
+    function ContainRVA(RVA: TRVA): boolean; {$IFNDEF DEBUG}inline;{$ENDIF}
     function GetEndRVA: TRVA; inline;
     function GetEndRawOffset: uint32; inline;
     function GetLastRVA: TRVA; inline;
@@ -81,31 +81,35 @@ type
     property AllocatedSize: uint32 read GetAllocatedSize;
   end;
 
+  TPESectionImageHeader = class(TPESectionBase);
+
+  TPESection = class(TPESectionBase);
+
   PPESection = ^TPESection;
 
 implementation
 
 { TPESection }
 
-function TPESection.ContainRVA(RVA: TRVA): boolean;
+function TPESectionBase.ContainRVA(RVA: TRVA): boolean;
 begin
   Result := (RVA >= Self.RVA) and (RVA < Self.GetEndRVA);
 end;
 
-constructor TPESection.Create(const ASecHdr: TImageSectionHeader; AMem: pointer;
+constructor TPESectionBase.Create(const ASecHdr: TImageSectionHeader; AMem: pointer;
   AMsg: PMsgMgr);
 begin
   FMsg := AMsg;
   SetHeader(ASecHdr, AMem);
 end;
 
-destructor TPESection.Destroy;
+destructor TPESectionBase.Destroy;
 begin
   ClearData;
   inherited;
 end;
 
-function TPESection.SaveToFile(const FileName: string): boolean;
+function TPESectionBase.SaveToFile(const FileName: string): boolean;
 var
   fs: TFileStream;
 begin
@@ -122,12 +126,12 @@ begin
   end;
 end;
 
-procedure TPESection.SetAllocatedSize(Value: uint32);
+procedure TPESectionBase.SetAllocatedSize(Value: uint32);
 begin
   SetLength(FMem, Value);
 end;
 
-procedure TPESection.SetHeader(ASecHdr: TImageSectionHeader; ASrcData: pointer;
+procedure TPESectionBase.SetHeader(ASecHdr: TImageSectionHeader; ASrcData: pointer;
   ChangeData: boolean);
 var
   SizeToAlloc: uint32;
@@ -161,24 +165,24 @@ begin
   end;
 end;
 
-procedure TPESection.ClearData;
+procedure TPESectionBase.ClearData;
 begin
   SetAllocatedSize(0);
   FRawSize := 0;
   FRawOffset := 0;
 end;
 
-function TPESection.GetEndRVA: TRVA;
+function TPESectionBase.GetEndRVA: TRVA;
 begin
   Result := Self.RVA + Self.VirtualSize;
 end;
 
-function TPESection.GetLastRVA: TRVA;
+function TPESectionBase.GetLastRVA: TRVA;
 begin
   Result := Self.RVA + Self.VirtualSize - 1;
 end;
 
-function TPESection.GetImageSectionHeader: TImageSectionHeader;
+function TPESectionBase.GetImageSectionHeader: TImageSectionHeader;
 var
   Bytes: TBytes;
 begin
@@ -195,37 +199,37 @@ begin
   Result.Characteristics := Flags;
 end;
 
-function TPESection.GetMemPtr: PByte;
+function TPESectionBase.GetMemPtr: PByte;
 begin
   Result := @FMem[0];
 end;
 
-function TPESection.GetAllocatedSize: uint32;
+function TPESectionBase.GetAllocatedSize: uint32;
 begin
   Result := Length(FMem);
 end;
 
-function TPESection.GetEndRawOffset: uint32;
+function TPESectionBase.GetEndRawOffset: uint32;
 begin
   Result := Self.FRawOffset + Self.FRawSize;
 end;
 
-function TPESection.IsCode: boolean;
+function TPESectionBase.IsCode: boolean;
 begin
   Result := (Flags and IMAGE_SCN_CNT_CODE) <> 0;
 end;
 
-function TPESection.IsNameSafe: boolean;
+function TPESectionBase.IsNameSafe: boolean;
 begin
   Result := (FName <> '') and IsStringASCII(FName);
 end;
 
-function TPESection.LoadDataFromStream(AStream: TStream): boolean;
+function TPESectionBase.LoadDataFromStream(AStream: TStream): boolean;
 begin
   Result := LoadDataFromStreamEx(AStream, FRawOffset, FRawSize);
 end;
 
-function TPESection.LoadDataFromStreamEx(AStream: TStream;
+function TPESectionBase.LoadDataFromStreamEx(AStream: TStream;
   ARawOffset, ARawSize: uint32): boolean;
 var
   cnt: uint32;
@@ -258,7 +262,7 @@ begin
   Exit(True);
 end;
 
-function TPESection.SaveDataToStream(AStream: TStream): boolean;
+function TPESectionBase.SaveDataToStream(AStream: TStream): boolean;
 begin
 {$WARN COMPARING_SIGNED_UNSIGNED OFF}
   Result := false;
@@ -272,7 +276,7 @@ begin
 {$WARN COMPARING_SIGNED_UNSIGNED ON}
 end;
 
-procedure TPESection.Resize(NewSize: uint32);
+procedure TPESectionBase.Resize(NewSize: uint32);
 begin
   FRawSize := NewSize;
   FVSize := NewSize;
