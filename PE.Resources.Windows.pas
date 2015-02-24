@@ -13,7 +13,8 @@ interface
 uses
   System.Classes,
   PE.Image,
-  PE.Resources;
+  PE.Resources,
+  PE.Resources.VersionInfo;
 
 { Values for Windows PE. }
 
@@ -77,8 +78,7 @@ const
 type
   TWindowsResourceTree = class
   private
-    function FindResourceInternal(lpType, lpName: PChar; Language: word;
-      Depth: cardinal): TResourceTreeNode;
+    function FindResourceInternal(lpType, lpName: PChar; Language: word; Depth: cardinal): TResourceTreeNode;
   protected
     FResourceTree: TResourceTree;
   public
@@ -101,8 +101,16 @@ type
     function RemoveResource(lpType, lpName: PChar; Language: word): Boolean;
   end;
 
-function IsIntResource(lpszType: PChar): Boolean;
-function GetIntResource(lpszType: PChar): word;
+function IsIntResource(lpszType: PChar): Boolean; inline;
+function GetIntResource(lpszType: PChar): word; inline;
+function MakeIntResource(wInteger: uint16): PChar; inline;
+
+// See Windows GetFileVersionInfo function.
+// Find RT_VERSION raw data or nil if failed.
+// Don't Free returned stream because it's part of ResourceTree.
+function PeGetFileVersionInfo(img: TPEImage): TMemoryStream;
+
+function PeVerQueryValueFixed(stream: TStream; out value: VS_FIXEDFILEINFO): Boolean;
 
 implementation
 
@@ -117,6 +125,11 @@ end;
 function GetIntResource(lpszType: PChar): word; // inline;
 begin
   Result := NativeUInt(lpszType) and $FFFF;
+end;
+
+function MakeIntResource(wInteger: uint16): PChar;
+begin
+  Result := PChar(wInteger);
 end;
 
 constructor TWindowsResourceTree.Create(ResourceTree: TResourceTree);
@@ -239,6 +252,56 @@ begin
   nName := FetchNode(nType, True, True, lpName) as TResourceTreeBranchNode;
   nLang := FetchNode(nName, False, True, PChar(Language)) as TResourceTreeLeafNode;
   nLang.UpdateData(lpData, cbData);
+end;
+
+function PeGetFileVersionInfo(img: TPEImage): TMemoryStream;
+var
+  rt: TWindowsResourceTree;
+  versionBranch: TResourceTreeBranchNode;
+  versionLeaf: TResourceTreeLeafNode;
+begin
+  rt := TWindowsResourceTree.Create(img.ResourceTree);
+  try
+    versionBranch := rt.FindResource(MakeIntResource(RT_VERSION));
+    if assigned(versionBranch) and versionBranch.IsBranch and (versionBranch.Children.Count > 0) then
+    begin
+      versionBranch := TResourceTreeBranchNode(versionBranch.Children.First.K);
+      if assigned(versionBranch) and versionBranch.IsBranch and (versionBranch.Children.Count > 0) then
+      begin
+        versionLeaf := TResourceTreeLeafNode(versionBranch.Children.First.K);
+        if assigned(versionLeaf) and versionLeaf.IsLeaf then
+        begin
+          exit(versionLeaf.Data);
+        end;
+      end;
+    end;
+    exit(nil);
+  finally
+    rt.Free;
+  end;
+end;
+
+function PeVerQueryValueFixed(stream: TStream; out value: VS_FIXEDFILEINFO): Boolean;
+var
+  verInfo: TPEVersionInfo;
+  block: TBlock;
+begin
+  verInfo := TPEVersionInfo.Create;
+  try
+    verInfo.LoadFromStream(stream);
+
+    if assigned(verInfo.Root) then
+      for block in verInfo.Root.Children do
+        if block.ClassType = TBlockVersionInfo then
+        begin
+          value := TBlockVersionInfo(block).FixedInfo;
+          exit(True);
+        end;
+
+    exit(False);
+  finally
+    verInfo.Free;
+  end;
 end;
 
 end.

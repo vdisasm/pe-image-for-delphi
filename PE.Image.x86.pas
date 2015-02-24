@@ -9,6 +9,7 @@ interface
 
 uses
   System.Generics.Collections,
+  System.SysUtils,
   PE.Common,
   PE.Image,
   PE.Section;

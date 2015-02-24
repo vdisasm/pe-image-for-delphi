@@ -31,8 +31,8 @@ function StreamWriteStringA(AStream: TStream; const S: string; AlignAfter: integ
 const
   PATTERN_PADDINGX: array [0 .. 7] of AnsiChar = ('P', 'A', 'D', 'D', 'I', 'N', 'G', 'X');
 
-// Write pattern to stream. If Pattern is nil or size of patter is 0 then
-// nulls are written (default).
+  // Write pattern to stream. If Pattern is nil or size of patter is 0 then
+  // nulls are written (default).
 procedure WritePattern(AStream: TStream; Count: uint32; Pattern: Pointer = nil; PatternSize: integer = 0);
 
 function StreamSeek(AStream: TStream; Offset: TFileOffset): boolean; inline;
@@ -53,6 +53,8 @@ function AlignDown(Value: uint64; Align: uint32): uint64; inline;
 function IsStringASCII(const S: String): boolean;
 
 function CompareRVA(A, B: TRVA): integer; inline;
+
+function ReplaceSpecialSymobls(const source: string): string;
 
 implementation
 
@@ -237,7 +239,7 @@ end;
 
 function IsStringASCII(const S: String): boolean;
 var
-  c: char;
+  c: Char;
 begin
   for c in S do
     if not(integer(c) in [32 .. 126]) then
@@ -253,6 +255,13 @@ begin
     exit(-1)
   else
     exit(0);
+end;
+
+function ReplaceSpecialSymobls(const source: string): string;
+begin
+  Result := source.
+    Replace(#10, '\n').
+    Replace(#13, '\r');
 end;
 
 end.

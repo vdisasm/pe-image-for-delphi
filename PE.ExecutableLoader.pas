@@ -342,7 +342,7 @@ begin
       end;
 
       // Patch.
-      va := FInstance + rva;
+      va := FInstance + RVA;
       if FPE.Is32bit then
         PUINT(va)^ := UInt32(proc)
       else if FPE.Is64bit then
@@ -351,7 +351,7 @@ begin
       inc(RVA, FPE.ImageWordSize);
     end;
 
-    inc(RVA, FPE.ImageWordSize); // null
+    // inc(RVA, FPE.ImageWordSize); // null
   end;
   Result := msOK;
 end;

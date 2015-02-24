@@ -14,24 +14,9 @@ uses
   PE.Common,
   PE.Utils;
 
-type
-  // http://msdn.microsoft.com/en-us/library/windows/desktop/ms646997(v=vs.85).aspx
-  VS_FIXEDFILEINFO = packed record
-    dwSignature: uint32; // 0xFEEF04BD
-    dwStrucVersion: uint32;
-    dwFileVersionMS: uint32;
-    dwFileVersionLS: uint32;
-    dwProductVersionMS: uint32;
-    dwProductVersionLS: uint32;
-    dwFileFlagsMask: uint32;
-    dwFileFlags: uint32; // VS_FF...
-    dwFileOS: uint32;
-    dwFileType: uint32;
-    dwFileSubtype: uint32;
-    dwFileDateMS: uint32;
-    dwFileDateLS: uint32;
-  end;
+{$i 'VerRsrc.inc'}
 
+type
   TBlock = class;
   TBlockList = TObjectList<TBlock>;
   TBlockClass = class of TBlock;
@@ -101,37 +86,6 @@ type
   end;
 
 implementation
-
-const
-  SIG_VS_FIXEDFILEINFO = $FEEF04BD;
-
-  // dwFileFlags
-  VS_FF_DEBUG        = $1;
-  VS_FF_PRERELEASE   = $2;
-  VS_FF_PATCHED      = $4;
-  VS_FF_PRIVATEBUILD = $8;
-  VS_FF_INFOINFERRED = $10;
-  VS_FF_SPECIALBUILD = $20;
-
-  // dwFileOS
-  VOS_UNKNOWN    = $00000000;
-  VOS__WINDOWS16 = $00000001;
-  VOS__PM16      = $00000002;
-  VOS__PM32      = $00000003;
-  VOS__WINDOWS32 = $00000004;
-  VOS_DOS        = $00010000;
-  VOS_OS216      = $00020000;
-  VOS_OS232      = $00030000;
-  VOS_NT         = $00040000;
-
-  // dwFileType
-  VFT_UNKNOWN    = $00000000;
-  VFT_APP        = $00000001;
-  VFT_DLL        = $00000002;
-  VFT_DRV        = $00000003;
-  VFT_FONT       = $00000004;
-  VFT_VXD        = $00000005;
-  VFT_STATIC_LIB = $00000007;
 
 type
   TVersionInfoBlockHeader = packed record

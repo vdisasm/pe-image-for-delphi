@@ -44,7 +44,6 @@ var
   BmpHdr: TBitmapFileHeader;
   InfoHdr: TBitmapInfoHeader;
 begin
-  Stream.Position := 0;
   if not StreamRead(Stream, InfoHdr, SizeOf(InfoHdr)) then
     raise Exception.Create('Stream too small.');
 
