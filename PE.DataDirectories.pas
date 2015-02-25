@@ -199,6 +199,14 @@ var
   i: integer;
   needToNullDir: boolean;
 begin
+  Clear;
+
+  if DeclaredCount = 0 then
+  begin
+    Msg.Write(SCategoryDataDirecory, 'No data directories.');
+    exit;
+  end;
+
   SizeToEOF := (Stream.Size - Stream.Position);
 
   CountToEOF := SizeToEOF div SizeOf(TImageDataDirectory);
@@ -210,23 +218,25 @@ begin
   CountToRead := DeclaredCount;
 
   if DeclaredCount <> TYPICAL_NUMBER_OF_DIRECTORIES then
-    Msg.Write(SCategoryDataDirecory, 'Non-usual count of directories (%d).',
-      [DeclaredCount]);
+    Msg.Write(SCategoryDataDirecory, 'Non-usual count of directories (%d).', [DeclaredCount]);
 
   if DeclaredCount > CountToEOF then
   begin
     CountToRead := CountToEOF;
 
-    Msg.Write(SCategoryDataDirecory, 'Declared count of directories is greater ' +
-      'than file can contain (%d > %d).', [DeclaredCount, CountToEOF]);
+    Msg.Write(SCategoryDataDirecory,
+      'Declared count of directories is greater than file can contain (%d > %d).',
+      [DeclaredCount, CountToEOF]);
   end;
 
   // Read data directories.
 
   Size := CountToRead * SizeOf(TImageDataDirectory);
   SetLength(FItems, CountToRead);
+
   // Must clear buffer, cause it can have partial values (filled with zeros).
   FillChar(FItems[0], Size, 0);
+
   // Not all readed size/rva can be valid. You must check rvas before use.
   Stream.Read(FItems[0], Size);
 
