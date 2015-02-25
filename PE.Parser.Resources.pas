@@ -3,25 +3,26 @@ unit PE.Parser.Resources;
 interface
 
 uses
+  System.SysUtils,
   PE.Common,
   PE.Types,
+  PE.Types.Directories,
   PE.Types.Resources,
   PE.Resources;
 
 type
   TPEResourcesParser = class(TPEParser)
-  protected type
-    TEntryKind = (EK_ID, EK_NAME);
   protected
     FBaseRVA: TRVA; // RVA of RSRC section base
     FTree: TResourceTree;
+
     // Read resource node entry.
     function ReadEntry(
       ParentNode: TResourceTreeBranchNode;
       RVA: TRVA;
       Index: integer;
-      EntyKind: TEntryKind;
       RDT: PResourceDirectoryTable): TResourceTreeNode;
+
     // Read resource node.
     function ReadNode(
       ParentNode: TResourceTreeBranchNode;
@@ -36,8 +37,7 @@ type
 implementation
 
 uses
-  PE.Image,
-  PE.Types.Directories;
+  PE.Image;
 
 { TPEResourcesParser }
 
@@ -46,8 +46,7 @@ begin
   FTree.Root.Traverse(LogInvalidResourceSizesTraverse);
 end;
 
-function TPEResourcesParser.LogInvalidResourceSizesTraverse(
-  Node: TResourceTreeNode): boolean;
+function TPEResourcesParser.LogInvalidResourceSizesTraverse(Node: TResourceTreeNode): boolean;
 begin
   if Node.IsLeaf then
     if not TResourceTreeLeafNode(Node).ValidSize then
@@ -91,7 +90,6 @@ function TPEResourcesParser.ReadEntry(
   ParentNode: TResourceTreeBranchNode;
   RVA: TRVA;
   Index: integer;
-  EntyKind: TEntryKind;
   RDT: PResourceDirectoryTable): TResourceTreeNode;
 var
   Img: TPEImage;
@@ -100,20 +98,38 @@ var
   SubRVA, DataRVA, NameRVA: TRVA;
   LeafNode: TResourceTreeLeafNode;
   BranchNode: TResourceTreeBranchNode;
-  TmpNode: TResourceTreeNode;
+  EntryName: string;
 begin
   Result := nil;
   Img := TPEImage(FPE);
 
   // Try to read entry.
-  if not(Img.SeekRVA(RVA + Index * SizeOf(Entry)) and
-    Img.ReadEx(@Entry, SizeOf(Entry))) then
+  if not Img.SeekRVA(RVA + Index * SizeOf(Entry)) then
+  begin
+    Img.Msg.Write(SCategoryResources, 'Bad resource entry RVA.');
+    exit;
+  end;
+
+  if not Img.ReadEx(@Entry, SizeOf(Entry)) then
   begin
     Img.Msg.Write(SCategoryResources, 'Bad resource entry.');
     exit;
   end;
 
-  // Check if RVA is correct.
+  // Prepare entry name.
+  EntryName := '';
+  if Entry.EntryType = ResourceEntryByName then
+  begin
+    NameRVA := FBaseRVA + Entry.NameRVA;
+    if not Img.SeekRVA(NameRVA) then
+    begin
+      Img.Msg.Write(SCategoryResources, 'Bad entry name RVA (0x%x)', [NameRVA]);
+      exit;
+    end;
+    EntryName := Img.ReadUnicodeStringLenPfx2;
+  end;
+
+  // Check if RVA of child is correct.
   DataRVA := Entry.DataEntryRVA + FBaseRVA;
   if not Img.RVAExists(DataRVA) then
   begin
@@ -124,7 +140,10 @@ begin
   // Handle Leaf or Branch.
   if Entry.IsDataEntryRVA then
   begin
-    { Leaf node }
+    {
+      Leaf node
+    }
+
     DataRVA := Entry.DataEntryRVA + FBaseRVA;
     if not(Img.SeekRVA(DataRVA) and Img.ReadEx(@DataEntry, SizeOf(DataEntry))) then
     begin
@@ -136,7 +155,10 @@ begin
   end
   else
   begin
-    { Branch Node. }
+    {
+      Branch Node.
+    }
+
     // Alloc and fill node.
     BranchNode := TResourceTreeBranchNode.Create;
     if RDT <> nil then
@@ -153,51 +175,32 @@ begin
     Result := BranchNode;
   end;
 
-  // Get Id or Name.
-  if Result <> nil then
-  begin
-    // Assigning Id or Name at this stage won't trigger sort, as Parent isn't
-    // assigned yet.
-    case EntyKind of
-      EK_ID:
-        begin
-          Result.Id := Entry.IntegerID;
-        end;
-      EK_NAME:
-        begin
-          NameRVA := Entry.NameRVA + FBaseRVA;
-          if not Img.SeekRVA(NameRVA) then
-          begin
-            Img.Msg.Write(SCategoryResources, 'Failed to read resource name.');
-            exit(nil);
-          end;
-          Result.Name := Img.ReadUnicodeStringLenPfx2;
-        end;
-    end;
+  // Set id or name.
+  if Entry.EntryType = ResourceEntryById then
+    Result.Id := Entry.IntegerID
+  else
+    Result.Name := EntryName;
 
-    // When Result node is finished we can add it to parent.
-    TmpNode := ParentNode.FindNode(Result);
-    if TmpNode <> nil then
-    begin
-      Result.Free;
-      exit(TmpNode);
-    end;
-    ParentNode.Add(Result);
-  end;
+  // Add node.
+  ParentNode.Add(Result);
 end;
 
-function TPEResourcesParser.ReadNode(
-  ParentNode: TResourceTreeBranchNode;
-  RVA: TRVA): TParserResult;
+function TPEResourcesParser.ReadNode(ParentNode: TResourceTreeBranchNode; RVA: TRVA): TParserResult;
 var
   Img: TPEImage;
   RDT: TResourceDirectoryTable;
-  i, n: integer;
+  i, Total: integer;
 begin
   Img := TPEImage(FPE);
 
+  if not Img.SeekRVA(RVA) then
+  begin
+    Img.Msg.Write(SCategoryResources, 'Bad resource directory table RVA (0x%x)', [RVA]);
+    exit(PR_ERROR);
+  end;
+
   // Read Directory Table.
-  if not(Img.SeekRVA(RVA) and Img.ReadEx(@RDT, SizeOf(RDT))) then
+  if not Img.ReadEx(@RDT, SizeOf(RDT)) then
   begin
     Img.Msg.Write(SCategoryResources, 'Failed to read resource directory table.');
     exit(PR_ERROR);
@@ -205,25 +208,19 @@ begin
 
   inc(RVA, SizeOf(RDT));
 
-  n := 0;
-
-  // Read named entries.
-  for i := 1 to RDT.NumberOfNameEntries do
+  if (RDT.NumberOfNameEntries = 0) and (RDT.NumberOfIDEntries = 0) then
   begin
-    if ReadEntry(ParentNode, RVA, n, EK_NAME, @RDT) = nil then
-      exit(PR_ERROR);
-
-    inc(n);
+    Img.Msg.Write(SCategoryResources, 'Node have no name/id entries.');
+    exit(PR_ERROR);
   end;
 
-  // Read Id entries.
-  for i := 1 to RDT.NumberOfIDEntries do
-  begin
-    if ReadEntry(ParentNode, RVA, n, EK_ID, @RDT) = nil then
-      exit(PR_ERROR);
+  // Total number of entries.
+  Total := RDT.NumberOfNameEntries + RDT.NumberOfIDEntries;
 
-    inc(n);
-  end;
+  // Read entries.
+  for i := 0 to Total - 1 do
+    if ReadEntry(ParentNode, RVA, i, @RDT) = nil then
+      exit(PR_ERROR);
 
   exit(PR_OK);
 end;

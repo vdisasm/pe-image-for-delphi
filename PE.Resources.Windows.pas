@@ -97,11 +97,10 @@ type
     procedure UpdateResource(lpType, lpName: PChar; Language: word;
       lpData: PByte; cbData: UInt32);
 
-    // Result is True if resource was found and removed.
-    function RemoveResource(lpType, lpName: PChar; Language: word): Boolean;
+    function RemoveResource(lpType, lpName: PChar; Language: word): boolean;
   end;
 
-function IsIntResource(lpszType: PChar): Boolean; inline;
+function IsIntResource(lpszType: PChar): boolean; inline;
 function GetIntResource(lpszType: PChar): word; inline;
 function MakeIntResource(wInteger: uint16): PChar; inline;
 
@@ -110,14 +109,14 @@ function MakeIntResource(wInteger: uint16): PChar; inline;
 // Don't Free returned stream because it's part of ResourceTree.
 function PeGetFileVersionInfo(img: TPEImage): TMemoryStream;
 
-function PeVerQueryValueFixed(stream: TStream; out value: VS_FIXEDFILEINFO): Boolean;
+function PeVerQueryValueFixed(stream: TStream; out value: VS_FIXEDFILEINFO): boolean;
 
 implementation
 
 uses
   System.SysUtils;
 
-function IsIntResource(lpszType: PChar): Boolean; inline;
+function IsIntResource(lpszType: PChar): boolean; inline;
 begin
   Result := NativeUInt(lpszType) shr 16 = 0;
 end;
@@ -142,11 +141,11 @@ end;
 // lpName: Name or ID (intresource)
 function FetchNode(
   Parent: TResourceTreeBranchNode;
-  IsBranch: Boolean;
-  CreateIfNotExists: Boolean;
+  IsBranch: boolean;
+  CreateIfNotExists: boolean;
   lpName: PChar): TResourceTreeNode;
 var
-  bIntRsrc: Boolean;
+  bIntRsrc: boolean;
 begin
   bIntRsrc := IsIntResource(lpName);
   // Check if node with such Name/Id already exists.
@@ -179,15 +178,16 @@ begin
   end;
 end;
 
-function TWindowsResourceTree.RemoveResource(lpType, lpName: PChar; Language: word): Boolean;
+function TWindowsResourceTree.RemoveResource(lpType, lpName: PChar; Language: word): boolean;
 var
   n: TResourceTreeNode;
 begin
   n := FindResourceInternal(lpType, lpName, Language, 2);
-  if n <> nil then
-    Result := n.Parent.Remove(n)
-  else
-    Result := False;
+  if not assigned(n) then
+    exit(false);
+
+  n.Parent.Remove(n);
+  exit(true);
 end;
 
 function TWindowsResourceTree.FindResource(lpType, lpName: PChar; Language: word): TResourceTreeLeafNode;
@@ -209,7 +209,7 @@ end;
 function TWindowsResourceTree.FindResourceInternal(lpType, lpName: PChar;
   Language: word; Depth: cardinal): TResourceTreeNode;
 const
-  IsBranches: array [0 .. 2] of Boolean = (True, True, False);
+  IsBranches: array [0 .. 2] of boolean = (true, true, false);
 var
   i: integer;
   n: TResourceTreeNode;
@@ -229,7 +229,7 @@ begin
       2:
         val := PChar(Language);
     end;
-    n := FetchNode(TResourceTreeBranchNode(n), IsBranches[i], False, val);
+    n := FetchNode(TResourceTreeBranchNode(n), IsBranches[i], false, val);
     if n = nil then
       exit(nil);
   end;
@@ -248,9 +248,9 @@ begin
     exit;
   end;
   nRoot := FResourceTree.Root;
-  nType := FetchNode(nRoot, True, True, lpType) as TResourceTreeBranchNode;
-  nName := FetchNode(nType, True, True, lpName) as TResourceTreeBranchNode;
-  nLang := FetchNode(nName, False, True, PChar(Language)) as TResourceTreeLeafNode;
+  nType := FetchNode(nRoot, true, true, lpType) as TResourceTreeBranchNode;
+  nName := FetchNode(nType, true, true, lpName) as TResourceTreeBranchNode;
+  nLang := FetchNode(nName, false, true, PChar(Language)) as TResourceTreeLeafNode;
   nLang.UpdateData(lpData, cbData);
 end;
 
@@ -265,10 +265,10 @@ begin
     versionBranch := rt.FindResource(MakeIntResource(RT_VERSION));
     if assigned(versionBranch) and versionBranch.IsBranch and (versionBranch.Children.Count > 0) then
     begin
-      versionBranch := TResourceTreeBranchNode(versionBranch.Children.First.K);
+      versionBranch := TResourceTreeBranchNode(versionBranch.Children.First);
       if assigned(versionBranch) and versionBranch.IsBranch and (versionBranch.Children.Count > 0) then
       begin
-        versionLeaf := TResourceTreeLeafNode(versionBranch.Children.First.K);
+        versionLeaf := TResourceTreeLeafNode(versionBranch.Children.First);
         if assigned(versionLeaf) and versionLeaf.IsLeaf then
         begin
           exit(versionLeaf.Data);
@@ -281,7 +281,7 @@ begin
   end;
 end;
 
-function PeVerQueryValueFixed(stream: TStream; out value: VS_FIXEDFILEINFO): Boolean;
+function PeVerQueryValueFixed(stream: TStream; out value: VS_FIXEDFILEINFO): boolean;
 var
   verInfo: TPEVersionInfo;
   block: TBlock;
@@ -295,10 +295,10 @@ begin
         if block.ClassType = TBlockVersionInfo then
         begin
           value := TBlockVersionInfo(block).FixedInfo;
-          exit(True);
+          exit(true);
         end;
 
-    exit(False);
+    exit(false);
   finally
     verInfo.Free;
   end;

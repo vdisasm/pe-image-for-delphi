@@ -2,7 +2,12 @@ unit PE.Types.Resources;
 
 interface
 
-  // 5.9.1. Resource Directory Table
+{$IFDEF DEBUG}
+uses
+  System.SysUtils; // to Raise
+{$ENDIF}
+
+// 5.9.1. Resource Directory Table
 
 type
 
@@ -36,26 +41,15 @@ type
 
   PResourceDirectoryTable = ^TResourceDirectoryTable;
 
-  { TResourceNameEntry }
-
-  TResourceNameEntry = packed record
-    case byte of
-      0:
-        // The address of a string that gives the Type, Name, or Language ID entry,
-        // depending on level of table (bits 30..0 used).
-        (NameRVA: uint32);
-      1:
-        // A 32-bit integer that identifies the Type, Name, or Language ID entry.
-        (IntegerID: uint32);
-  end;
+  TResourceEntryType = (ResourceEntryById, ResourceEntryByName);
 
   { TResourceDirectoryEntry }
 
   TResourceDirectoryEntry = packed record
   private
 
-    // Either Name or Id.
-    FEntry: TResourceNameEntry;
+    // Either Name RVA or Id.
+    FEntry: uint32;
 
     DataEntryRVAorSubdirectoryRVA: uint32;
 
@@ -66,6 +60,7 @@ type
     procedure SetDataEntryRVA(const Value: uint32); inline;
     procedure SetNameRVA(const Value: uint32); inline;
     procedure SetIntegerID(const Value: uint32); inline;
+    function GetResourceEntryType: TResourceEntryType; inline;
 
   public
 
@@ -82,10 +77,10 @@ type
     // directory table (the next level down).
     property SubdirectoryRVA: uint32 read GetDataEntryRVAorSubdirectoryRVA write SetSubDirRVA;
 
+    property EntryType: TResourceEntryType read GetResourceEntryType;
+
     property NameRVA: uint32 read GetNameRVA write SetNameRVA;
-
     property IntegerID: uint32 read GetIntegerID write SetIntegerID;
-
   end;
 
   PResourceDirectoryEntry = ^TResourceDirectoryEntry;
@@ -93,7 +88,6 @@ type
   { TResourceDataEntry }
 
   TResourceDataEntry = packed record
-
     // The address of a unit of resource data in the Resource Data area.
     DataRVA: uint32;
 
@@ -107,14 +101,13 @@ type
 
     // Reserved, must be 0.
     Reserved: uint32;
-
   end;
 
 implementation
 
 procedure TResourceDirectoryEntry.Clear;
 begin
-  FEntry.NameRVA := 0;
+  FEntry := 0;
   DataEntryRVAorSubdirectoryRVA := 0;
 end;
 
@@ -125,12 +118,28 @@ end;
 
 function TResourceDirectoryEntry.GetIntegerID: uint32;
 begin
-  Result := FEntry.IntegerID;
+{$IFDEF DEBUG}
+  if EntryType <> ResourceEntryById then
+    raise Exception.Create('Attempt to get ID of named-entry.');
+{$ENDIF}
+  Result := FEntry and $FFFF;
 end;
 
 function TResourceDirectoryEntry.GetNameRVA: uint32;
 begin
-  Result := FEntry.NameRVA and $7FFFFFFF;
+{$IFDEF DEBUG}
+  if EntryType <> ResourceEntryByName then
+    raise Exception.Create('Attempt to get name RVA of ID-entry.');
+{$ENDIF}
+  Result := FEntry and $7FFFFFFF;
+end;
+
+function TResourceDirectoryEntry.GetResourceEntryType: TResourceEntryType;
+begin
+  if (self.FEntry and $80000000) = 0 then
+    Result := ResourceEntryById
+  else
+    Result := ResourceEntryByName;
 end;
 
 function TResourceDirectoryEntry.IsDataEntryRVA: boolean;
@@ -150,12 +159,12 @@ end;
 
 procedure TResourceDirectoryEntry.SetIntegerID(const Value: uint32);
 begin
-  FEntry.IntegerID := Value and $7FFFFFFF;
+  FEntry := Value and $7FFFFFFF;
 end;
 
 procedure TResourceDirectoryEntry.SetNameRVA(const Value: uint32);
 begin
- FEntry.NameRVA := Value or $80000000;
+  FEntry := Value or $80000000;
 end;
 
 procedure TResourceDirectoryEntry.SetSubDirRVA(const Value: uint32);
