@@ -97,6 +97,7 @@ begin
       if (not PE.SeekRVA(IDir.NameRVA)) then
       begin
         PE.Msg.Write('Import library name RVA not found (0x%x).', [IDir.NameRVA]);
+        Continue;
       end;
 
       LibraryName := PE.ReadAnsiString;

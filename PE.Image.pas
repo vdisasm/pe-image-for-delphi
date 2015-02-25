@@ -832,8 +832,8 @@ begin
 
       if sh.SizeOfRawData <> 0 then
       begin
-        // If section data points into header then need to handle special case.
-        if (sh.PointerToRawData < SizeOfHeaderMapped) then
+        // If section data points into header.
+        if (sh.PointerToRawData < SizeOfHeader) then
         begin
           Msg.Write(SCategorySections, 'Section # %d is inside of headers', [i]);
 
@@ -843,7 +843,7 @@ begin
 
           // Override section header.
           sh.PointerToRawData := 0;
-          sh.SizeOfRawData := Min(FFileSize, SizeOfHeaderMapped);
+          sh.SizeOfRawData := Min(sh.SizeOfRawData, FFileSize, SizeOfHeaderMapped);
           sh.Misc.VirtualSize := SizeOfHeaderMapped;
         end;
       end;

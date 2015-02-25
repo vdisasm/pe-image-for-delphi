@@ -117,7 +117,7 @@ begin
   DataRVA := Entry.DataEntryRVA + FBaseRVA;
   if not Img.RVAExists(DataRVA) then
   begin
-    Img.Msg.Write(SCategoryResources, 'Bad entry RVA.');
+    Img.Msg.Write(SCategoryResources, 'Bad entry RVA (0x%x)', [DataRVA]);
     exit;
   end;
 

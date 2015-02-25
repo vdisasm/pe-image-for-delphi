@@ -44,8 +44,10 @@ function StreamSeekAlign(AStream: TStream; Align: integer): boolean; inline;
 // Try to seek Offset and insert padding if Offset < stream Size.
 procedure StreamSeekWithPadding(AStream: TStream; Offset: TFileOffset);
 
-function Min(A, B: uint64): uint64; inline;
-function Max(A, B: uint64): uint64; inline;
+function Min(const A, B: uint64): uint64; inline; overload;
+function Min(const A, B, C: uint64): uint64; inline; overload;
+
+function Max(const A, B: uint64): uint64; inline;
 
 function AlignUp(Value: uint64; Align: uint32): uint64; inline;
 function AlignDown(Value: uint64; Align: uint32): uint64; inline;
@@ -81,31 +83,31 @@ end;
 
 function StreamReadStringA(AStream: TStream; var S: string): boolean;
 var
-  c: byte;
+  C: byte;
 begin
   S := '';
   while True do
-    if AStream.Read(c, SizeOf(c)) <> SizeOf(c) then
+    if AStream.Read(C, SizeOf(C)) <> SizeOf(C) then
       break
-    else if (c = 0) then
+    else if (C = 0) then
       exit(True)
     else
-      S := S + Char(c);
+      S := S + Char(C);
   exit(False);
 end;
 
 function StreamReadStringW(AStream: TStream; var S: string): boolean;
 var
-  c: word;
+  C: word;
 begin
   S := '';
   while True do
-    if AStream.Read(c, SizeOf(c)) <> SizeOf(c) then
+    if AStream.Read(C, SizeOf(C)) <> SizeOf(C) then
       break
-    else if (c = 0) then
+    else if (C = 0) then
       exit(True)
     else
-      S := S + Char(c);
+      S := S + Char(C);
   exit(False);
 end;
 
@@ -202,7 +204,7 @@ end;
 
 { Min / Max }
 
-function Min(A, B: uint64): uint64;
+function Min(const A, B: uint64): uint64;
 begin
   if A < B then
     exit(A)
@@ -210,7 +212,12 @@ begin
     exit(B);
 end;
 
-function Max(A, B: uint64): uint64; inline;
+function Min(const A, B, C: uint64): uint64;
+begin
+  Result := Min(Min(A, B), C);
+end;
+
+function Max(const A, B: uint64): uint64;
 begin
   if A > B then
     exit(A)
@@ -239,10 +246,10 @@ end;
 
 function IsStringASCII(const S: String): boolean;
 var
-  c: Char;
+  C: Char;
 begin
-  for c in S do
-    if not(integer(c) in [32 .. 126]) then
+  for C in S do
+    if not(integer(C) in [32 .. 126]) then
       exit(False);
   exit(True);
 end;
