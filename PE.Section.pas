@@ -61,7 +61,7 @@ type
 
     procedure Resize(NewSize: uint32);
 
-    function ContainRVA(RVA: TRVA): boolean; {$IFNDEF DEBUG}inline;{$ENDIF}
+    function ContainRVA(RVA: TRVA): boolean; {$IFNDEF DEBUG}inline; {$ENDIF}
     function GetEndRVA: TRVA; inline;
     function GetEndRawOffset: uint32; inline;
     function GetLastRVA: TRVA; inline;
@@ -136,12 +136,12 @@ procedure TPESectionBase.SetHeader(ASecHdr: TImageSectionHeader; ASrcData: point
 var
   SizeToAlloc: uint32;
 begin
-  FName := ASecHdr.GetName;
-  FVSize := ASecHdr.Misc.VirtualSize;
-  FRVA := ASecHdr.VirtualAddress;
+  FName := ASecHdr.Name;
+  FVSize := ASecHdr.VirtualSize;
+  FRVA := ASecHdr.RVA;
   FRawSize := ASecHdr.SizeOfRawData;
   FRawOffset := ASecHdr.PointerToRawData;
-  FFlags := ASecHdr.Characteristics;
+  FFlags := ASecHdr.Flags;
 
   if ChangeData then
   begin
@@ -183,20 +183,14 @@ begin
 end;
 
 function TPESectionBase.GetImageSectionHeader: TImageSectionHeader;
-var
-  Bytes: TBytes;
 begin
-  FillChar(Result, sizeof(Result), 0);
-
-  // Name.
-  Bytes := TEncoding.ANSI.GetBytes(FName);
-  Move(Bytes[0], Result.Name[0], Min(Length(Bytes), Length(Result.Name)));
-
-  Result.VirtualAddress := RVA;
-  Result.Misc.VirtualSize := VirtualSize;
+  Result.Clear;
+  Result.Name := FName;
+  Result.RVA := RVA;
+  Result.VirtualSize := VirtualSize;
   Result.SizeOfRawData := RawSize;
   Result.PointerToRawData := RawOffset;
-  Result.Characteristics := Flags;
+  Result.Flags := Flags;
 end;
 
 function TPESectionBase.GetMemPtr: PByte;

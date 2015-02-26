@@ -83,33 +83,25 @@ end;
 function TPESections.CreateNew(const AName: String; ASize, AFlags: UInt32;
   Mem: pointer; ForceVA: TVA): TPESection;
 var
-  h: TImageSectionHeader;
   PE: TPEImage;
-  Bytes: TBytes;
+  sh: TImageSectionHeader;
 begin
   PE := TPEImage(FPE);
 
-  // Clear
-  FillChar(h, sizeof(h), 0);
-
-  // Copy name.
-  if AName <> '' then
-  begin
-    Bytes := TEncoding.ANSI.GetBytes(AName);
-    System.Move(Bytes[0], h.Name[0], max(Length(h.Name), Length(Bytes)));
-  end;
-
-  h.Misc.VirtualSize := AlignUp(ASize, PE.SectionAlignment);
+  sh.Clear;
+  sh.Name := AName;
+  sh.VirtualSize := AlignUp(ASize, PE.SectionAlignment);
 
   if ForceVA = 0 then
-    h.VirtualAddress := CalcNextSectionRVA
+    sh.RVA := CalcNextSectionRVA
   else
-    h.VirtualAddress := ForceVA;
+    sh.RVA := ForceVA;
 
-  h.SizeOfRawData := ASize;
-  // h.PointerToRawData will be calculated later during image saving.
-  h.Characteristics := AFlags;
-  Result := TPESection.Create(h, Mem);
+  sh.SizeOfRawData := ASize;
+  // sh.PointerToRawData will be calculated later during image saving.
+  sh.Flags := AFlags;
+
+  Result := TPESection.Create(sh, Mem);
 end;
 
 function TPESections.AddNew(const AName: String; ASize, AFlags: UInt32;

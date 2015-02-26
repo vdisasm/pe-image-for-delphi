@@ -844,21 +844,21 @@ begin
           // Override section header.
           sh.PointerToRawData := 0;
           sh.SizeOfRawData := Min(sh.SizeOfRawData, FFileSize, SizeOfHeaderMapped);
-          sh.Misc.VirtualSize := SizeOfHeaderMapped;
+          sh.VirtualSize := SizeOfHeaderMapped;
         end;
       end;
 
-      if (sh.Misc.VirtualSize = 0) and (sh.SizeOfRawData = 0) then
+      if (sh.VirtualSize = 0) and (sh.SizeOfRawData = 0) then
       begin
         Msg.Write(SCategorySections, 'Section # %d has vsize and rsize = 0, skipping it', [i]);
         continue;
       end;
 
-      if (sh.SizeOfRawData > sh.Misc.VirtualSize) then
+      if (sh.SizeOfRawData > sh.VirtualSize) then
       begin
         // Correct virtual size to be sure all raw data will be loaded.
-        VSizeToBeMapped := AlignUp(sh.Misc.VirtualSize, VM_PAGE_SIZE);
-        sh.Misc.VirtualSize := PE.Utils.Min(sh.SizeOfRawData, VSizeToBeMapped);
+        VSizeToBeMapped := AlignUp(sh.VirtualSize, VM_PAGE_SIZE);
+        sh.VirtualSize := PE.Utils.Min(sh.SizeOfRawData, VSizeToBeMapped);
       end;
 
       {
@@ -866,12 +866,12 @@ begin
         * Virtual size can't be 0 as it won't be mapped
       }
 
-      if sh.Misc.VirtualSize = 0 then
+      if sh.VirtualSize = 0 then
       begin
         Msg.Write(SCategorySections, 'Section # %d has vsize = 0', [i]);
         if PO_SECTION_VSIZE_FALLBACK in FOptions then
         begin
-          sh.Misc.VirtualSize := AlignUp(sh.SizeOfRawData, SectionAlignment);
+          sh.VirtualSize := AlignUp(sh.SizeOfRawData, SectionAlignment);
         end
         else
         begin
@@ -1679,7 +1679,7 @@ begin
     sh.Clear;
     sh.Name := 'header';
     sh.SizeOfRawData := FOptionalHeader.SizeOfHeaders;
-    sh.Misc.VirtualSize := AlignUp(FOptionalHeader.SizeOfHeaders, FOptionalHeader.SectionAlignment);
+    sh.VirtualSize := AlignUp(FOptionalHeader.SizeOfHeaders, FOptionalHeader.SectionAlignment);
 
     Sec := TPESection(TPESectionImageHeader.Create(sh, nil));
 
