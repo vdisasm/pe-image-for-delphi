@@ -62,6 +62,8 @@ var
   cbStringData: uint32;
   FileHdr: TImageFileHeader;
 begin
+  Clear;
+
   // 4.6. COFF String Table
 
   FileHdr := TPEImage(FPE).FileHeader^;
@@ -91,8 +93,11 @@ begin
     exit;
 
   // Load string block.
-  SetLength(FStrings, cbStringData);
-  StreamRead(AStream, FStrings[0], cbStringData);
+  if cbStringData <> 0 then
+  begin
+    SetLength(FStrings, cbStringData);
+    StreamRead(AStream, FStrings[0], cbStringData);
+  end;
 end;
 
 end.
