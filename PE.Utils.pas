@@ -52,7 +52,7 @@ function Max(const A, B: uint64): uint64; inline;
 function AlignUp(Value: uint64; Align: uint32): uint64; inline;
 function AlignDown(Value: uint64; Align: uint32): uint64; inline;
 
-function IsStringASCII(const S: String): boolean;
+function IsAlphaNumericString(const S: String): boolean;
 
 function CompareRVA(A, B: TRVA): integer; inline;
 
@@ -244,12 +244,14 @@ begin
   Result := (Value div Align) * Align;
 end;
 
-function IsStringASCII(const S: String): boolean;
+function IsAlphaNumericString(const S: String): boolean;
+const
+  ALLOWED_CHARS = ['0' .. '9', 'A' .. 'Z', 'a' .. 'z'];
 var
   C: Char;
 begin
   for C in S do
-    if not(integer(C) in [32 .. 126]) then
+    if not CharInSet(c, ALLOWED_CHARS) then
       exit(False);
   exit(True);
 end;

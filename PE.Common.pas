@@ -55,8 +55,8 @@ type
     // If section vsize is 0 try to use rsize instead.
     PO_SECTION_VSIZE_FALLBACK,
 
-    // Rename invalid section name.
-    PO_SECTION_AUTORENAME_INVALID,
+    // Rename non-alphanumeric section names.
+    PO_SECTION_AUTORENAME_NON_ALPHANUMERIC,
 
     // If data directory is invalid directory RVA and Size nulled.
     PO_NULL_INVALID_DIRECTORY
@@ -77,7 +77,7 @@ const
   DEFAULT_PARSER_FLAGS = ALL_PARSER_FLAGS;
   DEFAULT_OPTIONS      = [
     PO_SECTION_VSIZE_FALLBACK,
-    PO_SECTION_AUTORENAME_INVALID,
+    PO_SECTION_AUTORENAME_NON_ALPHANUMERIC,
     PO_NULL_INVALID_DIRECTORY
     ];
 

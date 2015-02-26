@@ -882,9 +882,9 @@ begin
 
       Sec := TPESection.Create(sh, nil, @FMsg);
 
-      if not Sec.IsNameSafe then
+      if Sec.Name.IsEmpty or (not IsAlphaNumericString(Sec.Name)) then
       begin
-        if PO_SECTION_AUTORENAME_INVALID in FOptions then
+        if PO_SECTION_AUTORENAME_NON_ALPHANUMERIC in FOptions then
         begin
           Sec.Name := format('sec_%4.4x', [i]);
           Msg.Write(SCategorySections, 'Section name can be garbage. Overriding to %s', [Sec.Name]);

@@ -66,8 +66,6 @@ type
     function GetEndRawOffset: uint32; inline;
     function GetLastRVA: TRVA; inline;
 
-    function IsNameSafe: boolean; // inline;
-
     function IsCode: boolean; inline;
 
     property Name: String read FName write FName;
@@ -211,11 +209,6 @@ end;
 function TPESectionBase.IsCode: boolean;
 begin
   Result := (Flags and IMAGE_SCN_CNT_CODE) <> 0;
-end;
-
-function TPESectionBase.IsNameSafe: boolean;
-begin
-  Result := (FName <> '') and IsStringASCII(FName);
 end;
 
 function TPESectionBase.LoadDataFromStream(AStream: TStream): boolean;
