@@ -76,9 +76,12 @@ type
     property RawSize: uint32 read FRawSize;
     property RawOffset: uint32 read FRawOffset write FRawOffset;
     property Flags: uint32 read FFlags write FFlags;
-    property Mem: PByte read GetMemPtr;
     property ImageSectionHeader: TImageSectionHeader read GetImageSectionHeader;
     property AllocatedSize: uint32 read GetAllocatedSize;
+
+    // Don't use Mem directly.
+    // Use TPEImage functions to read/write data.
+    property Mem: PByte read GetMemPtr;
   end;
 
   TPESectionImageHeader = class(TPESectionBase);
