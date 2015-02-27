@@ -68,6 +68,8 @@ type
 
     function IsCode: boolean; inline;
 
+    function NameAsHex: string;
+
     property Name: String read FName write FName;
     property VirtualSize: uint32 read FVSize;
     property RVA: TRVA read FRVA;
@@ -247,6 +249,29 @@ begin
       FMsg.Write('Actual raw size was loaded.');
   end;
   Exit(True);
+end;
+
+function TPESectionBase.NameAsHex: string;
+var
+  bytes: array [0 .. IMAGE_SIZEOF_SHORT_NAME - 1] of byte;
+  i, len: integer;
+begin
+  fillchar(bytes[0], IMAGE_SIZEOF_SHORT_NAME, 0);
+  len := Min(Length(name), IMAGE_SIZEOF_SHORT_NAME);
+  if len > 0 then
+    for i := 0 to len - 1 do
+      bytes[i] := byte(name.Chars[i]);
+
+  Result := format('%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x', [
+    bytes[0],
+    bytes[1],
+    bytes[2],
+    bytes[3],
+    bytes[4],
+    bytes[5],
+    bytes[6],
+    bytes[7]
+    ]);
 end;
 
 function TPESectionBase.SaveDataToStream(AStream: TStream): boolean;

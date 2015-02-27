@@ -776,6 +776,7 @@ var
   VSizeToBeMapped: uint32;
   CorrectRawDataPositions: integer;
   StreamSize: UInt64;
+  SecNameOldHex: string;
 begin
   NumberOfSections := FFileHeader.NumberOfSections;
 
@@ -887,8 +888,9 @@ begin
       begin
         if PO_SECTION_AUTORENAME_NON_ALPHANUMERIC in FOptions then
         begin
+          SecNameOldHex := Sec.NameAsHex;
           Sec.Name := format('sec_%4.4x', [i]);
-          Msg.Write(SCategorySections, 'Section name can be garbage. Overriding to %s', [Sec.Name]);
+          Msg.Write(SCategorySections, 'Section name can be garbage (hex: %s). Overriding to %s', [SecNameOldHex, Sec.Name]);
         end;
       end;
 
