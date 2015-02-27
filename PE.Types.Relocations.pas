@@ -3,6 +3,9 @@ unit PE.Types.Relocations;
 interface
 
 uses
+{$IFDEF DEBUG}
+  System.SysUtils,
+{$ENDIF}
   System.Generics.Collections,
   PE.Common,
   gRBTree;
@@ -23,8 +26,7 @@ type
     BlockSize: UInt32;
 
     // Get count of relocation elements (entries).
-    function Count: integer; inline;
-
+    function Count: integer; {$IFNDEF DEBUG} inline; {$ENDIF}
     // Check if this block's size:0 or rva:0.
     function IsEmpty: Boolean; inline;
   end;
@@ -84,6 +86,10 @@ uses
 
 function TBaseRelocationBlock.Count: integer;
 begin
+{$IFDEF DEBUG}
+  if BlockSize < SizeOf(TBaseRelocationBlock) then
+    raise Exception.Create('Relocation block is too small.');
+{$ENDIF}
   result := (BlockSize - SizeOf(TBaseRelocationBlock)) div SizeOf(TBaseRelocationEntry);
 end;
 

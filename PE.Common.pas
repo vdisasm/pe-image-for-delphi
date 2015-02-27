@@ -126,6 +126,7 @@ const
   SCategoryResources    = 'Resources';
   SCategoryImports      = 'Imports';
   SCategoryTLS          = 'TLS';
+  SCategoryRelocs       = 'Relocs';
 
 implementation
 

@@ -46,11 +46,12 @@ begin
 
   if not PE.SeekRVA(dir.VirtualAddress) then
   begin
-    PE.Msg.Write('[Reloc Parser] Bad directory RVA (0x%x)', [dir.VirtualAddress]);
+    PE.Msg.Write(SCategoryRelocs, 'Bad directory RVA (0x%x)', [dir.VirtualAddress]);
     exit(PR_ERROR);
   end;
 
   Ofs := 0;
+
   while (Ofs < dir.Size) do
   begin
     tmpRVA := PE.PositionRVA;
@@ -65,18 +66,27 @@ begin
       break;
 
     inc(Ofs, SizeOf(block));
+
+    if block.BlockSize < SizeOf(TBaseRelocationBlock) then
+    begin
+      PE.Msg.Write(SCategoryRelocs, 'Bad size of block (%d).', [block.BlockSize]);
+      continue;
+    end;
+
     blCnt := block.Count;
+
     for iBlock := 0 to blCnt - 1 do
     begin
       if (Ofs + SizeOf(entry)) > dir.Size then
       begin
-        PE.Msg.Write('Relocation out of table. PageRVA:0x%x #:%d', [block.PageRVA, iBlock]);
-        PE.Msg.Write('Skipping next relocs.');
+        PE.Msg.Write(SCategoryRelocs, 'Relocation is out of table. PageRVA:0x%x #:%d', [block.PageRVA, iBlock]);
+        PE.Msg.Write(SCategoryRelocs, 'Skipping next relocs.');
         exit(PR_OK);
       end;
 
       if not PE.ReadEx(@entry, SizeOf(entry)) then
         exit(PR_ERROR);
+
       inc(Ofs, SizeOf(entry));
       r_type := entry.GetType;
       r_ofs := entry.GetOffset;
@@ -85,7 +95,6 @@ begin
       begin
         reloc.RVA := r_rva;
         reloc.&Type := r_type;
-        // reloc.pos := Ofs;
         PE.Relocs.Put(reloc);
       end;
     end;
