@@ -40,7 +40,7 @@ type
   TImpDirs = TList<TImportDirectoryTable>;
   TILTs = TList<TImportLookupTable>;
 var
-  ddir: TImageDataDirectory;
+  dir: TImageDataDirectory;
   bIs32: boolean;
   dq: uint64;
   sizet: byte;
@@ -54,7 +54,9 @@ var
   Lib: TPEImportLibrary;
   PE: TPEImage;
   LibraryName: string;
-  FunctionAlreadyExists: boolean;
+  dwLeft: uint32;
+  bEmptyLastDirFound: boolean;
+  IDirNumber: integer;
 begin
   PE := TPEImage(FPE);
 
@@ -68,35 +70,65 @@ begin
     sizet := PE.ImageBits div 8;
 
     // If no imports, it's ok.
-    if not PE.DataDirectories.Get(DDIR_IMPORT, @ddir) then
+    if not PE.DataDirectories.Get(DDIR_IMPORT, @dir) then
       exit(PR_OK);
-    if ddir.IsEmpty then
+    if dir.IsEmpty then
       exit(PR_OK);
 
     // Seek import dir.
-    if not PE.SeekRVA(ddir.VirtualAddress) then
+    if not PE.SeekRVA(dir.VirtualAddress) then
       exit;
 
     // Read import descriptors.
-    while true do
+    dwLeft := dir.Size;
+    bEmptyLastDirFound := False;
+    while dwLeft >= sizeof(IDir) do
     begin
       // Read IDir.
       if not PE.ReadEx(@IDir, sizeof(IDir)) then
         exit;
+
       if IDir.IsEmpty then // it's last dir
+      begin
+        bEmptyLastDirFound := true;
         break;
+      end;
+
+      // Check RVA.
+      if not(PE.RVAExists(IDir.NameRVA)) then
+      begin
+        PE.Msg.Write(SCategoryImports, 'Bad RVAs in directory. Imports are incorrect.');
+        exit;
+      end;
+
       IDirs.Add(IDir); // add read dir
+
+      dec(dwLeft, sizeof(IDir));
+    end;
+
+    if IDirs.Count = 0 then
+    begin
+      PE.Msg.Write(SCategoryImports, 'No directories found.');
+      exit;
+    end;
+
+    if not bEmptyLastDirFound then
+    begin
+      PE.Msg.Write(SCategoryImports, 'No last (empty) directory found.');
     end;
 
     // Parse import descriptors.
+    IDirNumber := -1;
     for IDir in IDirs do
     begin
+      inc(IDirNumber);
+
       ILTs.Clear;
 
       // Read library name.
       if (not PE.SeekRVA(IDir.NameRVA)) then
       begin
-        PE.Msg.Write('Import library name RVA not found (0x%x).', [IDir.NameRVA]);
+        PE.Msg.Write(SCategoryImports, 'Library name RVA not found (0x%x) for dir # %d.', [IDir.NameRVA, IDirNumber]);
         Continue;
       end;
 
@@ -104,23 +136,10 @@ begin
 
       if LibraryName.IsEmpty then
       begin
-        PE.Msg.Write('Import library has NULL name.');
+        PE.Msg.Write(SCategoryImports, 'Library # %d has empty name.', [IDirNumber]);
         Continue;
       end;
 
-      {
-        // Try to find existing library. If there are few libraries with same
-        // name, the libs are merged.
-        Lib := PE.Imports.FindLib(LibraryName);
-        // if not found, create new.
-        if Lib = nil then
-        begin
-        Lib := TPEImportLibrary.Create(LibraryName, IDir.IsBound);
-        PE.Imports.Add(Lib);
-        end;
-      }
-      // Don't merge libraries any more.
-      // It should be implemented as optional optimization pass.
       Lib := TPEImportLibrary.Create(LibraryName, IDir.IsBound);
       PE.Imports.Add(Lib);
 
@@ -129,14 +148,14 @@ begin
       // Skip bad dll name.
       if Lib.Name.IsEmpty then
       begin
-        PE.Msg.Write('Bad import library name.');
+        PE.Msg.Write(SCategoryImports, 'Bad library name (# %d)', [IDirNumber]);
         Continue;
       end;
 
       PATCHRVA := IDir.FirstThunk;
       if PATCHRVA = 0 then
       begin
-        PE.Msg.Write('Import library %s has NULL patch RVA.', [Lib.Name]);
+        PE.Msg.Write(SCategoryImports, 'Library # %d (%s) has NULL patch RVA.', [IDirNumber, Lib.Name]);
         break;
       end;
 
@@ -147,41 +166,36 @@ begin
 
       if IATRVA = 0 then
       begin
-        PE.Msg.Write('Import library %s has NULL IAT RVA.', [Lib.Name]);
+        PE.Msg.Write(SCategoryImports, 'Library # %d (%s) has NULL IAT RVA.', [IDirNumber, Lib.Name]);
         break;
       end;
 
       Lib.IATRVA := IATRVA;
 
       // Read IAT elements.
-      while PE.SeekRVA(IATRVA) and ReadGoodILTItem(TPEImage(FPE), dq) do
+      while PE.SeekRVA(IATRVA) and ReadGoodILTItem(PE, dq) do
       begin
-        FunctionAlreadyExists := False; // Assigned(Lib.Functions.FindByRVA(PATCHRVA));
-
         // Process only unique functions (by RVA).
-        if not FunctionAlreadyExists then
+        ILT.Create(dq, bIs32);
+
+        ImpFn := TPEImportFunction.CreateEmpty;
+
+        // By ordinal.
+        if ILT.IsImportByOrdinal then
         begin
-          ILT.Create(dq, bIs32);
+          ImpFn.Ordinal := ILT.OrdinalNumber;
+          ImpFn.Name := '';
+        end
 
-          ImpFn := TPEImportFunction.CreateEmpty;
-
-          // By ordinal.
-          if ILT.IsImportByOrdinal then
-          begin
-            ImpFn.Ordinal := ILT.OrdinalNumber;
-            ImpFn.Name := '';
-          end
-
-          // By name.
-          else if PE.SeekRVA(ILT.HintNameTableRVA) then
-          begin
-            dq := 0;
-            PE.ReadEx(@dq, 2);
-            ImpFn.Name := PE.ReadAnsiString;
-          end;
-
-          Lib.Functions.Add(ImpFn);
+        // By name.
+        else if PE.SeekRVA(ILT.HintNameTableRVA) then
+        begin
+          dq := 0;
+          PE.ReadEx(@dq, 2);
+          ImpFn.Name := PE.ReadAnsiString;
         end;
+
+        Lib.Functions.Add(ImpFn);
 
         inc(IATRVA, sizet); // next item
         inc(PATCHRVA, sizet);

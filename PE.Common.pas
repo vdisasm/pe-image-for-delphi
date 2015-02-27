@@ -124,6 +124,7 @@ const
   SCategorySections     = 'Sections';
   SCategoryDataDirecory = 'Data Directories';
   SCategoryResources    = 'Resources';
+  SCategoryImports      = 'Imports';
 
 implementation
 
