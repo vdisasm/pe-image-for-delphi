@@ -25,9 +25,15 @@ type
 
     procedure Clear;
 
+    procedure NullInvalid(const Msg: TMsgMgr);
+
     // Load array of TImageDataDirectory (va,size) from stream.
-    procedure LoadDirectoriesFromStream(Stream: TStream; const Msg: TMsgMgr;
-      DeclaredCount: integer);
+    procedure LoadDirectoriesFromStream(
+      Stream: TStream;
+      const Msg: TMsgMgr;
+      DeclaredCount: uint32; // # of rva and sizes
+      MaxBytes: uint16
+      );
 
     // Save array of TImageDataDirectory (va,size) to stream.
     // Return saved size.
@@ -190,59 +196,11 @@ begin
     Result := '';
 end;
 
-procedure TDataDirectories.LoadDirectoriesFromStream;
+procedure TDataDirectories.NullInvalid(const Msg: TMsgMgr);
 var
-  CountToEOF: integer; // Count from StartOfs to EOF.
-  CountToRead: integer;
-  SizeToEOF: uint64;
-  Size: uint32;
   i: integer;
   needToNullDir: boolean;
 begin
-  Clear;
-
-  if DeclaredCount = 0 then
-  begin
-    Msg.Write(SCategoryDataDirecory, 'No data directories.');
-    exit;
-  end;
-
-  SizeToEOF := (Stream.Size - Stream.Position);
-
-  CountToEOF := SizeToEOF div SizeOf(TImageDataDirectory);
-
-  // File can have part of dword stored. It must be extended with zeros.
-  if (SizeToEOF mod SizeOf(TImageDataDirectory)) <> 0 then
-    inc(CountToEOF);
-
-  CountToRead := DeclaredCount;
-
-  if DeclaredCount <> TYPICAL_NUMBER_OF_DIRECTORIES then
-    Msg.Write(SCategoryDataDirecory, 'Non-usual count of directories (%d).', [DeclaredCount]);
-
-  if DeclaredCount > CountToEOF then
-  begin
-    CountToRead := CountToEOF;
-
-    Msg.Write(SCategoryDataDirecory,
-      'Declared count of directories is greater than file can contain (%d > %d).',
-      [DeclaredCount, CountToEOF]);
-  end;
-
-  // Read data directories.
-
-  Size := CountToRead * SizeOf(TImageDataDirectory);
-  SetLength(FItems, CountToRead);
-
-  // Must clear buffer, cause it can have partial values (filled with zeros).
-  FillChar(FItems[0], Size, 0);
-
-  // Not all readed size/rva can be valid. You must check rvas before use.
-  Stream.Read(FItems[0], Size);
-
-  // Set final count.
-  self.Count := CountToRead;
-
   // Check RVAs.
   for i := 0 to self.Count - 1 do
   begin
@@ -269,6 +227,70 @@ begin
       Msg.Write(SCategoryDataDirecory, 'Directory # %d nulled.', [i]);
     end;
   end;
+end;
+
+procedure TDataDirectories.LoadDirectoriesFromStream;
+var
+  MaxCountPossible: integer;
+  CountToRead: integer;
+  SizeToFileEnd: uint64;
+  Size: uint32;
+  MaxSizePossible: uint16;
+begin
+  Clear;
+
+  if DeclaredCount = 0 then
+  begin
+    Msg.Write(SCategoryDataDirecory, 'No data directories.');
+    exit;
+  end;
+
+  SizeToFileEnd := (Stream.Size - Stream.Position);
+
+  // Max size available for dirs.
+  if SizeToFileEnd > MaxBytes then
+    MaxSizePossible := MaxBytes
+  else
+    MaxSizePossible := SizeToFileEnd;
+
+  MaxCountPossible := MaxSizePossible div SizeOf(TImageDataDirectory);
+
+  // File can have part of dword stored. It must be extended with zeros.
+  if (MaxSizePossible mod SizeOf(TImageDataDirectory)) <> 0 then
+    inc(MaxCountPossible);
+
+  if DeclaredCount <> TYPICAL_NUMBER_OF_DIRECTORIES then
+    Msg.Write(SCategoryDataDirecory, 'Non-usual count of directories declared (0x%x).', [DeclaredCount]);
+
+  if DeclaredCount > MaxCountPossible then
+  begin
+    CountToRead := MaxCountPossible;
+
+    Msg.Write(SCategoryDataDirecory,
+      'Declared count of directories is greater than file can contain (0x%x > 0x%x).',
+      [DeclaredCount, MaxCountPossible]);
+    Msg.Write(SCategoryDataDirecory, 'Fall back to 0x%x.', [MaxCountPossible]);
+  end
+  else
+  begin
+    CountToRead := DeclaredCount;
+  end;
+
+  // Read data directories.
+
+  Size := CountToRead * SizeOf(TImageDataDirectory);
+  SetLength(FItems, CountToRead);
+
+  // Must clear buffer, cause it can have partial values (filled with zeros).
+  FillChar(FItems[0], Size, 0);
+
+  // Not all readed size/rva can be valid. You must check rvas before use.
+  Stream.Read(FItems[0], Size);
+
+  // Set final count.
+  self.Count := CountToRead;
+
+  NullInvalid(Msg);
 end;
 
 function TDataDirectories.SaveToStream(Index: integer; Stream: TStream): boolean;

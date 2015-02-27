@@ -1594,6 +1594,11 @@ begin
 
   // Safe read optional header.
   OptHdrSizeRead := FOptionalHeader.ReadFromStream(AStream, FImageBitSize, -1);
+
+  // Can't read more bytes then available.
+  if OptHdrSizeRead > FFileHeader.SizeOfOptionalHeader then
+    raise Exception.Create('Read size of opt. header > FileHeader.SizeOfOptionalHeader');
+
   DataDirOfs := AStream.Position;
 
   // Load Section Headers.
@@ -1608,8 +1613,10 @@ begin
   if OptHdrSizeRead <> 0 then
   begin
     AStream.Position := DataDirOfs;
+
     FDataDirectories.LoadDirectoriesFromStream(AStream, Msg,
-      FOptionalHeader.NumberOfRvaAndSizes // declared count
+      FOptionalHeader.NumberOfRvaAndSizes,              // declared count
+      FFileHeader.SizeOfOptionalHeader - OptHdrSizeRead // bytes left in optional header
       );
   end;
 
