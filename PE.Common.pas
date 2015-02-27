@@ -125,6 +125,7 @@ const
   SCategoryDataDirecory = 'Data Directories';
   SCategoryResources    = 'Resources';
   SCategoryImports      = 'Imports';
+  SCategoryTLS          = 'TLS';
 
 implementation
 

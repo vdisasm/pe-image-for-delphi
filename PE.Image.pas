@@ -268,6 +268,7 @@ type
     function VAToSec(VA: TRVA; OutSec: PPESection): boolean;
 
     // Convert VA to RVA.
+    // Make sure VA is >= ImageBase.
     function VAToRVA(VA: TVA): TRVA; inline;
 
     // Check if RVA/VA belongs to image.
@@ -576,7 +577,7 @@ end;
 
 function TPEImage.ContainsVA(VA: TVA): boolean;
 begin
-  Result := ContainsRVA(VAToRVA(VA));
+  Result := (VA >= ImageBase) and ContainsRVA(VAToRVA(VA));
 end;
 
 destructor TPEImage.Destroy;
@@ -1080,7 +1081,7 @@ end;
 
 function TPEImage.SeekVA(VA: TVA): boolean;
 begin
-  Result := SeekRVA(VAToRVA(VA));
+  Result := (VA >= ImageBase) and SeekRVA(VAToRVA(VA));
 end;
 
 procedure TPEImage.Skip(Count: integer);
@@ -1402,7 +1403,7 @@ end;
 
 function TPEImage.VAExists(VA: TRVA): boolean;
 begin
-  Result := RVAToSec(VAToRVA(VA), nil);
+  Result := (VA >= ImageBase) and RVAToSec(VAToRVA(VA), nil);
 end;
 
 function TPEImage.VAToMem(VA: TVA): Pointer;
@@ -1412,12 +1413,12 @@ end;
 
 function TPEImage.VAToOfs(VA: TVA; OutOfs: PDword): boolean;
 begin
-  Result := RVAToOfs(VAToRVA(VA), OutOfs);
+  Result := (VA >= ImageBase) and RVAToOfs(VAToRVA(VA), OutOfs);
 end;
 
 function TPEImage.VAToSec(VA: TRVA; OutSec: PPESection): boolean;
 begin
-  Result := RVAToSec(VAToRVA(VA), OutSec);
+  Result := (VA >= ImageBase) and RVAToSec(VAToRVA(VA), OutSec);
 end;
 
 function TPEImage.VAToRVA(VA: TVA): TRVA;

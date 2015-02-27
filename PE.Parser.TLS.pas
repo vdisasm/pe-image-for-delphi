@@ -43,7 +43,7 @@ begin
 
   if not PE.SeekRVA(Dir.VirtualAddress) then
   begin
-    PE.Msg.Write('[TLS] Incorrect directory RVA.');
+    PE.Msg.Write(SCategoryTLS, 'Incorrect directory RVA.');
     exit(PR_ERROR);
   end;
 
@@ -64,7 +64,7 @@ begin
 
   if not bRead then
   begin
-    PE.Msg.Write('[TLS] Failed to read directory.');
+    PE.Msg.Write(SCategoryTLS, 'Failed to read directory.');
     exit(PR_ERROR);
   end;
 
@@ -79,7 +79,7 @@ begin
 
   if not PE.SeekVA(AddressofCallbacks) then
   begin
-    PE.Msg.Write('[TLS] Incorrect address of callbacks.');
+    PE.Msg.Write(SCategoryTLS, 'Incorrect address of callbacks.');
     exit(PR_OK);
   end;
 
@@ -90,7 +90,7 @@ begin
     // Try to read callback address.
     if not PE.ReadWordEx(0, @CallbackVA) then
     begin
-      PE.Msg.Write('[TLS] Failed to read callback address at RVA: 0x%x. Probably malformed data.', [CurRVA]);
+      PE.Msg.Write(SCategoryTLS, 'Failed to read callback address at RVA: 0x%x. Probably malformed data.', [CurRVA]);
       break;
     end;
 
@@ -101,7 +101,7 @@ begin
     // Does the address exist?
     if not PE.VAExists(CallbackVA) then
     begin
-      PE.Msg.Write('[TLS] Bad callback address (0x%x) at RVA: 0x%x', [CallbackVA, CurRVA]);
+      PE.Msg.Write(SCategoryTLS, 'Bad callback address (0x%x) at RVA: 0x%x', [CallbackVA, CurRVA]);
       break;
     end;
 

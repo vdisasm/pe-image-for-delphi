@@ -29,12 +29,6 @@ uses
 
 { TPEImportParser }
 
-function ReadGoodILTItem(PE: TPEImage; var dq: uint64): boolean; inline;
-begin
-  dq := PE.ReadWord;
-  Result := dq <> 0;
-end;
-
 function TPEImportParser.Parse: TParserResult;
 type
   TImpDirs = TList<TImportDirectoryTable>;
@@ -60,7 +54,7 @@ var
 begin
   PE := TPEImage(FPE);
 
-  Result := PR_ERROR;
+  result := PR_ERROR;
   IDirs := TImpDirs.Create;
   ILTs := TILTs.Create;
   try
@@ -81,7 +75,7 @@ begin
 
     // Read import descriptors.
     dwLeft := dir.Size;
-    bEmptyLastDirFound := False;
+    bEmptyLastDirFound := false;
     while dwLeft >= sizeof(IDir) do
     begin
       // Read IDir.
@@ -140,22 +134,10 @@ begin
         Continue;
       end;
 
-      Lib := TPEImportLibrary.Create(LibraryName, IDir.IsBound);
-      PE.Imports.Add(Lib);
-
-      Lib.TimeDateStamp := IDir.TimeDateStamp;
-
-      // Skip bad dll name.
-      if Lib.Name.IsEmpty then
-      begin
-        PE.Msg.Write(SCategoryImports, 'Bad library name (# %d)', [IDirNumber]);
-        Continue;
-      end;
-
       PATCHRVA := IDir.FirstThunk;
       if PATCHRVA = 0 then
       begin
-        PE.Msg.Write(SCategoryImports, 'Library # %d (%s) has NULL patch RVA.', [IDirNumber, Lib.Name]);
+        PE.Msg.Write(SCategoryImports, 'Library # %d (%s) has NULL patch RVA.', [IDirNumber, LibraryName]);
         break;
       end;
 
@@ -166,16 +148,27 @@ begin
 
       if IATRVA = 0 then
       begin
-        PE.Msg.Write(SCategoryImports, 'Library # %d (%s) has NULL IAT RVA.', [IDirNumber, Lib.Name]);
+        PE.Msg.Write(SCategoryImports, 'Library # %d (%s) has NULL IAT RVA.', [IDirNumber, LibraryName]);
         break;
       end;
 
-      Lib.IATRVA := IATRVA;
+      // Lib will be created just in time.
+      Lib := nil;
 
       // Read IAT elements.
-      while PE.SeekRVA(IATRVA) and ReadGoodILTItem(PE, dq) do
+      while PE.SeekRVA(IATRVA) do
       begin
-        // Process only unique functions (by RVA).
+        if not PE.ReadWordEx(0, @dq) then
+        begin
+          // Failed to read word and not null yet reached.
+          FreeAndNil(Lib);
+          PE.Msg.Write(SCategoryImports, 'Bad directory # %d. Skipped.', [IDirNumber]);
+          break;
+        end;
+
+        if dq = 0 then
+          break;
+
         ILT.Create(dq, bIs32);
 
         ImpFn := TPEImportFunction.CreateEmpty;
@@ -195,14 +188,28 @@ begin
           ImpFn.Name := PE.ReadAnsiString;
         end;
 
+        if not assigned(Lib) then
+        begin
+          // Create lib once in loop.
+          // Added after loop (if not discarded).
+          Lib := TPEImportLibrary.Create(LibraryName, IDir.IsBound);
+          Lib.TimeDateStamp := IDir.TimeDateStamp;
+          Lib.IATRVA := IATRVA;
+        end;
+
         Lib.Functions.Add(ImpFn);
 
         inc(IATRVA, sizet); // next item
         inc(PATCHRVA, sizet);
       end;
+
+      // If lib is generated, add it.
+      if assigned(Lib) then
+        PE.Imports.Add(Lib);
+
     end;
 
-    Result := PR_OK;
+    result := PR_OK;
 
   finally
     IDirs.Free;
