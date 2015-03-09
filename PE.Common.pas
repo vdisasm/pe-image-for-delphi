@@ -77,8 +77,12 @@ const
   DEFAULT_PARSER_FLAGS = ALL_PARSER_FLAGS;
   DEFAULT_OPTIONS      = [
     PO_SECTION_VSIZE_FALLBACK,
-    PO_SECTION_AUTORENAME_NON_ALPHANUMERIC,
-    PO_NULL_INVALID_DIRECTORY
+
+  // This is disabled by default because now it can reject good names, like
+  // .text, .data. In future this option must be either removed or reworked.
+  // PO_SECTION_AUTORENAME_NON_ALPHANUMERIC,
+
+  PO_NULL_INVALID_DIRECTORY
     ];
 
   // Data directories.
