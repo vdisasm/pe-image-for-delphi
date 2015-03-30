@@ -66,7 +66,8 @@ See **TParserFlag** in **PE.Common** unit
 By default all flags used (DEFAULT\_PARSER\_FLAGS which equals ALL\_PARSER\_FLAGS)
 
 ## Image layout ##
-or image kind, declared in **PE.Common**
+Image layout (or image kind) is declared in **PE.Common**
+
 |PEIMAGE\_KIND\_DISK|use disk layout|
 |:------------------|:--------------|
 |PEIMAGE\_KIND\_MEMORY|use memory layout|
