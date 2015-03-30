@@ -11,7 +11,6 @@ There are functions to
   * build image
     * adding sections, imports, export and other
     * saving image to file
-> and other, see **[wiki](https://code.google.com/p/pe-image-for-delphi/wiki)**
 
 ---
 
