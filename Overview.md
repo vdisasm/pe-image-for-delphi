@@ -2,8 +2,6 @@
 
 **PEImage** library can be used to parse and modify 32/64 bit executable images. Image can be loaded from stream, file or from mapped image.
 
-The library is part of [VDisAsm Project](http://vdisasm.com/)
-
 Also it can make simple image building/rebuilding. But it's rather experimental.
 
 
