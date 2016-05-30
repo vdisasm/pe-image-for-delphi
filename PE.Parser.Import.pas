@@ -141,10 +141,10 @@ begin
         break;
       end;
 
-      if IDir.OriginalFirstThunk <> 0 then
-        IATRVA := IDir.OriginalFirstThunk
+      if IDir.ImportAddressTable <> 0 then
+        IATRVA := IDir.ImportAddressTable
       else
-        IATRVA := IDir.FirstThunk;
+        IATRVA := IDir.ImportLookupTableRVA;
 
       if IATRVA = 0 then
       begin
