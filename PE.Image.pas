@@ -1609,7 +1609,7 @@ begin
     exit;
 
   // Add header as a section.
-  LoadingAddHeaderAsASection(AStream);
+  // LoadingAddHeaderAsASection(AStream);
 
   // Read data directories.
   if OptHdrSizeRead <> 0 then
