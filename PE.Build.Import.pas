@@ -136,10 +136,18 @@ begin
     exit;
 
   idt.ImportLookupTableRVA := DirRVA + ofs_name_pointers;
-  idt.ImportAddressTable := DirRVA + ofs_iat;
 
-  // Update IAT in library.
-  Lib.IatRva := idt.ImportAddressTable;
+  if (not Lib.Original) then
+  begin
+    idt.ImportAddressTable := DirRVA + ofs_iat;
+
+    // Update IAT in library.
+    Lib.IatRva := idt.ImportAddressTable;
+  end
+  else
+  begin
+    idt.ImportAddressTable := Lib.IatRva;
+  end;
 
   hint := 0;
   for fn in Lib.Functions do

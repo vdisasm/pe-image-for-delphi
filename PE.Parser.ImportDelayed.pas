@@ -83,7 +83,7 @@ begin
 
   if not Testing then
   begin
-    Lib := TPEImportLibrary.Create(DllName);
+    Lib := TPEImportLibrary.Create(DllName, False, True);
     PE.ImportsDelayed.Add(Lib);
   end
   else

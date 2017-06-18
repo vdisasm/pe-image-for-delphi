@@ -192,7 +192,7 @@ begin
         begin
           // Create lib once in loop.
           // Added after loop (if not discarded).
-          Lib := TPEImportLibrary.Create(LibraryName, IDir.IsBound);
+          Lib := TPEImportLibrary.Create(LibraryName, IDir.IsBound, True);
           Lib.TimeDateStamp := IDir.TimeDateStamp;
           Lib.IATRVA := IATRVA;
         end;
